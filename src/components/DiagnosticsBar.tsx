@@ -1,7 +1,6 @@
 import type { MicPermissionStatus } from "@/hooks/useSpeechRecognition";
 import type { VoiceEngineStatus } from "@/hooks/useSpeechSynthesis";
-
-export type VisionProviderName = "mock" | "anthropic" | null;
+import type { VisionProviderName } from "@/hooks/useVisionDiagnostics";
 
 interface DiagnosticsBarProps {
   visionProvider: VisionProviderName;
@@ -59,8 +58,8 @@ export function DiagnosticsBar({
         title={
           visionProvider === "mock"
             ? "No real vision provider configured - responses are a scripted demo, not analysis of your camera."
-            : visionProvider === "anthropic"
-              ? "Connected to a real vision model."
+            : visionProvider === "gemini" || visionProvider === "anthropic"
+              ? `Connected to a real vision model (${visionProvider}).`
               : undefined
         }
       />

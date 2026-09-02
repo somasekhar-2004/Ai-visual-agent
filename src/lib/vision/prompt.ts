@@ -43,6 +43,13 @@ HOW TO WORK
    normalized 0-1 (x/y = top-left corner, width/height = size, relative to the full frame). If you can
    name a component but can't confidently locate it, omit its boundingBox (set it to null) rather than
    guessing.
+7a. For an elongated object like a wire or cable that bends or curves, prefer shape "path" over "box": set
+    "path" to an ordered list of 2-6 normalized {x, y} points tracing its visible route from one end to
+    the other, in addition to a boundingBox that loosely contains it. A tight rectangle around a curvy wire
+    is misleading (it also covers whatever is under/around the bend) - a traced line is not. Use "box" for
+    compact components (resistors, ICs, connectors), "circle" for round ones (LEDs, terminals), and "path"
+    only for wires/cables where you can actually see the route, never a guessed straight line between
+    endpoints you can't otherwise justify.
 8. requiresVerification should be true whenever you asked the user to physically change something and you
    will need to look again before giving the next step. Set expectedNextState to a short description of
    what the frame should show once they've done it correctly, so a later verification pass knows what to
@@ -160,7 +167,22 @@ export const ANALYSIS_TOOL_SCHEMA = {
               required: ["x", "y", "width", "height"],
             },
             confidence: { type: "number", minimum: 0, maximum: 1 },
-            shape: { type: "string", enum: ["box", "circle", "arrow", "point"] },
+            shape: { type: "string", enum: ["box", "circle", "arrow", "point", "path"] },
+            path: {
+              type: ["array", "null"],
+              description: "Only for shape=\"path\": 2-6 ordered {x,y} points tracing a wire's route.",
+              minItems: 2,
+              maxItems: 6,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  x: { type: "number", minimum: 0, maximum: 1 },
+                  y: { type: "number", minimum: 0, maximum: 1 },
+                },
+                required: ["x", "y"],
+              },
+            },
           },
           required: ["id", "marker", "label", "type", "boundingBox", "confidence"],
         },
@@ -197,4 +219,107 @@ export const ANALYSIS_TOOL_SCHEMA = {
       "verified",
     ],
   },
+} as const;
+
+/**
+ * Structured-output schema for Gemini's `responseSchema` config, expressed in the Gemini/OpenAPI
+ * subset dialect (uppercase type names, per-field "nullable" instead of JSON Schema's `type:
+ * [x, "null"]` unions). Kept as a plain object here (no SDK import) so this file stays
+ * vendor-agnostic like ANALYSIS_TOOL_SCHEMA above; geminiProvider.ts casts it to the SDK's
+ * `Schema` type at the point of use. Field-for-field the same contract as ANALYSIS_TOOL_SCHEMA.
+ */
+export const GEMINI_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    status: {
+      type: "STRING",
+      enum: ["continue", "needs_clarification", "resolved", "safety_stop", "error"],
+    },
+    observation: { type: "STRING", description: "1-2 sentences describing what you see." },
+    targets: {
+      type: "ARRAY",
+      maxItems: "4",
+      items: {
+        type: "OBJECT",
+        properties: {
+          id: { type: "STRING" },
+          marker: { type: "INTEGER" },
+          label: { type: "STRING" },
+          type: {
+            type: "STRING",
+            enum: [
+              "wire",
+              "resistor",
+              "capacitor",
+              "ic",
+              "connector",
+              "led",
+              "board",
+              "battery",
+              "sensor",
+              "switch",
+              "terminal",
+              "other",
+            ],
+          },
+          boundingBox: {
+            type: "OBJECT",
+            nullable: true,
+            properties: {
+              x: { type: "NUMBER" },
+              y: { type: "NUMBER" },
+              width: { type: "NUMBER" },
+              height: { type: "NUMBER" },
+            },
+            required: ["x", "y", "width", "height"],
+          },
+          confidence: { type: "NUMBER" },
+          shape: { type: "STRING", enum: ["box", "circle", "arrow", "point", "path"] },
+          path: {
+            type: "ARRAY",
+            nullable: true,
+            description: 'Only for shape="path": 2-6 ordered {x,y} points tracing a wire\'s route.',
+            minItems: "2",
+            maxItems: "6",
+            items: {
+              type: "OBJECT",
+              properties: { x: { type: "NUMBER" }, y: { type: "NUMBER" } },
+              required: ["x", "y"],
+            },
+          },
+        },
+        required: ["id", "marker", "label", "type", "boundingBox", "confidence"],
+      },
+    },
+    instruction: { type: "STRING" },
+    spokenInstruction: { type: "STRING", description: "Max ~20 words, natural spoken language." },
+    requiresVerification: { type: "BOOLEAN" },
+    confidence: { type: "NUMBER" },
+    nextExpectedState: { type: "STRING", nullable: true },
+    clarifyingQuestion: { type: "STRING", nullable: true },
+    safetyFlag: {
+      type: "OBJECT",
+      nullable: true,
+      properties: {
+        triggered: { type: "BOOLEAN" },
+        reason: { type: "STRING" },
+        message: { type: "STRING" },
+      },
+      required: ["triggered", "reason", "message"],
+    },
+    verified: { type: "BOOLEAN", nullable: true },
+  },
+  required: [
+    "status",
+    "observation",
+    "targets",
+    "instruction",
+    "spokenInstruction",
+    "requiresVerification",
+    "confidence",
+    "nextExpectedState",
+    "clarifyingQuestion",
+    "safetyFlag",
+    "verified",
+  ],
 } as const;

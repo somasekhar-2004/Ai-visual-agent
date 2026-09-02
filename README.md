@@ -44,11 +44,15 @@ provider or a fixed hostname? Set `NEXT_DEV_ALLOWED_ORIGINS=your-tunnel-host.exa
   (`src/lib/changeDetection.ts`) detects the scene moved and then settled. A cooldown prevents
   request flooding, and only one AI request is ever in flight at a time.
 - **Modular vision layer** (`src/lib/vision/`) — a `VisionProvider` interface with a
-  `MockVisionProvider` (scripted, deterministic, free) and an `AnthropicVisionProvider` (real
-  multimodal vision via a forced structured tool-call), selected server-side by `VISION_PROVIDER`.
-- **Live overlays** — a canvas layer above the `<video>` draws boxes/circles/numbered markers
-  aligned to normalized (0–1) bounding boxes, staying correct across resize/orientation changes
-  and object-fit:cover cropping (`src/components/CameraOverlay.tsx`).
+  `MockVisionProvider` (scripted, deterministic, free), a `GeminiVisionProvider` (real multimodal
+  vision via Gemini's native `responseSchema`, the default real provider - see
+  [Switching to a real vision model](#switching-to-a-real-vision-model)), and an
+  `AnthropicVisionProvider` (real vision via a forced structured tool-call), selected server-side
+  by `VISION_PROVIDER`/whichever API key is present.
+- **Live overlays** — a canvas layer above the `<video>` draws boxes/circles/numbered markers, plus
+  traced polylines for wire-shaped `path` targets, aligned to normalized (0–1) coordinates and
+  staying correct across resize/orientation changes and object-fit:cover cropping
+  (`src/components/CameraOverlay.tsx`).
 - **Voice output** — Web Speech `SpeechSynthesis`, with mute toggle, replay button, and a rate
   slider. Every instruction is short and spoken automatically.
 - **Voice input** — Web Speech `SpeechRecognition` with a text-input fallback (and a visible
@@ -86,25 +90,32 @@ src/
     api/
       analyze/route.ts       # POST: initial/followup analysis
       verify/route.ts        # POST: verification of a completed step
+      diagnostics/route.ts   # GET: which VisionProvider is active (never the key itself)
   components/
     LiveCamera.tsx           # <video> + permission/error states
-    CameraOverlay.tsx        # canvas overlay: boxes/circles/markers aligned to the video
-    InstructionPanel.tsx     # current instruction, speaker controls
+    CameraOverlay.tsx        # canvas overlay: boxes/circles/markers/wire-paths aligned to the video
+    InstructionPanel.tsx     # current instruction, speaker controls, inline voice-error message
     VoiceInput.tsx           # mic button + text fallback
     SessionHistory.tsx       # collapsible timeline
     StatusIndicator.tsx      # Watching/Listening/Analyzing/Checking/Speaking pill
+    DiagnosticsBar.tsx       # Vision MOCK/REAL, Voice READY/FAILED, Mic READY/BLOCKED
+    DemoModeBanner.tsx       # persistent "no real vision configured" notice
     SafetyBanner.tsx
   hooks/
     useCamera.ts             # getUserMedia lifecycle
     useSpeechSynthesis.ts
     useSpeechRecognition.ts
+    useVisionDiagnostics.ts  # fetches /api/diagnostics once on mount
     useTroubleshootingSession.ts   # the core orchestrator loop
   lib/
     vision/
       types.ts               # VisionProvider interface + strict response types
-      prompt.ts               # shared system prompt + JSON schema for real providers
+      prompt.ts               # shared system prompt + per-provider structured-output schemas
+      dataUrl.ts               # shared data-URL -> {mediaType, base64} parsing
+      sanitize.ts              # shared defensive validation of a raw model response
       mockProvider.ts
-      anthropicProvider.ts
+      geminiProvider.ts        # real provider: Google Gemini (default when GEMINI_API_KEY is set)
+      anthropicProvider.ts     # real provider: Anthropic Claude
       handleAnalysis.ts       # shared request parsing/validation + safety short-circuit
       index.ts                # provider factory (env-driven)
     session/
@@ -133,13 +144,14 @@ src/
 Copy `.env.example` to `.env.local`:
 
 ```bash
-VISION_PROVIDER=mock        # "mock" | "anthropic"
-VISION_API_KEY=             # required if VISION_PROVIDER=anthropic
-VISION_MODEL=                # optional, provider has a sensible default
+VISION_PROVIDER=mock        # "mock" | "gemini" | "anthropic" - leave unset to auto-detect
+GEMINI_API_KEY=              # used by the "gemini" provider (checked first when auto-detecting)
+VISION_API_KEY=              # used by the "anthropic" provider
+VISION_MODEL=                # optional, each provider has a sensible default
 ```
 
-The API key is only ever read server-side inside the `/api/analyze` and `/api/verify` route
-handlers — it is never sent to or bundled into client code.
+Both API keys are only ever read server-side inside the `/api/analyze`, `/api/verify`, and
+`/api/diagnostics` route handlers — never sent to or bundled into client code.
 
 ## Mock mode
 
@@ -171,7 +183,34 @@ come from this - a real error is always shown, never hidden behind an optimistic
 
 ## Switching to a real vision model
 
-Set in `.env.local`:
+### Gemini (default real provider)
+
+Get a key from [Google AI Studio](https://aistudio.google.com/apikey), then in `.env.local`:
+
+```bash
+GEMINI_API_KEY=AIza...
+VISION_MODEL=gemini-2.5-flash   # optional, this is already the default
+```
+
+That's it - `VISION_PROVIDER` can stay unset; the factory in `src/lib/vision/index.ts` auto-detects
+`GEMINI_API_KEY` and switches from the mock provider to `GeminiVisionProvider` automatically. The
+key is read server-side only (inside the `/api/analyze` and `/api/verify` route handlers via
+`getVisionProvider()`) and is never sent to or bundled into client code - `CameraOverlay.tsx` and
+`useTroubleshootingSession.ts` only import `type`-only declarations from `src/lib/vision/types.ts`,
+never the provider implementations themselves.
+
+`GeminiVisionProvider` (`src/lib/vision/geminiProvider.ts`) sends the captured frame + conversation
+context to Gemini with `responseMimeType: "application/json"` and a `responseSchema` (Gemini's
+native structured-output schema, `GEMINI_RESPONSE_SCHEMA` in `src/lib/vision/prompt.ts`) so the
+response always matches the same strict JSON contract every provider returns, including
+`shape: "path"` targets: for a bent/curved wire, Gemini can return an ordered list of `{x, y}`
+points tracing its visible route instead of a single bounding box, which `CameraOverlay.tsx` draws
+as a traced polyline (round-jointed, with end-point dots) rather than a rectangle that would also
+cover whatever sits inside the bend. Every field is still defensively sanitized on the way in
+(`src/lib/vision/sanitize.ts`, shared with the Anthropic provider) - a forced schema narrows what a
+model *can* return, it doesn't make the response trusted input.
+
+### Anthropic (alternate real provider)
 
 ```bash
 VISION_PROVIDER=anthropic
@@ -179,10 +218,12 @@ VISION_API_KEY=sk-ant-...
 VISION_MODEL=claude-sonnet-5   # optional
 ```
 
-`AnthropicVisionProvider` sends the captured frame + conversation context to Claude with a
-forced structured tool call, so the response always matches the strict JSON contract in
-`src/lib/vision/types.ts`. To add another provider, implement the `VisionProvider` interface
-and wire it into `src/lib/vision/index.ts`'s `getVisionProvider()` factory.
+`AnthropicVisionProvider` does the same thing via a forced tool-call instead of a native JSON
+schema. If both `GEMINI_API_KEY` and `VISION_API_KEY` are set with no explicit `VISION_PROVIDER`,
+Gemini wins; set `VISION_PROVIDER=anthropic` explicitly to override that.
+
+To add another provider, implement the `VisionProvider` interface and wire it into
+`src/lib/vision/index.ts`'s `getVisionProvider()` factory.
 
 ## Scripts
 

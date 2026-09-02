@@ -28,6 +28,13 @@ export interface NormalizedBoundingBox {
   height: number;
 }
 
+export interface NormalizedPoint {
+  /** 0-1, relative to frame width */
+  x: number;
+  /** 0-1, relative to frame height */
+  y: number;
+}
+
 export interface VisualTarget {
   id: string;
   /** Stable small integer used as an on-screen marker (1, 2, 3...) so color isn't required. */
@@ -37,7 +44,14 @@ export interface VisualTarget {
   boundingBox: NormalizedBoundingBox | null;
   /** 0-1 confidence in the *location* of this target. */
   confidence: number;
-  shape?: "box" | "circle" | "arrow" | "point";
+  shape?: "box" | "circle" | "arrow" | "point" | "path";
+  /**
+   * Ordered polyline points (2+) tracing an elongated object's visible route, normalized 0-1.
+   * Used for "path" shape targets - a wire following a bend looks much better highlighted as a
+   * traced line than boxed in a big rectangle. Only meaningful when shape is "path"; null/absent
+   * otherwise. boundingBox is still expected alongside it (used as a fallback and for hit-testing).
+   */
+  path?: NormalizedPoint[] | null;
 }
 
 export type SessionStatus =

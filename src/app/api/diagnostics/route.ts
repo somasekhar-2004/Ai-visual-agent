@@ -10,9 +10,24 @@ export const runtime = "nodejs";
  * since that's exactly the kind of assumption that leads to treating mock output as real.
  */
 export async function GET() {
-  const provider = getVisionProvider();
-  return NextResponse.json({
-    visionProvider: provider.name,
-    isMock: provider.name === "mock",
-  });
+  try {
+    const provider = getVisionProvider();
+    return NextResponse.json({
+      visionProvider: provider.name,
+      isMock: provider.name === "mock",
+    });
+  } catch (err) {
+    // Misconfiguration (e.g. VISION_PROVIDER=gemini with no GEMINI_API_KEY) - report it
+    // instead of a bare 500, so the diagnostics UI can show something meaningful rather than
+    // just a failed fetch.
+    console.error("[/api/diagnostics] failed:", err);
+    return NextResponse.json(
+      {
+        visionProvider: null,
+        isMock: false,
+        error: err instanceof Error ? err.message : "Vision provider is misconfigured.",
+      },
+      { status: 500 },
+    );
+  }
 }
