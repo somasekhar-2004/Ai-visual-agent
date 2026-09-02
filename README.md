@@ -65,7 +65,16 @@ provider or a fixed hostname? Set `NEXT_DEV_ALLOWED_ORIGINS=your-tunnel-host.exa
   instruction to the vision model to flag mains/high-voltage equipment. Either one stops
   step-by-step guidance and shows a safety banner instead.
 - **Mock mode** — a scripted 4-step breadboard walkthrough (wire → resistor → LED → ground) for
-  developing/demoing the whole experience without any API key or cost.
+  developing/demoing the whole experience without any API key or cost. Every string it returns
+  is written to never claim it observed your actual circuit ("DEMO MODE...", every target label
+  suffixed "(simulated)") and a persistent banner says so too - a demo must never read as a real
+  diagnosis.
+- **Diagnostics strip** — a small always-visible indicator (`src/components/DiagnosticsBar.tsx`)
+  showing `Vision: MOCK/REAL` (from `/api/diagnostics`, server-side only - the client never
+  guesses), `Voice: READY/FAILED`, and `Mic: READY/BLOCKED`, so voice/mic problems are visible
+  immediately instead of failing silently.
+- **iOS-safe voice output** — `speechSynthesis` only works reliably on iOS Safari/Chrome if
+  unlocked by a real, synchronous user gesture; see [Voice output on iOS](#voice-output-on-ios).
 
 ## Architecture
 
@@ -140,6 +149,25 @@ resistor → LED/ground → GND jumper) with realistic bounding boxes, verificat
 safety-stop demo (mention "wall socket" or "mains" and it will stop and show the safety
 banner). This is enough to fully exercise the camera, overlay, voice, and verify-loop UX before
 spending any API credits.
+
+## Voice output on iOS
+
+iOS Safari (and iOS Chrome, which is required by Apple to use the same WebKit engine) only lets
+`speechSynthesis` actually produce audio if the very first `speak()` call in the page's lifetime
+happens synchronously inside a real user gesture handler - not after an `await`, not on page
+load. Because of that, the app deliberately does **not** auto-start the camera on load; the
+"Enable camera" button's `onClick` calls `unlockVoice()` (in `src/hooks/useSpeechSynthesis.ts`)
+synchronously, before the async `camera.start()`, priming the speech engine for the rest of the
+session.
+
+On top of that, `src/hooks/useSpeechSynthesis.ts` works around several other iOS quirks:
+`getVoices()` is often empty until the async `voiceschanged` event fires (handled by an eager
+listener + fallback to the browser default voice), a previous stuck/queued utterance can
+silently block a new one unless `speechSynthesis.cancel()` runs first, and `onstart` isn't
+guaranteed to fire when playback is blocked - so a ~2.5s start-timeout turns silence into a
+reported failure instead of a permanently stuck "Speaking…". The `Voice: READY/FAILED` entry in
+the diagnostics strip and the inline "Voice error: ..." message under the current step both
+come from this - a real error is always shown, never hidden behind an optimistic status.
 
 ## Switching to a real vision model
 

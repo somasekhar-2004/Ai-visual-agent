@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export type RecognitionState = "idle" | "listening" | "processing";
+/** For the "Microphone: READY / BLOCKED" diagnostic. "pending" until permission state is known. */
+export type MicPermissionStatus = "pending" | "ready" | "blocked";
 
 export interface UseSpeechRecognitionResult {
   supported: boolean;
   state: RecognitionState;
   interimTranscript: string;
+  micStatus: MicPermissionStatus;
   start: () => void;
   stop: () => void;
   /** Call once the app has finished handling a final transcript, to return to "idle". */
@@ -48,12 +51,46 @@ export function useSpeechRecognition(callbacks: SpeechRecognitionCallbacks): Use
 
   const [state, setState] = useState<RecognitionState>("idle");
   const [interimTranscript, setInterimTranscript] = useState("");
+  const [micStatus, setMicStatus] = useState<MicPermissionStatus>("pending");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const callbacksRef = useRef(callbacks);
 
   useEffect(() => {
     callbacksRef.current = callbacks;
   }, [callbacks]);
+
+  // Best-effort mic permission check via the Permissions API - not supported on every browser
+  // (notably older Safari), in which case micStatus just stays "pending" until the first real
+  // start()/onerror tells us for certain.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
+    let cancelled = false;
+    let statusRef: PermissionStatus | null = null;
+
+    const applyState = (state: PermissionState) => {
+      if (cancelled) return;
+      if (state === "granted") setMicStatus("ready");
+      else if (state === "denied") setMicStatus("blocked");
+      // "prompt" leaves micStatus at "pending" - permission hasn't been decided yet.
+    };
+
+    navigator.permissions
+      .query({ name: "microphone" as PermissionName })
+      .then((status) => {
+        if (cancelled) return;
+        statusRef = status;
+        applyState(status.state);
+        status.onchange = () => applyState(status.state);
+      })
+      .catch(() => {
+        /* Permissions API doesn't support querying "microphone" on this browser - ignore. */
+      });
+
+    return () => {
+      cancelled = true;
+      if (statusRef) statusRef.onchange = null;
+    };
+  }, []);
 
   const start = useCallback(() => {
     const Ctor = getRecognitionCtor();
@@ -67,6 +104,7 @@ export function useSpeechRecognition(callbacks: SpeechRecognitionCallbacks): Use
 
     recognition.onstart = () => {
       setState("listening");
+      setMicStatus("ready"); // actually listening is definitive proof mic access works
       callbacksRef.current.onListeningStart?.();
     };
     recognition.onresult = (event) => {
@@ -84,9 +122,12 @@ export function useSpeechRecognition(callbacks: SpeechRecognitionCallbacks): Use
         callbacksRef.current.onFinalResult(final.trim());
       }
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
       setState("idle");
       setInterimTranscript("");
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setMicStatus("blocked");
+      }
       callbacksRef.current.onListeningEnd?.();
     };
     recognition.onend = () => {
@@ -114,5 +155,5 @@ export function useSpeechRecognition(callbacks: SpeechRecognitionCallbacks): Use
     };
   }, []);
 
-  return { supported, state, interimTranscript, start, stop, finishProcessing };
+  return { supported, state, interimTranscript, micStatus, start, stop, finishProcessing };
 }

@@ -11,6 +11,9 @@ interface InstructionPanelProps {
   onReplay: () => void;
   speechRate: number;
   onRateChange: (rate: number) => void;
+  /** Exact reason the last voice-output attempt failed, if any - shown as-is, never hidden
+   * behind a generic "Speaking…" label. */
+  voiceError: string | null;
 }
 
 export function InstructionPanel({
@@ -24,6 +27,7 @@ export function InstructionPanel({
   onReplay,
   speechRate,
   onRateChange,
+  voiceError,
 }: InstructionPanelProps) {
   const bodyText = errorMessage ?? clarifyingQuestion ?? instruction?.text;
 
@@ -80,6 +84,13 @@ export function InstructionPanel({
       </div>
 
       {speaking && <p className="mt-2 text-[11px] font-medium text-emerald-400">Speaking…</p>}
+
+      {!speaking && voiceError && (
+        <p className="mt-2 flex items-start gap-1.5 text-[11px] font-medium text-red-400">
+          <span aria-hidden>⚠</span>
+          <span>Voice error: {voiceError}</span>
+        </p>
+      )}
 
       {speechSupported && (
         <div className="mt-3 flex items-center gap-2 border-t border-neutral-800 pt-3">

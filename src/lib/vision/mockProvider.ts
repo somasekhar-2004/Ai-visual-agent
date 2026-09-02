@@ -6,20 +6,23 @@ interface ScriptStep {
   instruction: string;
   spokenInstruction: string;
   nextExpectedState: string;
-  confirmText: string;
 }
 
 /**
- * Deterministic script so the UI/UX can be built and demoed without spending API credits.
- * Coordinates are plausible-looking spots on a breadboard; they intentionally don't depend on
- * the actual frame content since there is no real vision model behind this provider.
+ * IMPORTANT: this provider does not look at the camera frame at all - it has no real vision
+ * model behind it. It exists purely so the camera/overlay/voice/verify UX can be built and
+ * demoed without spending API credits (see README "Mock mode"). Every string here is written
+ * so it never claims to have actually observed the user's circuit ("I can see...", "this wire
+ * looks..."), and every target label is suffixed "(simulated)" so the overlay never implies a
+ * real detection - this is what stands between an honest demo and hallucinating components that
+ * were never there. Do not "improve" the copy back toward first-person observation claims.
  */
 const SCRIPT: ScriptStep[] = [
   {
     targets: [
       {
         marker: 1,
-        label: "red positive wire",
+        label: "red positive wire (simulated)",
         type: "wire",
         boundingBox: { x: 0.22, y: 0.38, width: 0.16, height: 0.1 },
         confidence: 0.82,
@@ -27,16 +30,15 @@ const SCRIPT: ScriptStep[] = [
       },
     ],
     instruction:
-      "The red wire coming from the power rail doesn't look fully seated. Push it firmly into the positive rail hole, then say \"done\".",
-    spokenInstruction: "Check this red wire. Connect it to the highlighted positive rail.",
-    nextExpectedState: "The red wire should be firmly inserted into the positive power rail with no visible gap.",
-    confirmText: "Good, that connection looks solid now.",
+      'DEMO MODE (no real vision configured): a real check here would look at your positive power rail wire. Pretend it needs reseating, then say "done" to see the demo continue.',
+    spokenInstruction: "Demo mode. Imagine checking the highlighted positive wire, then say done.",
+    nextExpectedState: "step-0-positive-wire",
   },
   {
     targets: [
       {
         marker: 1,
-        label: "220 ohm resistor",
+        label: "220 ohm resistor (simulated)",
         type: "resistor",
         boundingBox: { x: 0.5, y: 0.28, width: 0.14, height: 0.09 },
         confidence: 0.76,
@@ -44,16 +46,15 @@ const SCRIPT: ScriptStep[] = [
       },
     ],
     instruction:
-      "Now check the resistor next to the LED. Make sure both legs are pushed into the same row as the LED and the rail, not straddling a gap.",
-    spokenInstruction: "Now check the highlighted resistor. Make sure both legs are seated properly.",
-    nextExpectedState: "The resistor's legs should both be fully inserted in the correct breadboard rows.",
-    confirmText: "That resistor placement looks correct.",
+      "DEMO MODE (no real vision configured): a real check here would inspect the resistor next to the LED for both legs being seated correctly. Nothing was actually analyzed.",
+    spokenInstruction: "Demo mode. Now imagine checking the highlighted resistor.",
+    nextExpectedState: "step-1-resistor",
   },
   {
     targets: [
       {
         marker: 1,
-        label: "LED",
+        label: "LED (simulated)",
         type: "led",
         boundingBox: { x: 0.58, y: 0.52, width: 0.12, height: 0.1 },
         confidence: 0.71,
@@ -61,7 +62,7 @@ const SCRIPT: ScriptStep[] = [
       },
       {
         marker: 2,
-        label: "ground rail",
+        label: "ground rail (simulated)",
         type: "connector",
         boundingBox: { x: 0.16, y: 0.62, width: 0.2, height: 0.08 },
         confidence: 0.68,
@@ -69,16 +70,15 @@ const SCRIPT: ScriptStep[] = [
       },
     ],
     instruction:
-      "Check the LED orientation at point 1 - the longer leg (anode) should point toward the resistor, and the shorter leg should connect toward the ground rail at point 2.",
-    spokenInstruction: "Check the LED at point 1 and the ground rail at point 2.",
-    nextExpectedState: "The LED's short leg should connect toward the ground rail highlighted at point 2.",
-    confirmText: "LED orientation and ground connection look right.",
+      "DEMO MODE (no real vision configured): a real check here would confirm LED orientation at point 1 and its ground connection at point 2. This is a scripted example, not analysis of your frame.",
+    spokenInstruction: "Demo mode. This step shows two highlighted points at once.",
+    nextExpectedState: "step-2-led-ground",
   },
   {
     targets: [
       {
         marker: 1,
-        label: "microcontroller GND pin",
+        label: "microcontroller GND pin (simulated)",
         type: "terminal",
         boundingBox: { x: 0.36, y: 0.18, width: 0.1, height: 0.07 },
         confidence: 0.74,
@@ -86,10 +86,9 @@ const SCRIPT: ScriptStep[] = [
       },
     ],
     instruction:
-      "Last check: confirm the board's GND pin has a jumper wire running to the breadboard's ground rail, highlighted at point 1.",
-    spokenInstruction: "Confirm the ground pin has a jumper wire to the ground rail.",
-    nextExpectedState: "A jumper wire should visibly run from the GND pin to the breadboard ground rail.",
-    confirmText: "Ground connection confirmed. Your circuit should be complete now.",
+      "DEMO MODE (no real vision configured): last scripted step - a real check would confirm a ground jumper here. Configure VISION_PROVIDER=anthropic and VISION_API_KEY for genuine circuit analysis (see README).",
+    spokenInstruction: "Demo mode. That's the last scripted step in this walkthrough.",
+    nextExpectedState: "step-3-gnd-jumper",
   },
 ];
 
@@ -145,15 +144,19 @@ export class MockVisionProvider implements VisionProvider {
     const step = SCRIPT[stepIndex];
 
     if (req.mode === "verify") {
+      // Coin-flip outcome - this is NOT a real comparison of the before/after frame (this
+      // provider never looks at the image), just a scripted way to demo what a retry vs. an
+      // advance looks like in the UI.
       const verified = req.verifyAttempt >= 2 || Math.random() > 0.35;
       if (!verified) {
         return {
           ...baseResponse(),
           status: "continue",
-          observation: "That doesn't look quite right yet - the change isn't clearly visible in this frame.",
+          observation:
+            "DEMO MODE: this is a randomly simulated \"not verified\" result, not a real comparison of your before/after frame.",
           targets: withIds(step.targets, `step${stepIndex}`),
-          instruction: `Not quite. ${step.instruction}`,
-          spokenInstruction: `Not quite yet. ${step.spokenInstruction}`,
+          instruction: `Simulated retry. ${step.instruction}`,
+          spokenInstruction: `Demo mode. Simulated retry. ${step.spokenInstruction}`,
           requiresVerification: true,
           confidence: 0.6,
           nextExpectedState: step.nextExpectedState,
@@ -166,9 +169,10 @@ export class MockVisionProvider implements VisionProvider {
         return {
           ...baseResponse(),
           status: "resolved",
-          observation: step.confirmText,
-          instruction: `${step.confirmText} That was the last check - your circuit should be working now. Say "start new session" to troubleshoot something else.`,
-          spokenInstruction: `${step.confirmText} That should be everything.`,
+          observation: "DEMO MODE: scripted walkthrough complete. No real circuit was checked.",
+          instruction:
+            'That was the last step in this scripted demo - no real circuit was analyzed. Configure a real vision provider (VISION_PROVIDER=anthropic + VISION_API_KEY, see README) for genuine diagnostics. Say "start new session" to replay the demo.',
+          spokenInstruction: "Demo complete. No real circuit was analyzed.",
           requiresVerification: false,
           confidence: 0.85,
           nextExpectedState: null,
@@ -180,10 +184,10 @@ export class MockVisionProvider implements VisionProvider {
       return {
         ...baseResponse(),
         status: "continue",
-        observation: step.confirmText,
+        observation: "DEMO MODE: simulated verification passed - advancing the scripted walkthrough.",
         targets: withIds(next.targets, `step${nextIndex}`),
-        instruction: `${step.confirmText} ${next.instruction}`,
-        spokenInstruction: `${step.confirmText} ${next.spokenInstruction}`,
+        instruction: next.instruction,
+        spokenInstruction: next.spokenInstruction,
         requiresVerification: true,
         confidence: 0.8,
         nextExpectedState: next.nextExpectedState,
@@ -195,7 +199,7 @@ export class MockVisionProvider implements VisionProvider {
       return {
         ...baseResponse(),
         status: "continue",
-        observation: `Regarding "${req.userMessage}": here's the area I mean.`,
+        observation: `DEMO MODE: your question was noted, but this is a scripted reply, not real analysis of "${req.userMessage}".`,
         targets: withIds(step.targets, `step${stepIndex}-followup`),
         instruction: step.instruction,
         spokenInstruction: step.spokenInstruction,
@@ -211,7 +215,7 @@ export class MockVisionProvider implements VisionProvider {
       ...baseResponse(),
       status: "continue",
       observation:
-        "I can see a breadboard with a microcontroller, a few jumper wires, an LED, and a resistor. Let's check the power path first.",
+        "DEMO MODE: no real vision provider is configured, so nothing about your actual camera feed has been analyzed. This is a scripted walkthrough of the app's UI/UX only.",
       targets: withIds(step.targets, `step${stepIndex}`),
       instruction: step.instruction,
       spokenInstruction: step.spokenInstruction,

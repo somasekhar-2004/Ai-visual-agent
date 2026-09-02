@@ -16,8 +16,8 @@ import {
 } from "@/lib/session/sessionManager";
 import type { AppPhase, TroubleshootingSession } from "@/lib/session/types";
 import type { AnalysisMode, VisionProviderRequest } from "@/lib/vision/types";
-import { useSpeechSynthesis } from "./useSpeechSynthesis";
-import { useSpeechRecognition } from "./useSpeechRecognition";
+import { useSpeechSynthesis, type VoiceEngineStatus } from "./useSpeechSynthesis";
+import { useSpeechRecognition, type MicPermissionStatus } from "./useSpeechRecognition";
 
 export interface TroubleshootingConfig {
   /** How often to sample locally for change detection, in ms. */
@@ -53,10 +53,11 @@ export interface UseTroubleshootingSessionResult {
   currentInstruction: string | null;
   currentSpokenInstruction: string | null;
   isBusy: boolean;
-  // voice
+  // voice input
   voiceSupported: boolean;
   voiceState: "idle" | "listening" | "processing";
   interimTranscript: string;
+  micStatus: MicPermissionStatus;
   startListening: () => void;
   stopListening: () => void;
   // speech output
@@ -66,7 +67,14 @@ export interface UseTroubleshootingSessionResult {
   speechRate: number;
   setSpeechRate: (v: number) => void;
   speaking: boolean;
+  /** "Voice: READY / FAILED" diagnostic - "pending" until the first real attempt settles. */
+  voiceStatus: VoiceEngineStatus;
+  /** Exact reason the last speech attempt failed, if any (requirement: show it, never hide it). */
+  voiceError: string | null;
   replayInstruction: () => void;
+  /** Must be called synchronously from a real user-gesture handler (e.g. Enable Camera's
+   * onClick) so iOS Safari actually allows audio playback for the rest of the session. */
+  unlockVoice: () => void;
   // actions
   submitMessage: (text: string, source?: "voice" | "text") => void;
   startNewSession: () => void;
@@ -147,11 +155,30 @@ export function useTroubleshootingSession(
           safetyStoppedRef.current = true;
         }
 
-        setPhase("speaking");
-        speechOut.speak(response.spokenInstruction || response.instruction);
-        // If voice output is off/unsupported, speak() is a no-op and "speaking" will never
-        // flip true->false to drive the transition below, so fall back to "watching" now.
-        if (!speechOut.supported || !speechOut.enabled) {
+        const textToSpeak = response.spokenInstruction || response.instruction;
+        if (textToSpeak) {
+          // Phase only becomes "speaking" once the browser actually confirms playback started
+          // (onStart) - never optimistically, so the UI can never show "Speaking…" over silence.
+          speechOut.speak(textToSpeak, {
+            onStart: () => setPhase("speaking"),
+            onEnd: () => {
+              if (phaseRef.current === "speaking") setPhase("watching");
+            },
+            onError: () => {
+              // Covers both: an error after onStart already fired (phase is "speaking"), and
+              // speak() failing synchronously before onStart ever had a chance to (phase is
+              // still "analyzing"/"checking"). speechOut.lastError carries the exact reason for
+              // display; this just makes sure the app doesn't stay stuck on a "Speaking…" or
+              // busy status forever.
+              if (["speaking", "analyzing", "checking"].includes(phaseRef.current)) {
+                setPhase("watching");
+              }
+            },
+          });
+          // Muted: speak() intentionally no-ops without calling any callback, so nothing else
+          // will move the phase off "analyzing"/"checking" - do it here instead.
+          if (!speechOut.enabled) setPhase("watching");
+        } else {
           setPhase("watching");
         }
       } catch (err) {
@@ -173,13 +200,6 @@ export function useTroubleshootingSession(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [videoRef, cameraActive, speechOut.speak],
   );
-
-  // Once speaking finishes, fall back to "watching" (unless a new call already changed phase).
-  useEffect(() => {
-    if (!speechOut.speaking && phaseRef.current === "speaking") {
-      setPhase("watching");
-    }
-  }, [speechOut.speaking]);
 
   const submitMessage = useCallback(
     (rawText: string, source: "voice" | "text" = "text") => {
@@ -267,6 +287,7 @@ export function useTroubleshootingSession(
     voiceSupported: speechRecognition.supported,
     voiceState: speechRecognition.state,
     interimTranscript: speechRecognition.interimTranscript,
+    micStatus: speechRecognition.micStatus,
     startListening: speechRecognition.start,
     stopListening: speechRecognition.stop,
 
@@ -276,7 +297,10 @@ export function useTroubleshootingSession(
     speechRate: speechOut.rate,
     setSpeechRate: speechOut.setRate,
     speaking: speechOut.speaking,
+    voiceStatus: speechOut.voiceStatus,
+    voiceError: speechOut.lastError,
     replayInstruction: speechOut.replay,
+    unlockVoice: speechOut.unlock,
 
     submitMessage,
     startNewSession,

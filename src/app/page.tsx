@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { DemoModeBanner } from "@/components/DemoModeBanner";
+import { DiagnosticsBar } from "@/components/DiagnosticsBar";
 import { CameraOverlay } from "@/components/CameraOverlay";
 import { InstructionPanel } from "@/components/InstructionPanel";
 import { LiveCamera } from "@/components/LiveCamera";
@@ -10,6 +11,7 @@ import { StatusIndicator } from "@/components/StatusIndicator";
 import { VoiceInput } from "@/components/VoiceInput";
 import { useCamera } from "@/hooks/useCamera";
 import { useTroubleshootingSession } from "@/hooks/useTroubleshootingSession";
+import { useVisionDiagnostics } from "@/hooks/useVisionDiagnostics";
 
 function PauseIcon({ paused }: { paused: boolean }) {
   return paused ? (
@@ -40,13 +42,16 @@ export default function Home() {
   const camera = useCamera();
   const cameraActive = camera.status === "streaming";
   const troubleshooting = useTroubleshootingSession(camera.videoRef, cameraActive);
+  const visionProvider = useVisionDiagnostics();
 
-  useEffect(() => {
+  // The camera is only ever started from this handler (never automatically on mount): iOS
+  // Safari will only let speechSynthesis actually produce audio if the very first speak() call
+  // happens synchronously inside a real user gesture, so unlockVoice() must run here, in the
+  // same click, before the (async) camera.start().
+  const handleEnableCamera = () => {
+    troubleshooting.unlockVoice();
     void camera.start();
-    // Auto-request camera permission once on load; user can retry via the on-screen button
-    // if it's denied or the device has none.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
 
   const lastInstruction = troubleshooting.session.previousInstructions.at(-1) ?? null;
   const isSafetyStopped = troubleshooting.session.status === "safety_stop";
@@ -75,9 +80,23 @@ export default function Home() {
         </button>
       </header>
 
+      <div className="mx-auto w-full max-w-3xl px-3 pb-2">
+        <DiagnosticsBar
+          visionProvider={visionProvider}
+          voiceSupported={troubleshooting.speechSupported}
+          voiceStatus={troubleshooting.voiceStatus}
+          micSupported={troubleshooting.voiceSupported}
+          micStatus={troubleshooting.micStatus}
+        />
+        {/* Note: troubleshooting.voiceSupported is the SpeechRecognition (mic input) support
+            flag, and troubleshooting.speechSupported is the SpeechSynthesis (voice output) one -
+            the naming is inherited from the hooks below and intentionally not renamed here to
+            avoid an unrelated churn across the whole hook's public API. */}
+      </div>
+
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 px-3 pb-4">
         <div className="relative h-[52vh] min-h-[300px] w-full overflow-hidden rounded-2xl border border-neutral-800 shadow-2xl sm:h-[60vh]">
-          <LiveCamera videoRef={camera.videoRef} status={camera.status} error={camera.error} onRetry={camera.start}>
+          <LiveCamera videoRef={camera.videoRef} status={camera.status} error={camera.error} onRetry={handleEnableCamera}>
             <CameraOverlay
               videoRef={camera.videoRef}
               targets={troubleshooting.session.currentTargets}
@@ -121,6 +140,8 @@ export default function Home() {
           )}
         </div>
 
+        {visionProvider === "mock" && <DemoModeBanner />}
+
         {isSafetyStopped && (
           <SafetyBanner message={lastInstruction?.text ?? "This looks like it may involve high-voltage equipment."} />
         )}
@@ -138,6 +159,7 @@ export default function Home() {
           onReplay={troubleshooting.replayInstruction}
           speechRate={troubleshooting.speechRate}
           onRateChange={troubleshooting.setSpeechRate}
+          voiceError={troubleshooting.voiceError}
         />
 
         <VoiceInput
