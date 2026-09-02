@@ -189,7 +189,7 @@ Get a key from [Google AI Studio](https://aistudio.google.com/apikey), then in `
 
 ```bash
 GEMINI_API_KEY=AIza...
-VISION_MODEL=gemini-2.5-flash   # optional, this is already the default
+VISION_MODEL=gemini-flash-lite-latest   # optional, this is already the default
 ```
 
 That's it - `VISION_PROVIDER` can stay unset; the factory in `src/lib/vision/index.ts` auto-detects

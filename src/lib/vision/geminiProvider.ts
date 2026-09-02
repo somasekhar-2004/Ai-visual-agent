@@ -5,7 +5,14 @@ import { GEMINI_RESPONSE_SCHEMA, SYSTEM_PROMPT, buildUserContext } from "./promp
 import { sanitizeAnalysisResponse } from "./sanitize";
 import type { VisionAnalysisResponse, VisionProvider, VisionProviderRequest } from "./types";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+// "gemini-flash-lite-latest" is Google's self-updating alias for their lightest current flash
+// model (resolves to gemini-3.5-flash-lite as of 2026-09-02) - pinning to a dated snapshot like
+// "gemini-2.5-flash" risks it being retired for new API keys later, as already observed while
+// building this integration. The non-"lite" "gemini-flash-latest" alias was measured under heavy
+// load/queueing (503s, 100+ second latency) at build time; -lite responded in ~1-2s with
+// accurate results in the same conditions - much closer to what a live, watching technician
+// needs. Override via VISION_MODEL for a specific pinned version or higher-accuracy model.
+const DEFAULT_MODEL = "gemini-flash-lite-latest";
 
 export class GeminiVisionProvider implements VisionProvider {
   readonly name = "gemini";
