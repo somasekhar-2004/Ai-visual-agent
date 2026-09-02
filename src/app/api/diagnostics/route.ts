@@ -10,11 +10,17 @@ export const runtime = "nodejs";
  * since that's exactly the kind of assumption that leads to treating mock output as real.
  */
 export async function GET() {
+  // Also reported here (not just visionProvider) so the client knows upfront whether the
+  // /api/tts server-side voice fallback is even worth attempting, instead of discovering it via
+  // a failed fetch every time.
+  const ttsAvailable = Boolean(process.env.GEMINI_API_KEY);
+
   try {
     const provider = getVisionProvider();
     return NextResponse.json({
       visionProvider: provider.name,
       isMock: provider.name === "mock",
+      ttsAvailable,
     });
   } catch (err) {
     // Misconfiguration (e.g. VISION_PROVIDER=gemini with no GEMINI_API_KEY) - report it
@@ -25,6 +31,7 @@ export async function GET() {
       {
         visionProvider: null,
         isMock: false,
+        ttsAvailable,
         error: err instanceof Error ? err.message : "Vision provider is misconfigured.",
       },
       { status: 500 },

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { DiagnosticsBar } from "@/components/DiagnosticsBar";
 import { CameraOverlay } from "@/components/CameraOverlay";
@@ -8,6 +9,7 @@ import { LiveCamera } from "@/components/LiveCamera";
 import { SafetyBanner } from "@/components/SafetyBanner";
 import { SessionHistory } from "@/components/SessionHistory";
 import { StatusIndicator } from "@/components/StatusIndicator";
+import { VoiceDiagnosticsPanel } from "@/components/VoiceDiagnosticsPanel";
 import { VoiceInput } from "@/components/VoiceInput";
 import { useCamera } from "@/hooks/useCamera";
 import { useTroubleshootingSession } from "@/hooks/useTroubleshootingSession";
@@ -41,8 +43,9 @@ function SwitchCameraIcon() {
 export default function Home() {
   const camera = useCamera();
   const cameraActive = camera.status === "streaming";
-  const troubleshooting = useTroubleshootingSession(camera.videoRef, cameraActive);
-  const visionProvider = useVisionDiagnostics();
+  const { visionProvider, ttsAvailable } = useVisionDiagnostics();
+  const troubleshooting = useTroubleshootingSession(camera.videoRef, cameraActive, undefined, ttsAvailable);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
   // The camera is only ever started from this handler (never automatically on mount): iOS
   // Safari will only let speechSynthesis actually produce audio if the very first speak() call
@@ -87,11 +90,28 @@ export default function Home() {
           voiceStatus={troubleshooting.voiceStatus}
           micSupported={troubleshooting.voiceSupported}
           micStatus={troubleshooting.micStatus}
+          onOpenVoiceSettings={() => setShowVoiceSettings((v) => !v)}
         />
         {/* Note: troubleshooting.voiceSupported is the SpeechRecognition (mic input) support
             flag, and troubleshooting.speechSupported is the SpeechSynthesis (voice output) one -
             the naming is inherited from the hooks below and intentionally not renamed here to
             avoid an unrelated churn across the whole hook's public API. */}
+        {showVoiceSettings && (
+          <div className="mt-2">
+            <VoiceDiagnosticsPanel
+              speechSupported={troubleshooting.speechSupported}
+              voiceStatus={troubleshooting.voiceStatus}
+              testVoice={troubleshooting.testVoice}
+              testVoiceState={troubleshooting.testVoiceState}
+              testVoiceError={troubleshooting.testVoiceError}
+              selectedVoiceName={troubleshooting.selectedVoiceName}
+              confirmVoiceHeard={troubleshooting.confirmVoiceHeard}
+              engine={troubleshooting.engine}
+              setEngine={troubleshooting.setEngine}
+              serverTtsAvailable={troubleshooting.serverTtsAvailable}
+            />
+          </div>
+        )}
       </div>
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 px-3 pb-4">
@@ -170,6 +190,9 @@ export default function Home() {
           onStartListening={troubleshooting.startListening}
           onStopListening={troubleshooting.stopListening}
           onSubmitText={troubleshooting.submitMessage}
+          voiceModeEnabled={troubleshooting.voiceModeEnabled}
+          onToggleVoiceMode={troubleshooting.toggleVoiceMode}
+          voiceModeError={troubleshooting.voiceModeError}
         />
 
         <SessionHistory session={troubleshooting.session} />

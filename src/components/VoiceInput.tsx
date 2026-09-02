@@ -11,6 +11,12 @@ interface VoiceInputProps {
   onStartListening: () => void;
   onStopListening: () => void;
   onSubmitText: (text: string) => void;
+  /** Hands-free "conversational" mode: once on, the mic automatically restarts listening after
+   * every AI response instead of requiring a tap for every turn. */
+  voiceModeEnabled: boolean;
+  onToggleVoiceMode: () => void;
+  /** Set when voice mode auto-disabled itself (blocked mic, or a runaway restart loop). */
+  voiceModeError: string | null;
 }
 
 export function VoiceInput({
@@ -21,6 +27,9 @@ export function VoiceInput({
   onStartListening,
   onStopListening,
   onSubmitText,
+  voiceModeEnabled,
+  onToggleVoiceMode,
+  voiceModeError,
 }: VoiceInputProps) {
   const [text, setText] = useState("");
 
@@ -38,6 +47,34 @@ export function VoiceInput({
 
   return (
     <div className="flex flex-col gap-2">
+      {voiceSupported && (
+        <div className="flex items-center justify-between gap-2 px-1">
+          <button
+            type="button"
+            onClick={onToggleVoiceMode}
+            aria-pressed={voiceModeEnabled}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold transition ${
+              voiceModeEnabled
+                ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300"
+                : "border-neutral-700 text-neutral-400 hover:border-neutral-500"
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${voiceModeEnabled ? "bg-emerald-400" : "bg-neutral-600"}`} aria-hidden />
+            Voice Conversation: {voiceModeEnabled ? "ON" : "OFF"}
+          </button>
+          {voiceModeEnabled && (
+            <span className="text-[10px] text-neutral-500">Hands-free — mic restarts after each reply</span>
+          )}
+        </div>
+      )}
+
+      {voiceModeError && (
+        <p className="flex items-start gap-1.5 px-1 text-[11px] font-medium text-red-400">
+          <span aria-hidden>⚠</span>
+          <span>{voiceModeError}</span>
+        </p>
+      )}
+
       {interimTranscript && (
         <p className="truncate px-1 text-xs italic text-neutral-500">&quot;{interimTranscript}&quot;</p>
       )}

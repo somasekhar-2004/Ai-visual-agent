@@ -8,6 +8,7 @@ interface DiagnosticsBarProps {
   voiceStatus: VoiceEngineStatus;
   micSupported: boolean;
   micStatus: MicPermissionStatus;
+  onOpenVoiceSettings?: () => void;
 }
 
 type BadgeTone = "neutral" | "good" | "bad" | "pending";
@@ -42,9 +43,18 @@ export function DiagnosticsBar({
   voiceStatus,
   micSupported,
   micStatus,
+  onOpenVoiceSettings,
 }: DiagnosticsBarProps) {
   const voiceTone: BadgeTone = !voiceSupported || voiceStatus === "failed" ? "bad" : voiceStatus === "ready" ? "good" : "pending";
-  const voiceLabel = !voiceSupported ? "FAILED" : voiceStatus === "ready" ? "READY" : voiceStatus === "failed" ? "FAILED" : "…";
+  const voiceLabel = !voiceSupported
+    ? "FAILED"
+    : voiceStatus === "ready"
+      ? "READY"
+      : voiceStatus === "failed"
+        ? "FAILED"
+        : voiceStatus === "unconfirmed"
+          ? "UNCONFIRMED"
+          : "…";
 
   const micTone: BadgeTone = !micSupported || micStatus === "blocked" ? "bad" : micStatus === "ready" ? "good" : "pending";
   const micLabel = !micSupported ? "BLOCKED" : micStatus === "ready" ? "READY" : micStatus === "blocked" ? "BLOCKED" : "…";
@@ -63,12 +73,28 @@ export function DiagnosticsBar({
               : undefined
         }
       />
-      <Badge
-        label="Voice"
-        value={voiceLabel}
-        tone={voiceTone}
-        title={!voiceSupported ? "Speech synthesis is not supported in this browser." : undefined}
-      />
+      <button
+        type="button"
+        onClick={onOpenVoiceSettings}
+        disabled={!onOpenVoiceSettings}
+        className="disabled:cursor-default"
+        aria-label="Open voice settings"
+      >
+        <Badge
+          label="Voice"
+          value={voiceLabel}
+          tone={voiceTone}
+          title={
+            !voiceSupported
+              ? "Speech synthesis is not supported in this browser."
+              : voiceStatus === "unconfirmed"
+                ? "Playback started but hasn't been confirmed heard yet - tap to run Test Voice."
+                : voiceStatus !== "ready"
+                  ? "Tap to run Test Voice and confirm voice output actually works."
+                  : undefined
+          }
+        />
+      </button>
       <Badge
         label="Mic"
         value={micLabel}
