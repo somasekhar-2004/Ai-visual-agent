@@ -28,6 +28,13 @@ whole camera → overlay → voice → verify loop immediately. See [Mock mode](
 fine; from a phone on your network you'll need HTTPS, e.g. run the dev server through a
 tunnel (`npx ngrok http 3000`, Cloudflare Tunnel, etc.) or deploy it.
 
+Cloudflare quick tunnels (`cloudflared tunnel --url http://localhost:3000`) work out of the box
+— `next.config.ts` allowlists `*.trycloudflare.com` for `next dev`'s cross-origin dev-resource
+protection (`allowedDevOrigins`), which otherwise 403s the HMR websocket and, on some browsers,
+the app's own JS through a tunnel, leaving the page unhydrated. Using a different tunnel
+provider or a fixed hostname? Set `NEXT_DEV_ALLOWED_ORIGINS=your-tunnel-host.example.com` (comma
+-separated for multiple) before running `npm run dev`.
+
 ## What's implemented (V1)
 
 - **Live camera** — `getUserMedia` with front/rear switching (rear preferred on mobile),

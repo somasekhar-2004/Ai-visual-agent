@@ -1,14 +1,8 @@
 import type { VisionAnalysisResponse } from "@/lib/vision/types";
-import { createSession, type TroubleshootingSession, type UserResponse } from "./types";
+import { createSession, uid, type TroubleshootingSession, type UserResponse } from "./types";
 
 export { createSession };
 export type { TroubleshootingSession };
-
-function uid(): string {
-  return typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 export function addUserResponse(
   session: TroubleshootingSession,
