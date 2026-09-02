@@ -35,6 +35,14 @@ export interface NormalizedPoint {
   y: number;
 }
 
+/**
+ * "source" (the default) is the object the instruction is about - what to look at or act on.
+ * "destination" marks where a source object should end up (a specific hole/pin/row/terminal) for
+ * a "move/connect this to there" instruction - a distinct location from the source, not just a
+ * text description of it.
+ */
+export type TargetRole = "source" | "destination";
+
 export interface VisualTarget {
   id: string;
   /** Stable small integer used as an on-screen marker (1, 2, 3...) so color isn't required. */
@@ -52,6 +60,14 @@ export interface VisualTarget {
    * otherwise. boundingBox is still expected alongside it (used as a fallback and for hit-testing).
    */
   path?: NormalizedPoint[] | null;
+  /** See TargetRole. Absent/undefined means "source". */
+  role?: TargetRole;
+  /**
+   * For a "destination" target, the `id` of the "source" target it belongs to - lets the overlay
+   * draw a connecting line between the two even when a response has multiple source/destination
+   * pairs. Meaningless (and ignored) on a "source" target.
+   */
+  linkedTargetId?: string | null;
 }
 
 export type SessionStatus =

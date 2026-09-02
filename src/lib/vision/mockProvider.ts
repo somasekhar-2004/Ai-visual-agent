@@ -1,8 +1,14 @@
 import { checkTextForHighVoltage, SAFETY_STOP_MESSAGE } from "@/lib/safety";
 import type { VisionAnalysisResponse, VisionProvider, VisionProviderRequest, VisualTarget } from "./types";
 
+interface ScriptTarget extends Omit<VisualTarget, "id" | "linkedTargetId"> {
+  /** Index (within this same step's targets array) of the paired "source" target - resolved to
+   * a real linkedTargetId by withIds() once the step's prefix/ids are known. */
+  linkedIndex?: number;
+}
+
 interface ScriptStep {
-  targets: Omit<VisualTarget, "id">[];
+  targets: ScriptTarget[];
   instruction: string;
   spokenInstruction: string;
   nextExpectedState: string;
@@ -19,6 +25,8 @@ interface ScriptStep {
  */
 const SCRIPT: ScriptStep[] = [
   {
+    // Demonstrates the source+destination marker pair (amber destination, dashed connector) for
+    // a "move this wire to that hole" instruction - see role/linkedIndex.
     targets: [
       {
         marker: 1,
@@ -27,11 +35,22 @@ const SCRIPT: ScriptStep[] = [
         boundingBox: { x: 0.22, y: 0.38, width: 0.16, height: 0.1 },
         confidence: 0.82,
         shape: "box",
+        role: "source",
+      },
+      {
+        marker: 2,
+        label: "positive rail, row 12 (simulated)",
+        type: "terminal",
+        boundingBox: { x: 0.4, y: 0.55, width: 0.05, height: 0.05 },
+        confidence: 0.75,
+        shape: "point",
+        role: "destination",
+        linkedIndex: 0,
       },
     ],
     instruction:
-      'DEMO MODE (no real vision configured): a real check here would look at your positive power rail wire. Pretend it needs reseating, then say "done" to see the demo continue.',
-    spokenInstruction: "Demo mode. Imagine checking the highlighted positive wire, then say done.",
+      'DEMO MODE (no real vision configured): a real check here would look at your positive power rail wire and confirm it plugs into the row-12 positive hole (the amber destination marker). Pretend it needs reseating there, then say "done" to see the demo continue.',
+    spokenInstruction: "Demo mode. Imagine moving the highlighted wire into the amber destination hole, then say done.",
     nextExpectedState: "step-0-positive-wire",
   },
   {
@@ -92,8 +111,15 @@ const SCRIPT: ScriptStep[] = [
   },
 ];
 
-function withIds(targets: Omit<VisualTarget, "id">[], prefix: string): VisualTarget[] {
-  return targets.map((t, i) => ({ ...t, id: `${prefix}-${i}` }));
+function withIds(targets: ScriptTarget[], prefix: string): VisualTarget[] {
+  return targets.map((t, i) => {
+    const { linkedIndex, ...rest } = t;
+    return {
+      ...rest,
+      id: `${prefix}-${i}`,
+      linkedTargetId: linkedIndex !== undefined ? `${prefix}-${linkedIndex}` : null,
+    };
+  });
 }
 
 function baseResponse(): VisionAnalysisResponse {

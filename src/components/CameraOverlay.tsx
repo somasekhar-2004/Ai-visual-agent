@@ -10,8 +10,11 @@ interface CameraOverlayProps {
   active: boolean;
 }
 
-const ACCENT = "#22d3ee"; // cyan-400
+const ACCENT = "#22d3ee"; // cyan-400 - "source" targets (what to act on)
 const ACCENT_DIM = "rgba(34, 211, 238, 0.35)";
+const DEST_ACCENT = "#f59e0b"; // amber-400 - "destination" targets (where it goes)
+const DEST_ACCENT_DIM = "rgba(245, 158, 11, 0.35)";
+const LINK_COLOR = "rgba(226, 232, 240, 0.85)"; // connecting line between a source and its destination
 
 /**
  * Draws bounding boxes / circles / numbered markers on a canvas positioned above the <video>.
@@ -61,9 +64,18 @@ export function CameraOverlay({ videoRef, targets, active }: CameraOverlayProps)
       const offsetX = (cssW - dispW) / 2;
       const offsetY = (cssH - dispH) / 2;
 
+      // Screen-space center of every drawn target, keyed by id - filled in below as each target is
+      // drawn, then used after the main loop to connect each "destination" target back to its
+      // "source" with a short arrow (see the connector pass below the loop).
+      const centers = new Map<string, { x: number; y: number }>();
+
       for (const target of list) {
         const hasPath = target.shape === "path" && target.path && target.path.length >= 2;
         if (!target.boundingBox && !hasPath) continue;
+
+        const isDestination = target.role === "destination";
+        const color = isDestination ? DEST_ACCENT : ACCENT;
+        const colorDim = isDestination ? DEST_ACCENT_DIM : ACCENT_DIM;
 
         // Map normalized points through the same object-fit:cover transform as boxes below.
         const mapPoint = (nx: number, ny: number) => ({ x: offsetX + nx * dispW, y: offsetY + ny * dispH });
@@ -91,11 +103,12 @@ export function CameraOverlay({ videoRef, targets, active }: CameraOverlayProps)
         }
         const cx = px + pw / 2;
         const cy = py + ph / 2;
+        centers.set(target.id, { x: cx, y: cy });
 
         ctx.save();
         ctx.lineWidth = 2.5;
-        ctx.strokeStyle = ACCENT;
-        ctx.fillStyle = ACCENT_DIM;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = colorDim;
 
         if (hasPath) {
           // A traced polyline reads far better than a box for a wire that bends - a rectangle
@@ -114,7 +127,7 @@ export function CameraOverlay({ videoRef, targets, active }: CameraOverlayProps)
             const p = mapPoint(pt.x, pt.y);
             ctx.beginPath();
             ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = ACCENT;
+            ctx.fillStyle = color;
             ctx.fill();
           }
         } else if (target.shape === "circle") {
@@ -150,7 +163,7 @@ export function CameraOverlay({ videoRef, targets, active }: CameraOverlayProps)
         const badgeY = badgeAnchor.y - badgeR - 2 < 0 ? badgeAnchor.y + badgeR + 2 : badgeAnchor.y - badgeR - 2;
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
-        ctx.fillStyle = ACCENT;
+        ctx.fillStyle = color;
         ctx.fill();
         ctx.fillStyle = "#022c33";
         ctx.font = "bold 13px system-ui, sans-serif";
@@ -158,9 +171,10 @@ export function CameraOverlay({ videoRef, targets, active }: CameraOverlayProps)
         ctx.textBaseline = "middle";
         ctx.fillText(String(target.marker), badgeX, badgeY + 0.5);
 
-        // Label
+        // Label - destination markers are prefixed so the "move it here" meaning doesn't depend
+        // on distinguishing amber from cyan alone.
         ctx.font = "600 12px system-ui, sans-serif";
-        const label = target.label;
+        const label = isDestination ? `→ ${target.label}` : target.label;
         const labelY = py + ph + 4;
         const metrics = ctx.measureText(label);
         const padX = 6;
@@ -176,6 +190,44 @@ export function CameraOverlay({ videoRef, targets, active }: CameraOverlayProps)
         ctx.textBaseline = "middle";
         ctx.fillText(label, labelX + padX, labelY + labelH / 2 + 0.5);
 
+        ctx.restore();
+      }
+
+      // Connector pass: for every "destination" target, draw a short dashed arrow from its
+      // linked "source" target to it, so a "move this wire to there" instruction shows both what
+      // to move and exactly where - not just two independent markers the user has to guess how
+      // to relate to each other.
+      for (const target of list) {
+        if (target.role !== "destination" || !target.linkedTargetId) continue;
+        const from = centers.get(target.linkedTargetId);
+        const to = centers.get(target.id);
+        if (!from || !to) continue;
+
+        ctx.save();
+        ctx.strokeStyle = LINK_COLOR;
+        ctx.fillStyle = LINK_COLOR;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const headLen = 10;
+        ctx.beginPath();
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(
+          to.x - headLen * Math.cos(angle - Math.PI / 6),
+          to.y - headLen * Math.sin(angle - Math.PI / 6),
+        );
+        ctx.lineTo(
+          to.x - headLen * Math.cos(angle + Math.PI / 6),
+          to.y - headLen * Math.sin(angle + Math.PI / 6),
+        );
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
       }
 

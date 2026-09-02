@@ -39,6 +39,24 @@ HOW TO WORK
    entries in "targets", each with a distinct small integer "marker" (1, 2, 3...) so the interface can
    refer to "point 1" / "point 2" without relying on color.
 6. Reference targets naturally in the instruction text (e.g. "the highlighted resistor", "point 2").
+6a. CONSISTENCY IS CRITICAL - a highlighted target that doesn't match what you're saying is actively
+    unsafe (it tells the user to touch the wrong thing). Every entry in "targets" MUST be something you
+    literally talk about in "instruction"/"spokenInstruction" (by its label, its component type, or
+    "point N") - never include a target for an object you don't mention. Conversely, if you tell the user
+    to look at or touch a specific highlighted component, it MUST have a matching entry in "targets" with
+    the correct type/label for THAT object - never label a target as one component (e.g. an LED) while
+    the instruction talks about a different one (e.g. a purple wire). Double-check this match before
+    responding.
+6b. DESTINATION TARGETS - when your instruction tells the user to physically move or connect something to
+    a specific destination (a specific hole, pin, row, or terminal - e.g. "move this wire into pin 16"),
+    return TWO targets for that step: one with role:"source" for the object to move (e.g. the wire itself,
+    at its current location), and one with role:"destination" for the exact destination location, with the
+    destination target's "linkedTargetId" set to the source target's "id". Name the specific destination
+    (e.g. "pin 16", "row 12 positive rail") in the instruction text too, matching rule 6a. Only include a
+    destination target if you can actually see and confidently locate that exact spot in the current frame
+    - if you can't confidently pinpoint it, do not guess a point: say so and, if it blocks giving a precise
+    next step, set status to "needs_clarification" and ask the user to adjust the camera or point at the
+    destination area instead of showing an imprecise marker.
 7. Every response needs bounding boxes ONLY for objects you can reasonably locate. Coordinates are
    normalized 0-1 (x/y = top-left corner, width/height = size, relative to the full frame). If you can
    name a component but can't confidently locate it, omit its boundingBox (set it to null) rather than
@@ -70,6 +88,11 @@ HOW TO WORK
     the highlighted wire." over "There may potentially be several possible causes related to the
     electrical connectivity of your circuit."
 13. Report uncertainty honestly via the confidence field (0-1) rather than sounding falsely certain.
+14. Stability over speed: if you're not genuinely confident where a target is, omit its boundingBox/path
+    rather than placing an approximate marker (see rule 7) - a wrong or wobbly marker is worse than no
+    marker. If low confidence in the target location undermines the instruction itself (the user needs a
+    precise spot and you can't give one), set status to "needs_clarification" and ask for a better angle
+    instead of giving a guessed instruction anyway.
 
 You must respond with ONLY the structured tool call described - no prose outside of it.`;
 
@@ -183,6 +206,15 @@ export const ANALYSIS_TOOL_SCHEMA = {
                 required: ["x", "y"],
               },
             },
+            role: {
+              type: "string",
+              enum: ["source", "destination"],
+              description: "'source' (default) = object to act on. 'destination' = where it should end up.",
+            },
+            linkedTargetId: {
+              type: ["string", "null"],
+              description: "For role='destination' only: the 'id' of the paired 'source' target.",
+            },
           },
           required: ["id", "marker", "label", "type", "boundingBox", "confidence"],
         },
@@ -286,6 +318,16 @@ export const GEMINI_RESPONSE_SCHEMA = {
               properties: { x: { type: "NUMBER" }, y: { type: "NUMBER" } },
               required: ["x", "y"],
             },
+          },
+          role: {
+            type: "STRING",
+            enum: ["source", "destination"],
+            description: "'source' (default) = object to act on. 'destination' = where it should end up.",
+          },
+          linkedTargetId: {
+            type: "STRING",
+            nullable: true,
+            description: "For role='destination' only: the 'id' of the paired 'source' target.",
           },
         },
         required: ["id", "marker", "label", "type", "boundingBox", "confidence"],

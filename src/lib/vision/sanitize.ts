@@ -3,6 +3,7 @@ import type {
   NormalizedBoundingBox,
   NormalizedPoint,
   SafetyFlag,
+  TargetRole,
   VisionAnalysisResponse,
   VisualTarget,
 } from "./types";
@@ -66,6 +67,7 @@ const VALID_TYPES: ComponentType[] = [
 ];
 
 const VALID_SHAPES = ["box", "circle", "arrow", "point", "path"] as const;
+const VALID_ROLES: TargetRole[] = ["source", "destination"];
 
 function sanitizeTargets(raw: unknown): VisualTarget[] {
   if (!Array.isArray(raw)) return [];
@@ -78,6 +80,7 @@ function sanitizeTargets(raw: unknown): VisualTarget[] {
       ? (t.shape as (typeof VALID_SHAPES)[number])
       : "box";
     const path = shape === "path" ? sanitizePath(t.path) : null;
+    const role = VALID_ROLES.includes(t.role as TargetRole) ? (t.role as TargetRole) : "source";
     out.push({
       id: typeof t.id === "string" && t.id ? t.id : `target-${i}`,
       marker: typeof t.marker === "number" && t.marker > 0 ? Math.round(t.marker) : i + 1,
@@ -88,9 +91,77 @@ function sanitizeTargets(raw: unknown): VisualTarget[] {
       // A "path" shape with no usable points degrades to a plain box rather than drawing nothing.
       shape: shape === "path" && !path ? "box" : shape,
       path,
+      role,
+      linkedTargetId: role === "destination" && typeof t.linkedTargetId === "string" ? t.linkedTargetId : null,
     });
   });
   return out;
+}
+
+// Below this, a target's location is too uncertain to show at all - rule 14 in the system prompt
+// already asks the model to omit boundingBox/path when unsure, this is the defensive backstop for
+// when it doesn't. "No guessed targets" beats "something on screen".
+const MIN_TARGET_CONFIDENCE = 0.35;
+
+/** Component-type keywords a target's spoken/written description should plausibly contain if the
+ * model is genuinely talking about it - deliberately excludes generic words ("board", "power")
+ * that would match almost any instruction and defeat the check. */
+const TYPE_KEYWORDS: Record<ComponentType, string[]> = {
+  wire: ["wire", "cable", "lead", "jumper"],
+  resistor: ["resistor"],
+  capacitor: ["capacitor"],
+  ic: ["ic", "chip", "microcontroller", "processor"],
+  connector: ["connector", "socket", "header"],
+  led: ["led", "diode"],
+  board: ["board", "breadboard", "pcb"],
+  battery: ["battery", "cell"],
+  sensor: ["sensor"],
+  switch: ["switch", "button"],
+  terminal: ["terminal", "pin", "hole", "row", "rail"],
+  other: [],
+};
+
+/**
+ * Defense-in-depth check that a target is actually the thing being talked about, independent of
+ * whatever the model claims - a mismatched target (highlighting one component while the
+ * instruction describes another) is worse than no highlight at all for a tool telling someone
+ * which wire to touch. Matches on the same marker-reference convention rule 6 in the system
+ * prompt asks the model to use ("point 2"), or on a type-specific keyword, or (for the
+ * type-less "other" bucket) a distinctive word from the label itself.
+ */
+function targetReferencedInText(target: VisualTarget, lowerText: string): boolean {
+  if (
+    lowerText.includes(`point ${target.marker}`) ||
+    lowerText.includes(`marker ${target.marker}`) ||
+    lowerText.includes(`target ${target.marker}`) ||
+    lowerText.includes(`#${target.marker}`)
+  ) {
+    return true;
+  }
+
+  const typeKeywords = TYPE_KEYWORDS[target.type] ?? [];
+  if (typeKeywords.some((k) => lowerText.includes(k))) return true;
+
+  const labelWords = target.label
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 4);
+  return labelWords.some((w) => lowerText.includes(w));
+}
+
+/**
+ * Drops any target whose location is too uncertain (MIN_TARGET_CONFIDENCE) or that isn't
+ * actually referenced anywhere in what the response says (targetReferencedInText) - and any
+ * "destination" target whose paired "source" target got dropped, since a destination marker
+ * without its source loses the "move THIS to there" meaning it exists for.
+ */
+function filterInconsistentTargets(targets: VisualTarget[], text: string): VisualTarget[] {
+  const lowerText = text.toLowerCase();
+  const kept = targets.filter(
+    (t) => t.confidence >= MIN_TARGET_CONFIDENCE && targetReferencedInText(t, lowerText),
+  );
+  const keptIds = new Set(kept.map((t) => t.id));
+  return kept.filter((t) => t.role !== "destination" || !t.linkedTargetId || keptIds.has(t.linkedTargetId));
 }
 
 function sanitizeSafetyFlag(raw: unknown): SafetyFlag | null {
@@ -115,16 +186,26 @@ export function sanitizeAnalysisResponse(raw: unknown): VisionAnalysisResponse {
     ? (r.status as VisionAnalysisResponse["status"])
     : "error";
 
+  const observation = typeof r.observation === "string" ? r.observation : "";
+  const instruction = typeof r.instruction === "string" ? r.instruction : "";
+  const spokenInstruction = typeof r.spokenInstruction === "string" ? r.spokenInstruction : "";
+  const clarifyingQuestion = typeof r.clarifyingQuestion === "string" ? r.clarifyingQuestion : null;
+
+  // Consistency net: only ever show a target that's actually corroborated by what this same
+  // response says, across every field the user might hear or read - see filterInconsistentTargets.
+  const consistencyText = [observation, instruction, spokenInstruction, clarifyingQuestion ?? ""].join(" ");
+  const targets = filterInconsistentTargets(sanitizeTargets(r.targets), consistencyText);
+
   return {
     status,
-    observation: typeof r.observation === "string" ? r.observation : "",
-    targets: sanitizeTargets(r.targets),
-    instruction: typeof r.instruction === "string" ? r.instruction : "",
-    spokenInstruction: typeof r.spokenInstruction === "string" ? r.spokenInstruction : "",
+    observation,
+    targets,
+    instruction,
+    spokenInstruction,
     requiresVerification: Boolean(r.requiresVerification),
     confidence: clamp01(r.confidence, 0.5),
     nextExpectedState: typeof r.nextExpectedState === "string" ? r.nextExpectedState : null,
-    clarifyingQuestion: typeof r.clarifyingQuestion === "string" ? r.clarifyingQuestion : null,
+    clarifyingQuestion,
     safetyFlag: sanitizeSafetyFlag(r.safetyFlag),
     verified: typeof r.verified === "boolean" ? r.verified : null,
   };
