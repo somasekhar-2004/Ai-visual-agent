@@ -229,9 +229,16 @@ export function useSpeechSynthesis(serverTtsAvailable = false): UseSpeechSynthes
   const speakInternal = useCallback(
     (text: string, opts: SpeakInternalOptions) => {
       const synth = window.speechSynthesis;
-      // Required before every speak() call - without it, a previous stuck/queued utterance
-      // (a well-documented iOS Safari failure mode) silently blocks this one forever.
-      synth.cancel();
+      // Only cancel if something is actually speaking/queued - NOT unconditionally on every call.
+      // iOS/macOS Safari has a well-documented WebKit bug where calling cancel() while the
+      // synthesizer is already idle leaves it in a state where the *next* speak() call silently
+      // produces no audio (onstart may still fire, so nothing here reports it as an error) -
+      // this exactly matches "voice worked on the first instruction, then silently stopped on
+      // every one after" from real iPhone testing: every call after the first one calls cancel()
+      // on an idle engine (the previous utterance already finished), poisoning the one after it.
+      // Cancelling is still necessary - and still done - when a previous utterance is genuinely
+      // still speaking/pending, to interrupt it for a new one.
+      if (synth.speaking || synth.pending) synth.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = rateRef.current;
