@@ -229,13 +229,102 @@ Per the comment at the top of `ar-poc/ArPocScene.tsx`:
    last part is the actual thing Phase A exists to prove - not this app's code, but that ARKit
    world tracking itself is working end-to-end through ViroReact on your device.
 
-**Please report back:** did it build, did signing/trust go smoothly or need something not covered
-above, and above all - did the sphere stay world-locked in step 4? If anything above doesn't match
-(build error, signing issue, tracking behaves differently), paste the exact error or describe what
-happened and I'll adjust from here. Once Phase A is confirmed working, the next phases (replacing
-the camera layer, wiring real 2D-tap -> 3D-anchor hit-testing, then Android/ARCore, deferred since
-Android Studio isn't installed yet) build on top of this - none of them start until this is
-confirmed on your actual device.
+**Phase A result: confirmed working on a real device.** ARKit surface detection and world-anchored
+placement both work correctly through ViroReact - a placed marker stays locked to its real-world
+position exactly like the iPhone Measure app, verified by physically moving the camera away and
+back. Phase B (below) builds on this.
+
+## Phase B results: AR camera in the real app flow
+
+Phase A proved the ViroReact toolchain itself works. Phase B swaps the *real app's* camera layer
+(the one behind the ask/analyze/speak flow, not just a test scene) from `expo-camera` to
+ViroReact's `ViroARSceneNavigator` - still gated behind the same `EXPO_PUBLIC_AR_POC=1` flag, so
+`App.tsx` and the working expo-camera flow are completely unaffected when it's off. **As with
+Phase A, this was built and verified from a Linux sandbox with no Xcode/Simulator/device access -
+everything below that needs a Mac still needs you to run it and report back.**
+
+### What changed
+
+- `ar-poc/ArMainScene.tsx` - the AR scene mounted by the real flow. No visible 3D content (that's
+  Phase C - anchoring Gemini's targets in AR space); its only job is to be the live AR camera
+  passthrough with plane detection running in the background, and to report tracking state up to
+  the app shell.
+- `ar-poc/ArMainApp.tsx` - a parallel version of `App.tsx`'s ask/analyze/speak flow, with two
+  differences: `ViroARSceneNavigator` instead of `CameraView` for the camera layer, and
+  `takeScreenshot()` instead of `takePictureAsync()` for capture. Everything downstream of capture
+  (resize/compress, `/api/analyze` call, request/response shape, native TTS) is identical to
+  `App.tsx` - copied rather than shared/refactored out, so `App.tsx` itself has **zero diff** (same
+  isolation approach as Phase A - confirmed via `git status`/`git diff` showing only `index.ts`'s
+  one-line toggle target changed, plus the two new files).
+- `index.ts`'s `EXPO_PUBLIC_AR_POC=1` flag now launches `ArMainApp` (Phase B) instead of Phase A's
+  hello-world scene. That scene's files (`ArPocApp.tsx`/`ArPocScene.tsx`) are untouched and still
+  in `ar-poc/` for reference, just no longer wired to the flag now that they've served their
+  purpose.
+
+### The screenshot format question, and how it's handled without guessing
+
+You asked me to confirm the captured image's format/orientation matches what the backend expects,
+and flag clearly if adjustment is needed. Here's the honest answer: **ViroReact ships as a
+precompiled binary (`ViroKit.framework` on iOS) - there's no source for `takeScreenshot()` in this
+sandbox to read, so I cannot directly confirm what pixel format, resolution, or orientation it
+writes.** Rather than guess, `ArMainApp.tsx` pipes the screenshot's file URI through the exact same
+`expo-image-manipulator` resize/recompress step `App.tsx` already uses for expo-camera photos
+(`manipulateAsync(uri, [{resize: {width: 896}}], {compress: 0.72, format: SaveFormat.JPEG, base64:
+true})`). That step decodes whatever image format the input file actually is - PNG, JPEG, whatever
+ViroReact chose - so it sidesteps needing to know the format up front, and it normalizes every
+capture (AR or expo-camera) to the same JPEG/896px/quality-0.72 payload the backend already expects
+and that `parseDataUrl` on the backend already validates (`data:image/jpeg;base64,...`). The one
+thing this can't rule out from this sandbox: whether the *content* of that JPEG is right-side-up
+and matches what's on screen (a rendered AR view's screenshot should be pixel-exact to the display,
+with no separate EXIF-orientation step the way raw camera sensor output sometimes has - but "should
+be" is a claim from how these APIs generally behave, not something verified here). That's the one
+concrete thing to check in your on-device test below.
+
+### What was verified from this sandbox (no Mac needed for these)
+
+- `npx tsc --noEmit` passes cleanly - `ArMainScene.tsx`/`ArMainApp.tsx` typecheck against the real
+  ViroReact/expo-image-manipulator types, including `ViroARSceneNavigator`'s ref-exposed
+  `arSceneNavigator.takeScreenshot()` method and `requestRequiredPermissions()` (ViroReact's own
+  camera-permission API, used here instead of `expo-camera`'s hook since it's the AR session that
+  needs the permission now).
+- `npx expo export --platform ios` succeeds, and inspecting the `--dev` bundle output confirms both
+  `ArMainApp`/`ArMainScene` and `takeScreenshot` are present, and that the runtime toggle now reads
+  `EXPO_PUBLIC_AR_POC === '1' ? ArMainApp.default : App.default`.
+- `npx expo prebuild --clean` still succeeds and the generated `ios/Podfile` still wires in
+  `ViroReact`/`ViroKit` the same as Phase A - no new native dependency was needed for this phase
+  (`expo-image-manipulator` was already installed).
+- `git status`/`git diff` confirm `App.tsx` has **zero changes** - the existing expo-camera flow is
+  byte-for-byte what it was before Phase B, so switching `EXPO_PUBLIC_AR_POC` off is guaranteed to
+  give you back exactly the working app you had.
+
+### Run it on your Mac
+
+Same steps as Phase A (New Architecture env var, `npm install`, `npx expo prebuild --clean`,
+physical device required), just re-run step 5 to pick up this phase's code:
+```
+EXPO_PUBLIC_AR_POC=1 npx expo run:ios --device
+```
+
+### What "it worked" looks like
+
+1. Camera permission prompt appears (via ViroReact's `requestRequiredPermissions`, not
+   expo-camera's) - grant it.
+2. Live AR camera feed appears (same visual passthrough as Phase A, just no sphere/text overlay
+   this time) with a small "AR tracking: initializing…" badge bottom-left, which should switch to
+   "AR tracking: normal" within a second or two of pointing at a reasonably lit, textured surface.
+3. Type a question (e.g. "what's wrong with this circuit?"), point the camera at something, tap
+   **Ask**. Watch the Metro log for `[speech]` lines same as before.
+4. You should get back a real instruction from Gemini, shown in the panel and spoken aloud - this
+   confirms the full round trip: AR screenshot -> resize/JPEG -> `/api/analyze` -> real backend
+   response -> native TTS.
+
+**Please check specifically:** does the captured frame actually show what the camera was pointed
+at, right-side-up (per the format note above, I can't verify this from here - if Gemini's response
+sounds like it's describing something unrelated to what was in frame, or you have another way to
+inspect the sent image, that's the signal something's off with capture, not with Gemini)? And does
+the "AR tracking: normal" badge appear as expected? Report back and I'll adjust. Once this is
+confirmed, Phase C (anchoring Gemini's returned targets in AR space, replacing the current
+gyroscope-based overlay for this flag's path) is next.
 
 ## Prerequisites
 
