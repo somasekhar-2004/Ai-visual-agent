@@ -150,18 +150,27 @@ function targetReferencedInText(target: VisualTarget, lowerText: string): boolea
 }
 
 /**
- * Drops any target whose location is too uncertain (MIN_TARGET_CONFIDENCE) or that isn't
- * actually referenced anywhere in what the response says (targetReferencedInText) - and any
- * "destination" target whose paired "source" target got dropped, since a destination marker
- * without its source loses the "move THIS to there" meaning it exists for.
+ * Drops any target whose location is too uncertain (MIN_TARGET_CONFIDENCE). "source" targets
+ * additionally must be textually corroborated (targetReferencedInText) - but "destination"
+ * targets are exempt from that check: they describe a physical location ("empty row near pin 4")
+ * that an instruction references descriptively, not by that exact label/type, so requiring their
+ * own text match produces false negatives on correctly-identified destinations. A destination's
+ * validity instead comes entirely from its linked "source" target surviving - a destination with
+ * no valid source loses the "move THIS to there" meaning it exists for.
  */
 function filterInconsistentTargets(targets: VisualTarget[], text: string): VisualTarget[] {
   const lowerText = text.toLowerCase();
-  const kept = targets.filter(
-    (t) => t.confidence >= MIN_TARGET_CONFIDENCE && targetReferencedInText(t, lowerText),
+  const sourceIds = new Set(
+    targets
+      .filter((t) => t.role !== "destination" && t.confidence >= MIN_TARGET_CONFIDENCE && targetReferencedInText(t, lowerText))
+      .map((t) => t.id),
   );
-  const keptIds = new Set(kept.map((t) => t.id));
-  return kept.filter((t) => t.role !== "destination" || !t.linkedTargetId || keptIds.has(t.linkedTargetId));
+
+  return targets.filter((t) => {
+    if (t.confidence < MIN_TARGET_CONFIDENCE) return false;
+    if (t.role === "destination") return !t.linkedTargetId || sourceIds.has(t.linkedTargetId);
+    return targetReferencedInText(t, lowerText);
+  });
 }
 
 function sanitizeSafetyFlag(raw: unknown): SafetyFlag | null {
