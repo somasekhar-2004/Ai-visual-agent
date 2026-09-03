@@ -102,6 +102,58 @@ are inlined at bundle-build time, not hot-reloaded.
 - Confirm your phone is on the same Wi-Fi network as your Mac (not cellular data, not a guest
   network that isolates devices from each other).
 
+## Diagnosing silent TTS (no audio, no error shown)
+
+`expo-speech` is a **standard, always-bundled Expo SDK module** - it wraps Android's built-in
+`android.speech.tts.TextToSpeech` and iOS's `AVSpeechSynthesizer`, not a third-party native
+library. It ships inside Expo Go itself (confirmed by reading
+`node_modules/expo-speech/expo-module.config.json` and its Android manifest fragment directly -
+they're part of the core SDK, not gated behind a custom dev client). **You do not need a dev
+client to make expo-speech work.** If it's silent, it's a device/config issue, not a
+Expo-Go-vs-dev-client issue.
+
+Every `Speech.speak()` call in this app (both the real instruction flow and the **Test Voice**
+button in the panel) now logs every stage to the console:
+
+```
+[speech] speak() called (analyze-response): "Plug the yellow wire into..."
+[speech] onStart (analyze-response)
+[speech] onDone (analyze-response)
+```
+
+**To see these live from your phone:** the terminal where you ran `npx expo start` shows
+`console.log`/`console.error` output from the device automatically - no extra setup, it streams
+over the same connection Metro uses for the JS bundle. Just watch that terminal while you tap
+**Test Voice** or **Ask** on the phone. (Alternative: press `j` in that terminal to open the
+remote JS debugger, or shake the phone -> "Open JS Debugger", if you want browser devtools
+instead of the terminal.)
+
+Tap **Test Voice** (a fixed "Voice test successful." phrase, independent of any backend call) and
+read the log pattern that shows up:
+
+| Log pattern | What it means | What to do |
+|---|---|---|
+| `speak() called` -> `onStart` -> `onDone`, no error, **and you heard it** | Working correctly. | Nothing - if the real instruction flow is still silent, something else is off (unlikely given Test Voice uses the exact same code path). |
+| `speak() called` -> `onStart` -> `onDone`, no error, **but silence** | The TTS engine accepted and "finished" the utterance with no error - Android's engine only reports its own bookkeeping, not whether audio was actually audible. Almost always a **device audio issue**, not an app bug. | Check the device's **media volume** (not ringer volume - TTS plays on the media stream, which is commonly muted independently). Check Settings -> Accessibility (or Sound/Text-to-speech, OEM-dependent) -> Text-to-speech output -> confirm an engine is selected and its voice data is downloaded (tap "Play" in that settings screen to test outside the app entirely). |
+| `speak() called`, then **`onError` with `started=false`** | The TTS engine itself failed to initialize or rejected the call outright - no engine configured/enabled on the device. | Same Settings path as above - install/select a TTS engine (Google's "Speech Services by Google" is the usual default). The visible `⚠ Voice error:` banner in the app will show this. |
+| `speak() called`, then **`onError` with `started=true`** | The engine started, then errored partway through. | Same as the "silence with no error" row - device-level TTS/audio issue. |
+| **Nothing at all logs**, not even `speak() called` | A JS-level bug before `Speech.speak()` is even reached (e.g. `spokenText` was empty). | Check the `[speech] speak() called` line's logged text - if this line is missing entirely, look at what set `instruction`/`spokenText` upstream, not the speech code. |
+
+Note: on Android, `expo-speech`'s error event never carries a real message (confirmed by reading
+the module's own source - the JS wrapper does `new Error(error)` where `error` is always
+`undefined` from the native side), so `onError`'s `err.message` will always read `"undefined"`.
+That's a limitation of the library, not a bug here - the `started` flag (whether `onStart` fired
+first) is the only signal that actually distinguishes "engine never initialized" from "engine ran
+but produced no sound", which is why the error banner and the table above key off it.
+
+**Root cause was not able to be confirmed from this environment** - there's no Android
+device/emulator with audio here to reproduce "silent TTS" against, only static analysis of
+`expo-speech`'s own source. The added logging is what turns that from a guess into a real
+answer once you run it. My best-guess ranking, most to least likely for a real device: (1) media
+volume muted or routed to a disconnected output (Bluetooth device still "selected" but off), (2)
+no TTS voice data downloaded for the resolved language, (3) no default TTS engine configured on
+that specific device.
+
 ## Adding voice input (next phase)
 
 The reliable native STT options (`@react-native-voice/voice`, `expo-speech-recognition`, etc.)

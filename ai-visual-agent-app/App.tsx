@@ -24,6 +24,26 @@ const RESIZE_MAX_WIDTH = 896;
 const JPEG_QUALITY = 0.72;
 const CAMERA_FACING: CameraType = "back";
 
+/**
+ * expo-speech's Android event bridge does not pass a real error message for the
+ * "Exponent.speakingError" event (see node_modules/expo-speech/src/Speech.ts - it does
+ * `new Error(error)` where `error` is always undefined on Android), so onError's `.message` is
+ * never anything more useful than "undefined". The likely cause has to be inferred from *whether*
+ * onStart fired at all - see the on-device diagnosis notes in README.md.
+ */
+function describeSpeechFailure(startedFirst: boolean, err: Error): string {
+  if (startedFirst) {
+    // onStart fired (the TTS engine accepted and began the utterance) but it still ended in
+    // error, or produced no sound - almost always a device-level TTS/audio-routing issue, not a
+    // bug in this app: media volume muted, no TTS voice data downloaded for the selected
+    // language, or the wrong output route (e.g. a disconnected Bluetooth device still selected).
+    return "The device's text-to-speech engine accepted the request but reported an error (or produced no sound). Check the device's media volume, and that a TTS voice is installed under Settings -> Accessibility -> Text-to-speech.";
+  }
+  // onStart never fired at all - the TTS engine itself likely failed to initialize (no default
+  // engine configured/enabled on the device) or rejected the request outright.
+  return `Speech never started (native error: ${err.message}). The device's text-to-speech engine may not be set up - check Settings -> Accessibility -> Text-to-speech output.`;
+}
+
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -36,6 +56,55 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [testVoiceState, setTestVoiceState] = useState<"idle" | "testing" | "done">("idle");
+
+  /**
+   * Single place that calls Speech.speak() - always with explicit options (never relying on
+   * device defaults for language/pitch/rate/volume) and always with every event logged, so a
+   * silent on-device failure shows up in the Metro log instead of just... nothing. See README.md
+   * "Diagnosing silent TTS" for how to read these logs live from a phone.
+   */
+  const speakInstruction = (text: string, label: string) => {
+    setVoiceError(null);
+    let started = false;
+    console.log(`[speech] speak() called (${label}):`, JSON.stringify(text.slice(0, 80)));
+
+    Speech.speak(text, {
+      language: "en-US",
+      pitch: 1.0,
+      rate: 0.95,
+      volume: 1.0,
+      onStart: () => {
+        started = true;
+        console.log(`[speech] onStart (${label})`);
+        setIsSpeaking(true);
+      },
+      onDone: () => {
+        console.log(`[speech] onDone (${label})`);
+        setIsSpeaking(false);
+      },
+      onStopped: () => {
+        console.log(`[speech] onStopped (${label})`);
+        setIsSpeaking(false);
+      },
+      onError: (err: Error) => {
+        console.error(`[speech] onError (${label}), started=${started}:`, err);
+        setIsSpeaking(false);
+        setVoiceError(describeSpeechFailure(started, err));
+      },
+    });
+  };
+
+  const handleTestVoice = () => {
+    setTestVoiceState("testing");
+    speakInstruction("Voice test successful.", "test-voice");
+    // There is no reliable "it definitely played audio" signal from expo-speech (onStart/onDone
+    // only report the engine's own bookkeeping, not audible output - the same class of problem
+    // the web app's Test Voice flow was built around) - so this just marks the attempt as made;
+    // the real answer is whether you heard it, and what the Metro log shows for this attempt.
+    setTestVoiceState("done");
+  };
 
   const handleAsk = async () => {
     const text = question.trim();
@@ -87,14 +156,7 @@ export default function App() {
 
       // 4. Speak the result with native TTS - no browser speechSynthesis anywhere.
       const spokenText = response.spokenInstruction || response.instruction;
-      if (spokenText) {
-        Speech.speak(spokenText, {
-          onStart: () => setIsSpeaking(true),
-          onDone: () => setIsSpeaking(false),
-          onStopped: () => setIsSpeaking(false),
-          onError: () => setIsSpeaking(false),
-        });
-      }
+      if (spokenText) speakInstruction(spokenText, "analyze-response");
     } catch (err) {
       const message = err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Something went wrong.";
       setErrorMessage(message);
@@ -144,6 +206,20 @@ export default function App() {
         {instruction && <Text style={styles.instructionText}>{instruction}</Text>}
         {!instruction && !errorMessage && (
           <Text style={styles.hintText}>Point the camera at your circuit and ask a question below.</Text>
+        )}
+
+        {voiceError && (
+          <Text style={styles.errorText}>
+            ⚠ Voice error: {voiceError}
+          </Text>
+        )}
+        <TouchableOpacity style={styles.testVoiceButton} onPress={handleTestVoice}>
+          <Text style={styles.testVoiceButtonText}>Test Voice</Text>
+        </TouchableOpacity>
+        {testVoiceState === "done" && (
+          <Text style={styles.hintText}>
+            Did you hear "Voice test successful."? Check the Metro terminal for [speech] logs either way.
+          </Text>
         )}
 
         <View style={styles.inputRow}>
@@ -228,6 +304,19 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#f87171",
     fontSize: 13,
+  },
+  testVoiceButton: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#374151",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  testVoiceButtonText: {
+    color: "#e5e7eb",
+    fontSize: 12,
+    fontWeight: "600",
   },
   inputRow: {
     flexDirection: "row",
