@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "ai-visual-agent-app",
+    "slug": "ai-visual-agent-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "AI Visual Expert uses the camera to look at your circuit and give live troubleshooting instructions.",
+        "NSMicrophoneUsageDescription": "AI Visual Expert uses the microphone so you can ask questions by voice."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["CAMERA", "RECORD_AUDIO"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AI Visual Expert uses the camera to look at your circuit and give live troubleshooting instructions.",
+          "microphonePermission": "AI Visual Expert uses the microphone so you can ask questions by voice."
+        }
+      ]
+    ]
+  }
+}

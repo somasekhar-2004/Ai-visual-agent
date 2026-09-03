@@ -1,0 +1,262 @@
+import { useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { CameraView, useCameraPermissions, type CameraType } from "expo-camera";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import * as Speech from "expo-speech";
+import { StatusBar } from "expo-status-bar";
+
+import { ApiError, callAnalyze } from "./src/api";
+import type { VisionProviderRequest } from "./src/types";
+
+// Matches the web app's frameCapture.ts convention (896px max dimension, JPEG quality 0.72) so
+// the backend sees comparable payload sizes/latency regardless of which client calls it.
+const RESIZE_MAX_WIDTH = 896;
+const JPEG_QUALITY = 0.72;
+const CAMERA_FACING: CameraType = "back";
+
+export default function App() {
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+
+  const [question, setQuestion] = useState("");
+  const [userProblem, setUserProblem] = useState<string | null>(null);
+  const [previousInstruction, setPreviousInstruction] = useState<string | null>(null);
+  const [instruction, setInstruction] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const handleAsk = async () => {
+    const text = question.trim();
+    if (!text || isBusy) return;
+    if (!cameraRef.current || !cameraReady) {
+      setErrorMessage("Camera isn't ready yet - point it at your circuit and wait a moment.");
+      return;
+    }
+
+    Keyboard.dismiss();
+    setIsBusy(true);
+    setErrorMessage(null);
+
+    try {
+      // 1. Capture a still frame from the live camera.
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.6 });
+      if (!photo) throw new Error("Failed to capture a frame from the camera.");
+
+      // 2. Downscale + compress to match the backend's expected payload size (this is the same
+      // resize step the web app does client-side in frameCapture.ts before upload).
+      const resized = await manipulateAsync(photo.uri, [{ resize: { width: RESIZE_MAX_WIDTH } }], {
+        compress: JPEG_QUALITY,
+        format: SaveFormat.JPEG,
+        base64: true,
+      });
+      if (!resized.base64) throw new Error("Failed to encode the captured frame.");
+      const frameDataUrl = `data:image/jpeg;base64,${resized.base64}`;
+
+      // 3. Call the existing Next.js backend - identical request shape to the web app.
+      const isFirstMessage = !userProblem;
+      const payload: VisionProviderRequest = {
+        frameDataUrl,
+        mode: isFirstMessage ? "initial" : "followup",
+        userMessage: text,
+        problemDescription: userProblem ?? text,
+        previousInstruction,
+        expectedNextState: null,
+        previousObservations: [],
+        detectedComponents: [],
+        conversationTail: [],
+        verifyAttempt: 0,
+      };
+
+      const response = await callAnalyze(payload);
+      if (isFirstMessage) setUserProblem(text);
+      setQuestion("");
+      setInstruction(response.instruction);
+      setPreviousInstruction(response.instruction || previousInstruction);
+
+      // 4. Speak the result with native TTS - no browser speechSynthesis anywhere.
+      const spokenText = response.spokenInstruction || response.instruction;
+      if (spokenText) {
+        Speech.speak(spokenText, {
+          onStart: () => setIsSpeaking(true),
+          onDone: () => setIsSpeaking(false),
+          onStopped: () => setIsSpeaking(false),
+          onError: () => setIsSpeaking(false),
+        });
+      }
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Something went wrong.";
+      setErrorMessage(message);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  if (!permission) {
+    // Permission status is still loading.
+    return <View style={styles.container} />;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.permissionText}>AI Visual Expert needs camera access to see your circuit.</Text>
+        <TouchableOpacity style={styles.button} onPress={requestPermission}>
+          <Text style={styles.buttonText}>Grant camera access</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <StatusBar style="light" />
+      <View style={styles.cameraWrap}>
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={CAMERA_FACING}
+          onCameraReady={() => setCameraReady(true)}
+        />
+        {isSpeaking && (
+          <View style={styles.speakingBadge}>
+            <Text style={styles.speakingBadgeText}>Speaking…</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.panel}>
+        {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+        {instruction && <Text style={styles.instructionText}>{instruction}</Text>}
+        {!instruction && !errorMessage && (
+          <Text style={styles.hintText}>Point the camera at your circuit and ask a question below.</Text>
+        )}
+
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            value={question}
+            onChangeText={setQuestion}
+            placeholder="What's wrong with this circuit?"
+            placeholderTextColor="#6b7280"
+            editable={!isBusy}
+            onSubmitEditing={handleAsk}
+            returnKeyType="send"
+          />
+          <TouchableOpacity
+            style={[styles.askButton, (isBusy || !question.trim()) && styles.askButtonDisabled]}
+            onPress={handleAsk}
+            disabled={isBusy || !question.trim()}
+          >
+            {isBusy ? <ActivityIndicator color="#022c33" /> : <Text style={styles.askButtonText}>Ask</Text>}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0a0a0a",
+  },
+  permissionText: {
+    color: "#e5e7eb",
+    textAlign: "center",
+    marginHorizontal: 24,
+    marginBottom: 16,
+    fontSize: 15,
+  },
+  button: {
+    backgroundColor: "#22d3ee",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  buttonText: {
+    color: "#022c33",
+    fontWeight: "600",
+  },
+  cameraWrap: {
+    flex: 1,
+    position: "relative",
+  },
+  speakingBadge: {
+    position: "absolute",
+    top: 56,
+    left: 16,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  speakingBadgeText: {
+    color: "#34d399",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  panel: {
+    backgroundColor: "#111827",
+    padding: 16,
+    paddingBottom: Platform.OS === "ios" ? 24 : 16,
+    gap: 12,
+  },
+  hintText: {
+    color: "#9ca3af",
+    fontSize: 13,
+  },
+  instructionText: {
+    color: "#f3f4f6",
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  errorText: {
+    color: "#f87171",
+    fontSize: 13,
+  },
+  inputRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  input: {
+    flex: 1,
+    backgroundColor: "#1f2937",
+    color: "#f3f4f6",
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
+  askButton: {
+    backgroundColor: "#22d3ee",
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    minWidth: 60,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  askButtonDisabled: {
+    opacity: 0.4,
+  },
+  askButtonText: {
+    color: "#022c33",
+    fontWeight: "700",
+  },
+});
