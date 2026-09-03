@@ -17,6 +17,20 @@ ViroMaterials.createMaterials({
 
 const MARKER_RADIUS_M = 0.012;
 const CONNECTOR_THICKNESS_M = 0.004;
+// ViroText's fontSize is not meters - confirmed by reading ViroReact's own shipped usage
+// (StudioARScene.js's Quest placement prompt: fontSize 14, no scale override, positioned 2m from
+// the camera and clearly meant to read as a large HUD message filling a good part of the view).
+// Unscaled, that same fontSize/position pattern is exactly what produced the "single digit
+// rendering many times larger than the physical objects" bug reported from device testing - it's
+// sized for a big on-screen message, not a small precise label sitting a few cm from a real
+// component. Rather than guess an absolute small fontSize (there's no documented meters-per-
+// fontSize-unit conversion to calculate from, and it can't be measured from this sandbox), the
+// whole label node is shrunk by a flat scale factor instead - a simple, predictable, easily-
+// retunable knob regardless of what fontSize itself actually maps to internally.
+// NOT verified on a real device - this specific factor is a first estimate; if labels are still
+// too big or now too small/illegible, adjust LABEL_SCALE (linearly - doubling it doubles the
+// rendered size) rather than fontSize.
+const LABEL_SCALE = 0.05;
 
 /**
  * Renders Gemini's targets as real AR content, given the world positions arTargetPlacement.ts
@@ -62,6 +76,7 @@ export function ArAnchoredTargets({ markers }: { markers: PlacedMarker[] }) {
             <ViroText
               text={displayLabel}
               position={[0, MARKER_RADIUS_M + 0.025, 0]}
+              scale={[LABEL_SCALE, LABEL_SCALE, LABEL_SCALE]}
               width={1}
               height={0.3}
               style={{

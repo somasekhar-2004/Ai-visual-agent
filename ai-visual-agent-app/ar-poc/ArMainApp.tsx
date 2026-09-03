@@ -199,14 +199,23 @@ export default function ArMainApp() {
       setQuestion("");
       setInstruction(response.instruction);
       setPreviousInstruction(response.instruction || previousInstruction);
+
+      // Speak first, then hand off targets for AR placement. Voice stopped working in on-device
+      // Phase C testing (it worked in Phase B, same AR+microphone setup) and no definitive cause
+      // was found from static review - see the README's Phase C fixes section for what was ruled
+      // out. This ordering is a low-risk, easily-reverted hypothesis (don't kick off the
+      // hit-test/anchor-creation burst - a handful of native AR calls - in the same tick as the
+      // speech call), not a confirmed fix. The [speech] logs below plus [ar-anchor] logs from
+      // ArMainScene's placement effect together should show, on the next real-device run, whether
+      // onStart ever fires and how its timing relates to the AR placement work.
+      const spokenText = response.spokenInstruction || response.instruction;
+      if (spokenText) speakInstruction(spokenText, "analyze-response");
+
       // Hand the new targets to ArMainScene (via viroAppProps below) for AR hit-test placement.
       // Unlike App.tsx's gyroscope-compensated 2D overlay, there's no capture-moment snapshot or
       // pixel-offset math needed here - each marker gets hit-tested into real 3D world space once
       // and then just stays there, tracked by ARKit/ARCore itself like any other AR content.
       setTargets(response.targets);
-
-      const spokenText = response.spokenInstruction || response.instruction;
-      if (spokenText) speakInstruction(spokenText, "analyze-response");
     } catch (err) {
       const message = err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Something went wrong.";
       setErrorMessage(message);

@@ -464,12 +464,93 @@ skipped, that's the signal something's off (see the checklist below).
    above) - not necessarily wrong, but worth noting which ones and whether it seems to correlate
    with a specific type of surface (bare wire vs. a component body, for instance).
 
-**Please report back specifically:** did markers appear at plausible locations and stay
-world-locked as you moved? Did a second question correctly replace the first's markers (confirming
-the `viroAppProps` live-update fix)? Roughly what fraction of targets get placed vs. skipped, and
-does anything in the Metro `[ar-anchor]` logs stand out? This is the core mechanism the whole
-migration was built around, so getting a clear picture of what does and doesn't work here matters
-more than any earlier phase.
+**Phase C result: core mechanism confirmed working on a real device.** Markers appear and the
+graceful-skip diagnostic works correctly (`targets placed: 1/2 (1 no surface found)` observed).
+Three real issues came out of that test - fixes below.
+
+## Phase C fixes: label scale, hit-test misses, voice regression
+
+**As with every phase, this was fixed and verified from a Linux sandbox with no device access -
+all three need your on-device re-test to confirm.**
+
+### 1. Oversized marker text - fixed, needs a size check on-device
+
+Cause, confirmed by reading ViroReact's own shipped source: `ViroText`'s `fontSize` is not meters.
+The library's own internal usage (`StudioARScene.js`'s Quest placement prompt: `fontSize: 14`, no
+`scale` override, positioned 2m from the camera) is a large on-screen HUD message meant to fill a
+good part of the view - the exact same `fontSize`/no-scale pattern I'd used for a marker label
+meant to sit a few centimeters from a real component. There's no documented meters-per-fontSize
+conversion to calculate a "correct" small fontSize from, and it can't be measured without a device,
+so `ArAnchoredTargets.tsx` now shrinks the whole label with an explicit `scale={[0.05, 0.05, 0.05]}`
+(`LABEL_SCALE`) instead of guessing at fontSize directly - a flat, predictable, linearly-tunable
+factor (double it to double the size) regardless of what fontSize maps to internally.
+**This specific factor (0.05) is a first estimate, not verified against a real device** - if labels
+are still oversized, or now too small to read, that's the one number to adjust
+(`ar-poc/ArAnchoredTargets.tsx`'s `LABEL_SCALE`), linearly.
+
+### 2. Hit-test misses - one real bug fixed, one legitimate fallback added, one inherent limitation documented
+
+You asked whether this was a bug or inherent - it's both, and here's the breakdown:
+
+- **A real bug, found by re-reading `targetCenter()`:** for a path/wire-shaped target, the hit-test
+  point was the path's **bounding-box center** (midpoint of its min/max x and y) - not a point
+  actually on the path. For anything but a straight wire, that computed point isn't guaranteed to
+  land anywhere near the wire itself (an L-shaped or diagonal wire's bounding-box center can fall
+  in the empty space it bends around - e.g. onto the bedsheet behind/beside it, not the wire).
+  Fixed: it now uses the path's own middle vertex - a point Gemini actually placed on the wire.
+- **A legitimate, bounded fallback, now added:** if the exact point still misses, `arTargetPlacement.ts`
+  retries a small ring of nearby points (up to ~3.5% of the frame away, 8 tries) before giving up.
+  This is a standard AR UX pattern - feature detection is inherently a little noisy, and a real
+  surface a few pixels away from a miss is routine - and it doesn't fake anything: every retry point
+  is a real hit test, and the bound keeps a successful retry visually right next to the original
+  point. The Metro log now says `placed via nearby (dx=…, dy=…) retry` when this happens, so you
+  can see how often it's needed.
+- **Deliberately NOT done: falling back to the nearest already-detected plane regardless of
+  distance.** That could place a marker on a real but unrelated surface (the table instead of the
+  small part sitting on it) - a confidently wrong pointer is worse than an honest skip for a tool
+  whose entire point is precision, so this wasn't implemented. This is the "don't fake precision"
+  line you drew, applied.
+- **A genuine, inherent limitation, not fixable in code:** ARKit/ARCore can only return a hit-test
+  result where it has actually built up 3D understanding of the scene - a plain surface (bedsheet,
+  blank wall) or an area the camera hasn't looked at/moved around yet will legitimately have no
+  hit-testable geometry there, full stop. No amount of retrying invents 3D data that was never
+  captured. **Practical implication worth testing:** if a miss correlates with "I just pointed the
+  camera there and immediately asked" rather than "I'd been looking at that area for a bit," that's
+  this limitation, not a bug - moving the phone slightly around the target area for a second or two
+  before asking should measurably reduce misses. Worth specifically checking on the next test.
+
+### 3. Voice regression - logging improved, one low-risk change made, root cause NOT confirmed
+
+Per your instruction, this is reported honestly rather than guessed at. I traced through the entire
+Phase C diff line by line looking for anything that could plausibly stop `Speech.speak()` from
+firing or succeeding, and found **no definitive bug**. Specifically ruled out:
+- The AR scene/`ViroARScene` isn't remounting when targets update (confirmed by re-tracing
+  `ViroARSceneNavigator`'s `_renderSceneStackItems`/`componentDidUpdate` - same mechanism verified
+  for the `viroAppProps` fix) - so this isn't an unmount interrupting speech mid-call.
+- No Viro sound/audio component was added in Phase C that could claim an `AVAudioSession` category
+  ViroReact might not already have been holding in Phase B (which also used the AR camera + mic
+  permission and had working voice) - weakens "ViroReact's audio session now conflicts with TTS" as
+  an explanation, since the underlying AR/audio setup didn't change between the two phases.
+- Found and fixed one real, independent gap while looking: `ArMainScene.tsx`'s placement effect had
+  no `.catch()` on the `placeTargets(...).then(...)` chain - an unexpected error there would become
+  an unhandled promise rejection (RN just logs a warning for these, doesn't crash), leaving the
+  placement status badge silently stuck on stale data. Fixed regardless of whether it's related to
+  voice - it's a real robustness gap either way.
+
+**What was actually changed, clearly labeled as a hypothesis, not a fix:** `ArMainApp.tsx`'s
+`handleAsk` now calls `speakInstruction(...)` *before* `setTargets(...)`, so the TTS engine's native
+call is issued before the state update that kicks off the AR placement effect's burst of
+`performARHitTestWithPoint`/`createAnchoredNode` native calls, rather than in the same tick. This is
+a safe, harmless reordering (the two are independent side effects with no data dependency) that
+might reduce native-bridge contention around the same moment - it is **not** a confirmed fix.
+
+**What I need from the next test:** the same `[speech]` log lines as before (does `speak() called`
+appear? does `onStart` fire? does `onError` fire, and with what message?), and ideally whether it
+correlates with the `[ar-anchor] placement pass starting`/`done` log lines happening around the
+same time. If `onStart` never fires, that points at the TTS engine/audio session; if it fires but no
+sound plays, that's a different class of issue (per the existing "Diagnosing silent TTS" section
+below). Please paste the exact log sequence rather than just "it didn't work" - that's what turns
+this from a guess into an actual diagnosis.
 
 ## Prerequisites
 

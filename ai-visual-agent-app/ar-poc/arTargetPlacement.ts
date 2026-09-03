@@ -49,20 +49,73 @@ function pickBestHit(results: ViroARHitTestResult[] | null | undefined): ViroARH
   return null;
 }
 
-/** A single representative 2D point (normalized 0-1, frame-relative) to hit-test for a target -
- * the bounding box center, or the midpoint of a path's extent for wire/path-shaped targets. */
+/** One hit-test attempt at a normalized (0-1) frame point - converts to on-screen dp via the
+ * shared "cover" mapping, then to raw device pixels the same way ViroReact's own tap-to-place
+ * does (see the comment at its call site below), and returns the best-ranked usable result. */
+async function hitTestAt(
+  scene: ViroARScene,
+  nx: number,
+  ny: number,
+  frameSize: Size,
+  transform: ReturnType<typeof computeCoverTransform>,
+  pixelRatio: number,
+): Promise<ViroARHitTestResult | null> {
+  const screenPoint = mapPoint(nx, ny, frameSize, transform);
+  const results: ViroARHitTestResult[] = await scene.performARHitTestWithPoint(
+    screenPoint.x * pixelRatio,
+    screenPoint.y * pixelRatio,
+  );
+  return pickBestHit(results);
+}
+
+/**
+ * A single representative 2D point (normalized 0-1, frame-relative) to hit-test for a target -
+ * the bounding box center for a box/circle/point target, or a point actually ON the path for a
+ * wire/path-shaped one.
+ *
+ * The path case deliberately does NOT use the path's bounding-box center (min/max of its x/y
+ * extent) - for anything but a straight horizontal/vertical wire, that computed centroid is not
+ * guaranteed to land anywhere near the path itself (an L-shaped or diagonal wire's bounding-box
+ * center can fall in the empty space the wire bends around). It uses the path's own middle
+ * vertex instead - a point Gemini actually placed on the wire - which is a real, likely
+ * contributor to "no surface found" misses for path-shaped targets specifically, found by
+ * re-reading this function, not by guessing.
+ */
 function targetCenter(target: VisualTarget): { x: number; y: number } | null {
   if (target.boundingBox) {
     const { x, y, width, height } = target.boundingBox;
     return { x: x + width / 2, y: y + height / 2 };
   }
   if (target.path && target.path.length > 0) {
-    const xs = target.path.map((p) => p.x);
-    const ys = target.path.map((p) => p.y);
-    return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+    const mid = target.path[Math.floor(target.path.length / 2)];
+    return { x: mid.x, y: mid.y };
   }
   return null;
 }
+
+/**
+ * Small, bounded set of nearby points (normalized frame fractions) to retry a hit test against if
+ * the exact target point misses. This is a legitimate, well-established AR UX pattern (a hit test
+ * failing at one exact pixel while a real surface exists a few pixels away is routine - feature
+ * detection is inherently a little noisy), not a way to fabricate a result: every point tried is
+ * still hit-tested for real, and the search radius is kept small (up to ~3.5% of the frame) so a
+ * successful retry is still visually right next to the original point, not a guess.
+ *
+ * Deliberately NOT implemented: falling back to the nearest already-detected plane regardless of
+ * distance. That could easily place a marker on a real but unrelated surface (e.g. the table
+ * instead of the small component sitting on it), which is worse than an honest "couldn't place
+ * this one" - a confidently wrong pointer undermines the whole point of a precision AR marker.
+ */
+const RETRY_OFFSETS_NORMALIZED: { dx: number; dy: number }[] = [
+  { dx: 0.015, dy: 0 },
+  { dx: -0.015, dy: 0 },
+  { dx: 0, dy: 0.015 },
+  { dx: 0, dy: -0.015 },
+  { dx: 0.03, dy: 0.03 },
+  { dx: -0.03, dy: 0.03 },
+  { dx: 0.03, dy: -0.03 },
+  { dx: -0.03, dy: -0.03 },
+];
 
 /**
  * Hit-tests each target's 2D screen position against the live AR session and, for every target
@@ -110,26 +163,40 @@ export async function placeTargets(
 
     // performARHitTestWithPoint expects raw device pixels, not React Native's dp units - confirmed
     // by reading ViroReact's own Studio tap-to-place call site, which does
-    // `locationX * PixelRatio.get()` before calling it. mapPoint() (shared with the 2D SVG
-    // overlay's own coordinate math) gives dp; multiply by PixelRatio.get() the same way.
-    const screenPoint = mapPoint(center.x, center.y, frameSize, transform);
-    const physX = screenPoint.x * pixelRatio;
-    const physY = screenPoint.y * pixelRatio;
-
-    let results: ViroARHitTestResult[] = [];
+    // `locationX * PixelRatio.get()` before calling it. hitTestAt() reproduces that same
+    // conversion via mapPoint() (shared with the 2D SVG overlay's own coordinate math).
+    let best: ViroARHitTestResult | null = null;
+    let hitAt = "exact";
     try {
-      results = await scene.performARHitTestWithPoint(physX, physY);
+      best = await hitTestAt(scene, center.x, center.y, frameSize, transform, pixelRatio);
+      if (!best) {
+        for (const offset of RETRY_OFFSETS_NORMALIZED) {
+          if (isCancelled()) break;
+          const nx = Math.min(1, Math.max(0, center.x + offset.dx));
+          const ny = Math.min(1, Math.max(0, center.y + offset.dy));
+          best = await hitTestAt(scene, nx, ny, frameSize, transform, pixelRatio);
+          if (best) {
+            hitAt = `nearby (dx=${offset.dx}, dy=${offset.dy})`;
+            break;
+          }
+        }
+      }
     } catch (err) {
       console.warn(`[ar-anchor] hit test threw for target ${target.id} (${target.label}):`, err);
       skipped++;
       continue;
     }
 
-    const best = pickBestHit(results);
     if (!best) {
-      console.warn(`[ar-anchor] no usable surface under target ${target.id} (${target.label}) - skipping`);
+      console.warn(
+        `[ar-anchor] no usable surface under target ${target.id} (${target.label}), even after ${RETRY_OFFSETS_NORMALIZED.length} nearby retries - skipping. ` +
+          `This is often expected (low-feature surface, or ARKit/ARCore hasn't scanned this area yet - try moving the phone slightly around the target before asking).`,
+      );
       skipped++;
       continue;
+    }
+    if (hitAt !== "exact") {
+      console.log(`[ar-anchor] target ${target.id} (${target.label}) placed via ${hitAt} retry, not the exact point`);
     }
 
     // createAnchoredNode gives this point a real, persisted native AR anchor - the correct AR

@@ -47,11 +47,24 @@ export default function ArMainScene({
     }
 
     let cancelled = false;
-    placeTargets(sceneRef, targets, frameSize, containerSize, () => cancelled).then(({ placed, skipped }) => {
-      if (cancelled) return;
-      setPlacedMarkers(placed);
-      onPlacementStatusChange({ placed: placed.length, skipped, total: targets.length });
-    });
+    console.log(`[ar-anchor] placement pass starting for ${targets.length} target(s)`);
+    placeTargets(sceneRef, targets, frameSize, containerSize, () => cancelled)
+      .then(({ placed, skipped }) => {
+        if (cancelled) return;
+        console.log(`[ar-anchor] placement pass done: ${placed.length} placed, ${skipped} skipped`);
+        setPlacedMarkers(placed);
+        onPlacementStatusChange({ placed: placed.length, skipped, total: targets.length });
+      })
+      // placeTargets already catches per-target hit-test/anchor errors internally (see
+      // arTargetPlacement.ts) - this only guards against something unexpected escaping that (a
+      // real gap found on review: an unhandled rejection here wouldn't crash anything visibly in
+      // React Native, but would silently leave the placement status badge stuck on stale data).
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("[ar-anchor] placement pass threw unexpectedly:", err);
+        setPlacedMarkers([]);
+        onPlacementStatusChange(null);
+      });
 
     return () => {
       cancelled = true;
