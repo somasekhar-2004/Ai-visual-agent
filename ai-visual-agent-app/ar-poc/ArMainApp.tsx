@@ -17,20 +17,17 @@ import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
 
 import { ApiError, callAnalyze } from "../src/api";
-import type { VisionProviderRequest } from "../src/types";
+import type { VisionProviderRequest, VisualTarget } from "../src/types";
+import type { Size } from "../src/overlay/coordinateMapping";
 import ArMainScene from "./ArMainScene";
 
 /**
- * Phase B: the real app flow (ask a question, capture a frame, call the backend, speak the
- * answer), but with ViroReact's AR camera (ViroARSceneNavigator + takeScreenshot) as the camera
- * layer instead of expo-camera's CameraView + takePictureAsync. Only reachable behind
- * EXPO_PUBLIC_AR_POC=1 (see index.ts) - App.tsx and its expo-camera flow are untouched and are
- * exactly what runs with the flag off.
- *
- * Deliberately NOT included yet (Phase C): rendering Gemini's returned targets as AR-anchored
- * content, or any 2D-tap/hit-test placement. This phase only proves the AR camera layer itself -
- * live preview, plane detection running in the background, and a real screenshot -> /api/analyze
- * -> spoken response round trip.
+ * The real app flow (ask a question, capture a frame, call the backend, speak the answer), but
+ * with ViroReact's AR camera (ViroARSceneNavigator + takeScreenshot) as the camera layer instead
+ * of expo-camera's CameraView + takePictureAsync (Phase B), and Gemini's returned targets
+ * rendered as real, world-anchored AR content instead of a 2D overlay (Phase C). Only reachable
+ * behind EXPO_PUBLIC_AR_POC=1 (see index.ts) - App.tsx and its expo-camera/gyroscope-overlay flow
+ * are untouched and are exactly what runs with the flag off.
  *
  * A screenshot from takeScreenshot() is the AR renderer's own composited output (whatever
  * format/resolution ViroReact chooses to write - not necessarily JPEG, and not necessarily
@@ -39,13 +36,22 @@ import ArMainScene from "./ArMainScene";
  * format the input file actually is - it doesn't require knowing that format up front - so it
  * both normalizes the payload to what the backend expects (JPEG, ~896px, matching frameCapture.ts
  * on the web app) AND sidesteps needing to guess/sniff takeScreenshot's real output format from
- * this sandbox, where that can't be observed directly.
+ * this sandbox, where that can't be observed directly. (Phase B result: confirmed correct on a
+ * real device - orientation and content match what the camera was pointed at.)
+ *
+ * The actual AR target placement (hit-testing each target's 2D position, creating anchors,
+ * rendering markers/labels/connectors) lives in arTargetPlacement.ts and ArAnchoredTargets.tsx,
+ * run from inside ArMainScene.tsx - see that file for why `targets`/`frameSize`/`containerSize`
+ * are threaded down via ViroARSceneNavigator's `viroAppProps` prop rather than passed as an
+ * ordinary prop through `initialScene`'s scene factory.
  */
 
 const RESIZE_MAX_WIDTH = 896;
 const JPEG_QUALITY = 0.72;
 
 type ScreenshotResult = { success: boolean; url?: string; errorCode?: number };
+type PlacementStatus = { placed: number; skipped: number; total: number } | null;
+type ViroAppProps = { targets: VisualTarget[]; frameSize: Size; containerSize: Size | null };
 
 function describeSpeechFailure(startedFirst: boolean, err: Error): string {
   if (startedFirst) {
@@ -67,6 +73,15 @@ export default function ArMainApp() {
   const [isBusy, setIsBusy] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  // Phase C: AR target placement. containerSize/frameSize feed the same normalized-(0-1)-to-
+  // on-screen-pixel "cover" mapping the gyroscope-tracked 2D overlay uses (src/overlay/
+  // coordinateMapping.ts) - here its output is hit-tested into the AR world instead of drawn as
+  // an SVG shape. See ArMainScene.tsx/arTargetPlacement.ts for the rest of the pipeline.
+  const [containerSize, setContainerSize] = useState<Size | null>(null);
+  const [frameSize, setFrameSize] = useState<Size>({ width: RESIZE_MAX_WIDTH, height: RESIZE_MAX_WIDTH });
+  const [targets, setTargets] = useState<VisualTarget[]>([]);
+  const [placementStatus, setPlacementStatus] = useState<PlacementStatus>(null);
 
   useEffect(() => {
     requestRequiredPermissions(["camera"]).then((result) => setPermission(result.camera ? "granted" : "denied"));
@@ -107,6 +122,26 @@ export default function ArMainApp() {
     setTrackingState(state);
   };
 
+  // ViroARSceneNavigator's own type declares `initialScene.scene` as a zero-argument factory
+  // (`() => JSX.Element`), but its real implementation (_renderSceneStackItems in
+  // ViroARSceneNavigator.js) always invokes it as a genuine React component - with
+  // `sceneNavigator`/`arSceneNavigator`/passProps as props - on every render, which is exactly
+  // what's needed to read the live viroAppProps back out. The `as unknown as` cast below papers
+  // over that type/runtime mismatch; it isn't hiding a real type error, the shipped .d.ts is just
+  // narrower than the shipped .js.
+  const arMainSceneFactory = (sceneProps: { arSceneNavigator?: { viroAppProps?: Partial<ViroAppProps> } }) => {
+    const live = sceneProps?.arSceneNavigator?.viroAppProps;
+    return (
+      <ArMainScene
+        targets={live?.targets ?? []}
+        frameSize={live?.frameSize ?? frameSize}
+        containerSize={live?.containerSize ?? null}
+        onTrackingStateChange={handleTrackingUpdated}
+        onPlacementStatusChange={setPlacementStatus}
+      />
+    );
+  };
+
   const handleAsk = async () => {
     const text = question.trim();
     if (!text || isBusy) return;
@@ -140,6 +175,9 @@ export default function ArMainApp() {
       });
       if (!resized.base64) throw new Error("Failed to encode the captured frame.");
       const frameDataUrl = `data:image/jpeg;base64,${resized.base64}`;
+      // Targets' normalized (0-1) coordinates are relative to this exact resized frame, so its
+      // pixel size has to be captured alongside them for the hit-test mapping in ArMainScene.tsx.
+      setFrameSize({ width: resized.width, height: resized.height });
 
       // 3. Call the existing Next.js backend - identical request shape to App.tsx/the web app.
       const isFirstMessage = !userProblem;
@@ -161,8 +199,11 @@ export default function ArMainApp() {
       setQuestion("");
       setInstruction(response.instruction);
       setPreviousInstruction(response.instruction || previousInstruction);
-      // Not wiring response.targets into any overlay yet - AR-anchored target placement is
-      // Phase C. This phase only confirms the request/response round trip works.
+      // Hand the new targets to ArMainScene (via viroAppProps below) for AR hit-test placement.
+      // Unlike App.tsx's gyroscope-compensated 2D overlay, there's no capture-moment snapshot or
+      // pixel-offset math needed here - each marker gets hit-tested into real 3D world space once
+      // and then just stays there, tracked by ARKit/ARCore itself like any other AR content.
+      setTargets(response.targets);
 
       const spokenText = response.spokenInstruction || response.instruction;
       if (spokenText) speakInstruction(spokenText, "analyze-response");
@@ -198,14 +239,27 @@ export default function ArMainApp() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <StatusBar style="light" />
-      <View style={styles.cameraWrap}>
-        {/* AR camera layer (Phase B) - replaces expo-camera's CameraView. No visible 3D content
-            yet (that's Phase C); this is purely the live AR passthrough + background plane
-            detection, exactly like ArPocScene.tsx proved works in Phase A. */}
+      <View
+        style={styles.cameraWrap}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setContainerSize({ width, height });
+        }}
+      >
+        {/* AR camera layer (Phase B) + AR-anchored target markers (Phase C). `viroAppProps` is
+            the one channel ViroARSceneNavigator actually keeps in sync on an already-mounted
+            scene after its first render - `initialScene.scene` is only invoked once, at mount,
+            so a normal prop passed through it would freeze at whatever `targets` was on that very
+            first render (an empty array) and never update again. Confirmed by reading
+            ViroARSceneNavigator's own render()/componentDidUpdate - it explicitly re-syncs
+            `this.arSceneNavigator.viroAppProps` from `this.props.viroAppProps` on every render,
+            and componentDidUpdate does not do the same for `initialScene`. ArMainScene.tsx reads
+            these back out via the scene factory's own `arSceneNavigator` prop. */}
         <ViroARSceneNavigator
           ref={navigatorRef}
           style={StyleSheet.absoluteFill}
-          initialScene={{ scene: () => <ArMainScene onTrackingStateChange={handleTrackingUpdated} /> }}
+          viroAppProps={{ targets, frameSize, containerSize } satisfies ViroAppProps}
+          initialScene={{ scene: arMainSceneFactory as unknown as () => React.JSX.Element }}
         />
         {isSpeaking && (
           <View style={styles.speakingBadge}>
@@ -215,6 +269,10 @@ export default function ArMainApp() {
         <View style={styles.trackingBadge}>
           <Text style={styles.trackingBadgeText}>
             AR tracking: {trackingState === ViroTrackingStateConstants.TRACKING_NORMAL ? "normal" : "initializing…"}
+            {placementStatus &&
+              ` · targets placed: ${placementStatus.placed}/${placementStatus.total}${
+                placementStatus.skipped > 0 ? ` (${placementStatus.skipped} no surface found)` : ""
+              }`}
           </Text>
         </View>
       </View>
@@ -224,7 +282,7 @@ export default function ArMainApp() {
         {instruction && <Text style={styles.instructionText}>{instruction}</Text>}
         {!instruction && !errorMessage && (
           <Text style={styles.hintText}>
-            Phase B: AR camera layer. Point the camera at your circuit and ask a question below.
+            AR camera + world-anchored targets. Point the camera at your circuit and ask a question below.
           </Text>
         )}
 

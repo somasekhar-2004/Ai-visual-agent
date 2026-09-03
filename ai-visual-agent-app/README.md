@@ -318,13 +318,158 @@ EXPO_PUBLIC_AR_POC=1 npx expo run:ios --device
    confirms the full round trip: AR screenshot -> resize/JPEG -> `/api/analyze` -> real backend
    response -> native TTS.
 
-**Please check specifically:** does the captured frame actually show what the camera was pointed
-at, right-side-up (per the format note above, I can't verify this from here - if Gemini's response
-sounds like it's describing something unrelated to what was in frame, or you have another way to
-inspect the sent image, that's the signal something's off with capture, not with Gemini)? And does
-the "AR tracking: normal" badge appear as expected? Report back and I'll adjust. Once this is
-confirmed, Phase C (anchoring Gemini's returned targets in AR space, replacing the current
-gyroscope-based overlay for this flag's path) is next.
+**Phase B result: confirmed working on a real device.** The AR camera stays live (no freeze/
+capture pause), and Gemini's responses are accurate to what the camera was actually pointing at -
+orientation and capture content are correct. Phase C (below) builds on this.
+
+## Phase C results: Gemini's targets as real, world-anchored AR markers
+
+This is the feature the whole AR migration was for: Gemini's returned targets (source/destination,
+2D coordinates) rendered as real content anchored in 3D space - a marker placed on the actual wire
+stays visually on that wire as the phone moves, the same way the Phase A test sphere did, instead
+of the 2D-overlay approximation `App.tsx` uses. **As with Phases A and B, this was built and
+verified from a Linux sandbox with no Xcode/Simulator/device access - the on-device behavior below
+is what still needs you to test and report back**, and this phase in particular leans on some
+ViroReact API behavior I could only confirm by reading its shipped source, not by running it.
+
+### What changed
+
+- `ar-poc/arTargetPlacement.ts` - for each of Gemini's targets, works out its on-screen 2D point,
+  hit-tests that point into the live AR session with `performARHitTestWithPoint`, ranks the results
+  (a confirmed real surface beats a sparse feature point - see below), and calls
+  `createAnchoredNode` on the best one to create a real AR anchor.
+- `ar-poc/ArAnchoredTargets.tsx` - renders the placed targets: a small sphere marker + a
+  camera-facing text label per target (cyan for source, amber for destination - the same
+  `#22d3ee`/`#f59e0b` convention as the web app and `src/overlay/CameraOverlay.tsx`), and a line
+  between a destination and its linked source, mirroring the web app's dashed connector.
+- `ar-poc/ArMainScene.tsx` now holds a ref to the `ViroARScene` itself (needed for the hit-test/
+  anchor calls) and re-runs placement whenever a new set of targets arrives, replacing the
+  rendered markers wholesale rather than adding to them.
+- `ar-poc/ArMainApp.tsx` now tracks `targets`/`frameSize`/`containerSize` state (the same inputs
+  the gyroscope-tracked 2D overlay uses) and a small "targets placed: X/Y" status badge next to
+  the AR tracking indicator.
+
+Unlike `App.tsx`'s gyroscope-compensated overlay, there's no capture-moment snapshot or per-frame
+pixel-offset math on this path at all - each marker is hit-tested into real 3D world space once,
+and from then on ARKit/ARCore itself is what keeps it visually locked to that point as the phone
+moves. That's the entire point of doing this migration.
+
+### A real API-behavior finding: `viroAppProps`, not a normal prop
+
+Something I found by reading `ViroARSceneNavigator`'s actual implementation (not by guessing, and
+not documented anywhere I could find): **`initialScene`'s `scene` factory is only invoked once, at
+first mount** - passing `targets` through it as an ordinary prop (`scene: () => <ArMainScene
+targets={targets} />`) would have permanently frozen it at whatever `targets` was on the very first
+render (an empty array), silently never updating again on later questions. I found this by tracing
+`ViroARSceneNavigator.js`'s `constructor`/`componentDidUpdate`/`render` directly: the scene is
+captured into `state.sceneDictionary` once in the constructor and `componentDidUpdate` never
+refreshes it, while `viroAppProps` **is** explicitly re-synced onto the live scene every render
+(`this.arSceneNavigator.viroAppProps = this.props.viroAppProps`, run inside `render()`). So
+`ArMainApp.tsx` now passes `{targets, frameSize, containerSize}` through `viroAppProps` instead,
+and the scene factory reads them back out via its own `arSceneNavigator` prop. This is exactly the
+kind of thing that would have looked like it worked in a quick test (a marker or two would
+correctly appear from the *first* question) and then silently stopped updating on every question
+after that - worth being extra sure of on-device, per the checklist below.
+
+### The `createAnchoredNode` limitation - and why it's still called
+
+You asked specifically for `performARHitTestWithPoint` + `createAnchoredNode`. The hit-test part
+works exactly as documented. `createAnchoredNode` is more complicated: its own doc comment in the
+shipped `.d.ts` says the node reference it returns "can be passed to a `ViroARNode` component to
+attach 3D content (though `ViroARNode` is optional **and not yet implemented**)." I confirmed
+`ViroARNode` genuinely isn't exported anywhere in this package version. That means:
+
+- There is no way, in this ViroReact version, to parent a visible marker under the anchor
+  `createAnchoredNode` creates. What actually makes a marker "stay locked" here is the same
+  mechanism Phase A's tap-to-place sphere used: a plain `ViroSphere`/`ViroText` positioned once at
+  a fixed `[x, y, z]` world coordinate, which ARKit/ARCore continuously re-projects correctly onto
+  the live camera feed as the phone moves - **not** anything from the anchor itself.
+- There's also no exposed way to remove an individual anchor - only `resetARSession(...,
+  removeAnchors: true)`, which also resets tracking (and would undo the whole point of this
+  migration if called on every question). So native anchors from `createAnchoredNode` accumulate
+  for the life of the AR session, with no visible/rendering cost (nothing renders from them) but a
+  real, unbounded native resource cost the library gives no way to avoid short of restarting
+  tracking.
+
+Given that, `createAnchoredNode` is still called - it's the more correct AR practice, it's cheap,
+and it's what was explicitly asked for - but its result is only used as a one-time position
+snapshot (falling back to the raw hit-test position if it fails), not as a live-updating anchor.
+I considered dropping the call entirely, since in this version it provides no observable benefit
+over just using the hit-test's own position - but kept it since it does no harm and might still
+matter (ARKit continues refining an anchor's tracked pose after creation in ways a bare static
+point doesn't benefit from, even though nothing here currently reads that refinement back). Worth
+knowing about for a long troubleshooting session with many questions, though unlikely to matter for
+a normal one.
+
+### Coordinates: confirmed from source, not guessed
+
+`performARHitTestWithPoint(x, y)` isn't documented anywhere as to what units `x`/`y` are in. I
+found the answer by reading ViroReact's own internal "tap to place" feature
+(`StudioARScene.js`/`StudioSceneNavigator.js`), which computes its point as `locationX *
+PixelRatio.get()` before calling this same method - i.e. **raw device pixels, not React Native's
+dp/logical-pixel units.** `arTargetPlacement.ts` reproduces this: it reuses the exact same
+normalized-(0-1)-to-on-screen-pixel "cover" mapping the 2D SVG overlay already uses
+(`computeCoverTransform`/`mapPoint` from `src/overlay/coordinateMapping.ts`), then multiplies by
+`PixelRatio.get()` before calling the hit test - the same two-step conversion the library's own
+internal feature does.
+
+### Shape simplification: every target is a sphere + label, not box/path
+
+You explicitly left this as my call. Every target - regardless of whether Gemini marked it `box`,
+`circle`, `point`, or `path` in 2D - renders as the same small sphere + billboarded text label in
+AR. Reproducing a box or path shape faithfully in 3D would need either several hit tests per
+corner/point (each of which can land on a different real-world depth, since AR hit-testing has no
+guarantee that, say, a bounding box's four corners are on the same real-world plane - the result
+could easily come out warped or non-planar) or assuming a single flat depth for the whole shape
+(which would just be a guess dressed up as geometry). A single well-placed, readable marker is more
+useful and far more robust than a shape that might render distorted - especially for a first pass
+of the actual placement mechanism, which is the part worth getting right before investing in shape
+fidelity.
+
+### Graceful hit-test misses
+
+Not every target will land on a real surface - Gemini reasons over the flat captured image; ARKit/
+ARCore reasons over whatever it's actually mapped of the real 3D scene so far, and those two views
+routinely disagree at the pixel level (early in a session before much has been scanned, or for a
+target on a feature-poor surface like bare wire or dark plastic). `arTargetPlacement.ts` treats a
+failed/empty hit test as "skip this one target," never a crash, and reports how many were skipped
+via the "targets placed: X/Y" badge next to the AR tracking indicator. **A target being skipped is
+expected, routine behavior, not necessarily a bug** - but if most/all targets are consistently
+skipped, that's the signal something's off (see the checklist below).
+
+### What was verified from this sandbox (no Mac needed for these)
+
+- `npx tsc --noEmit` passes cleanly, including the `as unknown as` cast needed for
+  `initialScene.scene` (ViroARSceneNavigator's shipped `.d.ts` types it as a zero-argument
+  function; its shipped `.js` always calls it with props - a real type/runtime mismatch in the
+  library, not something papered over to dodge a real error).
+- `npx expo export --platform ios` succeeds, and the `--dev` bundle contains
+  `performARHitTestWithPoint`, `createAnchoredNode`, `ArAnchoredTargets`, and the hit-test priority/
+  fallback logic - confirming this code is actually reachable in the shipped bundle, not dead code.
+- `npx expo prebuild --clean` still succeeds with the same `ios/Podfile` wiring as Phases A/B - no
+  new native dependency was needed for this phase.
+
+### What "it worked" looks like
+
+1. Ask a question the same way as Phase B. Once Gemini responds, watch the "AR tracking" badge -
+   it should briefly show `targets placed: X/Y` (Y = however many targets Gemini returned).
+2. **The core thing to check:** do small cyan/amber sphere markers with text labels appear roughly
+   where the relevant wire/component actually is? As you move the phone around that area, do they
+   **stay visually locked to that real point** - not drift, not follow the screen?
+3. If there's a source+destination pair, is there a line connecting them?
+4. Ask a *different* question. Do the old markers disappear and get replaced by new ones (not
+   accumulate)? This also indirectly confirms the `viroAppProps` fix above actually works, since a
+   second question's targets reaching the scene at all depends on it.
+5. If the badge shows fewer placed than total, that's an expected hit-test miss per target (see
+   above) - not necessarily wrong, but worth noting which ones and whether it seems to correlate
+   with a specific type of surface (bare wire vs. a component body, for instance).
+
+**Please report back specifically:** did markers appear at plausible locations and stay
+world-locked as you moved? Did a second question correctly replace the first's markers (confirming
+the `viroAppProps` live-update fix)? Roughly what fraction of targets get placed vs. skipped, and
+does anything in the Metro `[ar-anchor]` logs stand out? This is the core mechanism the whole
+migration was built around, so getting a clear picture of what does and doesn't work here matters
+more than any earlier phase.
 
 ## Prerequisites
 
