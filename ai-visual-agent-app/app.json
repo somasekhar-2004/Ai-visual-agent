@@ -10,8 +10,11 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "AI Visual Expert uses the camera to look at your circuit and give live troubleshooting instructions.",
-        "NSMicrophoneUsageDescription": "AI Visual Expert uses the microphone so you can ask questions by voice."
-      }
+        "NSMicrophoneUsageDescription": "AI Visual Expert uses the microphone so you can ask questions by voice.",
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
+        "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos"
+      },
+      "bundleIdentifier": "com.anonymous.aivisualagentapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +24,13 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["CAMERA", "RECORD_AUDIO"]
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.aivisualagentapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,6 +41,21 @@
         {
           "cameraPermission": "AI Visual Expert uses the camera to look at your circuit and give live troubleshooting instructions.",
           "microphonePermission": "AI Visual Expert uses the microphone so you can ask questions by voice."
+        }
+      ],
+      [
+        "@reactvision/react-viro",
+        {
+          "provider": "none",
+          "ios": {
+            "cameraUsagePermission": "AI Visual Expert uses the camera for augmented-reality tracking of your circuit.",
+            "microphoneUsagePermission": "AI Visual Expert uses the microphone for augmented-reality experiences."
+          },
+          "android": {
+            "xRMode": [
+              "AR"
+            ]
+          }
         }
       ]
     ]
