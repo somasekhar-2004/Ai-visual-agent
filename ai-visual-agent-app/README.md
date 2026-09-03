@@ -9,22 +9,100 @@ Android Chrome after extensive real-device testing - native TTS/STT don't have t
 source/destination target logic all still live in the parent `ai-visual-agent/` project and run
 exactly as before. This app is just a new client for that same API.
 
-## Status: minimal loop working end-to-end
+## Status
 
 What's implemented right now:
-- Live camera preview (`expo-camera`)
+- Live camera preview (`expo-camera`) that **never pauses or freezes** - `takePictureAsync()`
+  grabs a still frame to send to the backend without affecting the live preview at all.
 - Type a question -> capture a frame -> `POST /api/analyze` on the existing backend (identical
   request/response shape to the web app) -> show the instruction text -> speak it with native TTS
   (`expo-speech`, no browser `speechSynthesis` anywhere)
+- The returned source/destination targets render **live on top of the camera preview**
+  (`react-native-svg`), and stay roughly aligned with the real scene as the phone moves via
+  gyroscope-based motion compensation between Gemini calls - see "Live tracking approach" below
+  for exactly what this does and doesn't do.
 
 What's **not** built yet (next phases, not in this pass):
 - Voice input (STT) - see "Adding voice input" below for why this needs a dev build
-- Rendering the source/destination overlay markers (`react-native-svg`) on the camera view - the
-  backend already returns `targets` with `boundingBox`/`path`/`role`/`linkedTargetId` in every
-  response, just not drawn on screen yet
 - The "say done -> verify" loop and full multi-turn session state (previous observations,
   detected components, conversation tail) - the backend already supports all of this, the app
   just isn't threading it through past a single previous instruction yet
+
+## Live tracking approach
+
+**The ask was real-time object tracking, Google-Lens-style: the box visually follows the actual
+wire as the camera moves, independent of what the camera itself is doing. What's shipped here is
+a weaker, more limited thing: camera-rotation compensation.** They look similar for small,
+careful phone movements and are not the same thing. Read this section before judging "does the
+box track well" - it explains exactly what to expect.
+
+**Why not real object tracking (optical flow / Lucas-Kanade) right now:** that needs a live
+per-frame pixel stream fast enough to track at camera framerate, which on Expo means
+`react-native-vision-camera` "frame processors." Frame processors are backed by a native module -
+**not part of the Expo Go sandbox** - and the tracking algorithm itself has to run in native code
+(typically wrapping OpenCV) to have any chance of keeping up with 20-30fps; a pure-JS
+implementation would be far too slow. That's a genuinely substantial native-engineering effort
+(binding OpenCV or a similar CV library on both platforms, writing/testing the frame-processor
+plugin), and **it cannot be built *and verified* from this sandboxed dev environment** - there's
+no camera, no physical device, and no Xcode/Android Studio here to build and run it against. I'm
+not going to hand you native tracking code I have zero way to confirm actually works. "How to
+get there" is in **Phase 2**, below.
+
+**What's shipped instead, and why:** `expo-sensors`' `Gyroscope` - a standard bundled Expo module,
+works in plain Expo Go, no native code, no dev client - continuously integrates the phone's
+rotation (`src/overlay/useTrackedTargets.ts`). Each time a frame is captured for analysis, the
+current integrated rotation is snapshotted; once Gemini's response comes back, the difference
+between "now" and that snapshot estimates how far the *camera* has rotated since the analyzed
+frame was taken, and the whole overlay group is shifted by that estimate (converted from radians
+to screen pixels via an assumed field of view) until the next response replaces it. This is a
+well-established lightweight technique (sometimes called inertial dead-reckoning / motion-
+compensated re-projection) used by simple AR-annotation apps that don't do full visual tracking.
+
+**What this technique cannot do, concretely:**
+- It compensates for the camera **rotating** (panning/tilting) - not for **translating**
+  sideways/forward, and not for the wire itself moving independently of the camera. For a
+  breadboard held close to the camera, lateral hand movement (not rotation) causes a lot of the
+  apparent motion, and this technique does not correct for that at all.
+- It **drifts** the longer it runs without a fresh Gemini anchor - bounded by however often the
+  app re-analyzes, which right now is only on-demand per question (a periodic auto-verify loop,
+  like the web app has, isn't ported yet - see "not built yet" above).
+- The angle -> pixel conversion assumes a **fixed 68° horizontal field of view**
+  (`ASSUMED_HORIZONTAL_FOV_DEGREES` in `useTrackedTargets.ts`) since expo-camera doesn't expose
+  the real device's FOV. Real phone camera FOVs vary (~60-75°); if the box visibly under- or
+  over-shoots real motion on your device, adjust this constant.
+- The **axis sign convention is unverified against a real device.** Gyroscope X/Y are mapped to
+  pitch/yaw using the standard mobile device-axis convention, but I have no way to confirm the
+  sign is right without a physical phone. **If the box drifts in the wrong direction when you
+  test this, flip the sign of `dx` and/or `dy`** in the `pixelOffset` calculation in
+  `useTrackedTargets.ts` (clearly commented at that exact line).
+- Roll (twisting the phone like a steering wheel) isn't compensated at all, only pitch/yaw.
+
+If the device has no gyroscope (rare, but `Gyroscope.isAvailableAsync()` can return `false`), the
+app falls back to a static box that holds its last position and jumps on the next update - a
+safe, honest degradation rather than broken math.
+
+**Verified from this environment:** the coordinate-mapping math (`src/overlay/coordinateMapping.ts`,
+the frame->screen "cover" projection) has real unit tests confirming correct scale/offset/point
+math and no NaN on degenerate input - genuinely checked, not just typechecked. The camera-rotation
+tracking, the FOV constant, and the axis signs are **not** verified against real sensor data -
+that's the concrete thing to test and report back on once this is on your phone.
+
+### Phase 2: true visual object tracking
+
+When you're ready to invest in the real thing:
+1. `npx expo install react-native-vision-camera react-native-worklets-core` (or the current
+   equivalent - check compatibility with Expo SDK 57 at that time) and switch `CameraView` to
+   vision-camera's `Camera` component with a frame processor.
+2. Pick or write a frame-processor plugin that does per-frame tracking - e.g. a plugin wrapping
+   OpenCV's `calcOpticalFlowPyrLK` (Lucas-Kanade pyramidal optical flow) seeded with the
+   feature points inside Gemini's last returned bounding box, updated every frame.
+3. This requires a **custom dev client** (see "Adding voice input" below for the exact
+   `expo run:ios`/`expo run:android`/EAS build steps - the same switch STT needs, so it's a
+   natural point to add both at once).
+4. Re-anchor the tracker's seed points every time a new Gemini response arrives, the same
+   handoff pattern already implemented here (`setTargets`/`markCaptureMoment` in
+   `useTrackedTargets.ts`) - only the "how do we estimate motion between anchors" part changes,
+   the capture/anchor/handoff architecture around it carries over.
 
 ## Prerequisites
 
@@ -174,9 +252,15 @@ in Expo Go - only STT needs this switch.
 ## Project structure
 
 ```
-App.tsx           - the whole screen for now (camera, question input, instruction display)
-src/types.ts       - VisionProviderRequest/VisionAnalysisResponse/VisualTarget, hand-mirrored
-                     from ai-visual-agent/src/lib/vision/types.ts (keep both in sync)
-src/api.ts         - fetch-based client for /api/analyze and /api/verify
-src/config.ts      - reads EXPO_PUBLIC_API_BASE_URL
+App.tsx                          - the whole screen for now (camera, question input, instruction
+                                    display, speech, overlay wiring)
+src/types.ts                     - VisionProviderRequest/VisionAnalysisResponse/VisualTarget,
+                                    hand-mirrored from ai-visual-agent/src/lib/vision/types.ts
+                                    (keep both in sync)
+src/api.ts                       - fetch-based client for /api/analyze and /api/verify
+src/config.ts                    - reads EXPO_PUBLIC_API_BASE_URL
+src/overlay/coordinateMapping.ts - frame -> screen "cover" projection math (has real unit tests,
+                                    see "Live tracking approach")
+src/overlay/useTrackedTargets.ts - gyroscope-based motion compensation between Gemini calls
+src/overlay/CameraOverlay.tsx    - react-native-svg rendering of targets on the live preview
 ```

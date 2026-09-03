@@ -17,6 +17,9 @@ import { StatusBar } from "expo-status-bar";
 
 import { ApiError, callAnalyze } from "./src/api";
 import type { VisionProviderRequest } from "./src/types";
+import { CameraOverlay } from "./src/overlay/CameraOverlay";
+import { useTrackedTargets } from "./src/overlay/useTrackedTargets";
+import type { Size } from "./src/overlay/coordinateMapping";
 
 // Matches the web app's frameCapture.ts convention (896px max dimension, JPEG quality 0.72) so
 // the backend sees comparable payload sizes/latency regardless of which client calls it.
@@ -58,6 +61,14 @@ export default function App() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [testVoiceState, setTestVoiceState] = useState<"idle" | "testing" | "done">("idle");
+
+  // Pixel size of the on-screen camera preview (from onLayout) and of the analyzed frame (from
+  // the last capture's resize) - both needed to map Gemini's normalized target coordinates onto
+  // the live preview. See src/overlay/coordinateMapping.ts.
+  const [containerSize, setContainerSize] = useState<Size | null>(null);
+  const [frameSize, setFrameSize] = useState<Size>({ width: RESIZE_MAX_WIDTH, height: RESIZE_MAX_WIDTH });
+  const { activeTargets, pixelOffset, markCaptureMoment, setTargets, motionAvailable } =
+    useTrackedTargets(containerSize);
 
   /**
    * Single place that calls Speech.speak() - always with explicit options (never relying on
@@ -119,7 +130,12 @@ export default function App() {
     setErrorMessage(null);
 
     try {
-      // 1. Capture a still frame from the live camera.
+      // 1. Capture a still frame from the live camera. This is ONLY the frame sent to the
+      // backend for analysis - the live preview (CameraView below) keeps rendering the whole
+      // time and is never paused, so the user always sees the real live feed, never a frozen
+      // photo. Snapshot the current motion-tracking anchor at the same moment, so the eventual
+      // response's targets can be aligned back to whatever the camera has moved to by then.
+      const captureSnapshot = markCaptureMoment();
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.6 });
       if (!photo) throw new Error("Failed to capture a frame from the camera.");
 
@@ -132,6 +148,7 @@ export default function App() {
       });
       if (!resized.base64) throw new Error("Failed to encode the captured frame.");
       const frameDataUrl = `data:image/jpeg;base64,${resized.base64}`;
+      setFrameSize({ width: resized.width, height: resized.height });
 
       // 3. Call the existing Next.js backend - identical request shape to the web app.
       const isFirstMessage = !userProblem;
@@ -153,6 +170,10 @@ export default function App() {
       setQuestion("");
       setInstruction(response.instruction);
       setPreviousInstruction(response.instruction || previousInstruction);
+      // Hand the new targets to the tracker along with the motion snapshot from the moment the
+      // analyzed frame was captured - it uses the difference between that and now to keep the
+      // overlay roughly aligned with the live camera instead of snapping to a stale position.
+      setTargets(response.targets, captureSnapshot);
 
       // 4. Speak the result with native TTS - no browser speechSynthesis anywhere.
       const spokenText = response.spokenInstruction || response.instruction;
@@ -187,16 +208,38 @@ export default function App() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <StatusBar style="light" />
-      <View style={styles.cameraWrap}>
+      <View
+        style={styles.cameraWrap}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setContainerSize({ width, height });
+        }}
+      >
+        {/* This is the ONLY camera element - it renders continuously and is never paused, even
+            while a frame is captured/analyzed/spoken. takePictureAsync() (in handleAsk) grabs a
+            still frame for the backend without affecting this live preview at all. */}
         <CameraView
           ref={cameraRef}
           style={StyleSheet.absoluteFill}
           facing={CAMERA_FACING}
           onCameraReady={() => setCameraReady(true)}
         />
+        <CameraOverlay
+          targets={activeTargets}
+          frameSize={frameSize}
+          containerSize={containerSize}
+          pixelOffset={pixelOffset}
+        />
         {isSpeaking && (
           <View style={styles.speakingBadge}>
             <Text style={styles.speakingBadgeText}>Speaking…</Text>
+          </View>
+        )}
+        {activeTargets.length > 0 && (
+          <View style={styles.trackingBadge}>
+            <Text style={styles.trackingBadgeText}>
+              {motionAvailable ? "Tracking: motion-compensated" : "Tracking: static (no gyroscope)"}
+            </Text>
           </View>
         )}
       </View>
@@ -285,6 +328,20 @@ const styles = StyleSheet.create({
     color: "#34d399",
     fontSize: 12,
     fontWeight: "600",
+  },
+  trackingBadge: {
+    position: "absolute",
+    bottom: 12,
+    left: 16,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  trackingBadgeText: {
+    color: "#9ca3af",
+    fontSize: 10,
+    fontWeight: "500",
   },
   panel: {
     backgroundColor: "#111827",
