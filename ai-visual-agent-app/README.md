@@ -552,6 +552,77 @@ sound plays, that's a different class of issue (per the existing "Diagnosing sil
 below). Please paste the exact log sequence rather than just "it didn't work" - that's what turns
 this from a guess into an actual diagnosis.
 
+**Update after the placement-loop bug below was found and fixed:** that bug means the AR placement
+effect was firing continuously, not once - a real, ongoing burst of native `performARHitTestWithPoint`/
+`createAnchoredNode` calls (not the brief one-time burst I'd assumed above) is a substantially
+stronger candidate for interfering with `Speech.speak()`'s own native call than the "same tick"
+theory this section was originally written around. Still not confirmed - but worth specifically
+checking whether voice comes back once the loop fix (below) is in place, before looking any further.
+
+## Phase C fix: placement running in a continuous loop instead of once per response
+
+**Real bug, found from your on-device Metro logs** (multiple `placement pass starting for 2
+target(s)` lines firing repeatedly for the same response, no new question asked) - not something
+I could have caught from this sandbox alone; device log evidence is what found it.
+
+### Root cause
+
+`ArMainScene.tsx`'s placement `useEffect` depended on `[targets, frameSize, containerSize]` - three
+values coming from `ArMainApp.tsx` via `viroAppProps`. `targets` itself was reference-stable (only
+changes when `setTargets` is called), but `containerSize` was not: `ArMainApp.tsx`'s `onLayout`
+handler called `setContainerSize({ width, height })` - a **brand-new object literal** - on every
+single `onLayout` firing, even ones reporting the exact same size as before. `onLayout` was firing
+repeatedly and continuously (plausibly from the AR view's own rendering marking the surrounding
+native view hierarchy dirty, though the exact native trigger can't be confirmed from this sandbox -
+the fix doesn't depend on knowing why, only that it was happening). React can't tell an
+unchanged-but-newly-allocated object apart from a real change by reference, so every one of those
+re-fired the placement effect - with the *same* targets, over and over, never anything new.
+
+### The fix
+
+Two changes, addressing this at both ends:
+
+1. **The real fix - decouple "should a new pass start" from `frameSize`/`containerSize`
+   entirely.** `ArMainApp.tsx` now increments a plain counter, `targetsGeneration`, exactly once
+   per real `/api/analyze` response (`setTargetsGeneration((g) => g + 1)`, right next to
+   `setTargets`). `ArMainScene.tsx`'s placement effect now depends on **only** `targetsGeneration`
+   - a primitive number, immune to the "new object, same content" problem entirely. `frameSize`/
+   `containerSize` are still needed for the hit-test math, but are now read via a ref (always
+   current, updated every render, never itself triggers the effect) rather than the dependency
+   array - correctly reflecting that they're *inputs* to a placement pass, not a *signal* that one
+   should start.
+
+   A content-derived key (e.g. joining target IDs) was considered instead and rejected: the
+   backend does not guarantee target IDs are unique *across* separate responses - the mock
+   provider generates simple per-call indices like `source-0`, and nothing in the Gemini prompt
+   schema requires otherwise - so two genuinely different real responses could plausibly produce
+   the same ID set and an ID-based key would then silently fail to trigger a new placement pass,
+   which would be a regression on top of a regression. A response-generation counter has no such
+   ambiguity: every real answer from the backend is unconditionally new, regardless of what its
+   targets contain.
+
+2. **Defense in depth - stop the redundant `onLayout` churn at its source too.** `ArMainApp.tsx`'s
+   `onLayout` handler now compares the incoming width/height against the current `containerSize`
+   and returns the *same* state object (`prev`) when they match, letting React's `setState`
+   bail-out skip the re-render entirely instead of just hoping nothing downstream reacts to it.
+   This isn't required for the loop fix (fix 1 alone breaks the cycle), but it's a real,
+   independent improvement - unnecessary re-renders of the whole AR tree on every redundant layout
+   event were happening regardless of what caused them.
+
+### What was verified from this sandbox (no Mac needed for these)
+
+- `npx tsc --noEmit` passes cleanly with the new `targetsGeneration` prop threaded through
+  `ArMainApp.tsx` → `viroAppProps` → `ArMainScene.tsx`.
+- `npx expo export --platform ios` succeeds, and the `--dev` bundle contains `targetsGeneration`
+  at the expected call sites.
+
+**What I cannot verify from here, and need from you:** the actual fix - "does exactly one
+`placement pass starting`/`done` pair appear per response, not several" - can only be confirmed by
+re-running on your device and reading the real Metro log. Please paste the log sequence for a
+single question/response (ideally the same test as before, for a direct comparison) so this can be
+confirmed rather than assumed. If the loop is gone but markers still don't render/persist, that's a
+new, separate problem worth reporting with its own log evidence.
+
 ## Prerequisites
 
 - Node.js (same version as the main project)

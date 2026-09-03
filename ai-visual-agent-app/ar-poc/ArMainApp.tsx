@@ -51,7 +51,7 @@ const JPEG_QUALITY = 0.72;
 
 type ScreenshotResult = { success: boolean; url?: string; errorCode?: number };
 type PlacementStatus = { placed: number; skipped: number; total: number } | null;
-type ViroAppProps = { targets: VisualTarget[]; frameSize: Size; containerSize: Size | null };
+type ViroAppProps = { targets: VisualTarget[]; targetsGeneration: number; frameSize: Size; containerSize: Size | null };
 
 function describeSpeechFailure(startedFirst: boolean, err: Error): string {
   if (startedFirst) {
@@ -81,6 +81,12 @@ export default function ArMainApp() {
   const [containerSize, setContainerSize] = useState<Size | null>(null);
   const [frameSize, setFrameSize] = useState<Size>({ width: RESIZE_MAX_WIDTH, height: RESIZE_MAX_WIDTH });
   const [targets, setTargets] = useState<VisualTarget[]>([]);
+  // Bumped once per real backend response (see handleAsk) - the actual signal ArMainScene.tsx's
+  // placement effect keys off, not the targets array or its content. See the long comment in
+  // ArMainScene.tsx for why: this app hit a real tight-loop bug where an unrelated, frequently-
+  // recreated object (containerSize, from onLayout) was in that effect's dependency array and
+  // kept retriggering placement with no new response at all.
+  const [targetsGeneration, setTargetsGeneration] = useState(0);
   const [placementStatus, setPlacementStatus] = useState<PlacementStatus>(null);
 
   useEffect(() => {
@@ -134,6 +140,7 @@ export default function ArMainApp() {
     return (
       <ArMainScene
         targets={live?.targets ?? []}
+        targetsGeneration={live?.targetsGeneration ?? 0}
         frameSize={live?.frameSize ?? frameSize}
         containerSize={live?.containerSize ?? null}
         onTrackingStateChange={handleTrackingUpdated}
@@ -216,6 +223,10 @@ export default function ArMainApp() {
       // pixel-offset math needed here - each marker gets hit-tested into real 3D world space once
       // and then just stays there, tracked by ARKit/ARCore itself like any other AR content.
       setTargets(response.targets);
+      // Every real response is unconditionally a new generation - see the comment on
+      // targetsGeneration's declaration above and in ArMainScene.tsx for why this, not the
+      // targets array/content, is what actually triggers a new placement pass.
+      setTargetsGeneration((g) => g + 1);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Something went wrong.";
       setErrorMessage(message);
@@ -251,8 +262,17 @@ export default function ArMainApp() {
       <View
         style={styles.cameraWrap}
         onLayout={(e) => {
+          // Guard against a real bug found on-device: onLayout can fire repeatedly (observed
+          // happening continuously here, plausibly from the AR view's own rendering marking the
+          // native view hierarchy dirty) reporting the *same* size every time. Naively calling
+          // setContainerSize({width, height}) on every firing creates a brand-new object each
+          // time even when nothing changed, and that reference churn was silently retriggering
+          // ArMainScene's placement effect in a tight loop (see the long comment there and in
+          // handleAsk's targetsGeneration for the full fix). Returning the previous state object
+          // unchanged when the size is actually the same lets React's setState bail out and skip
+          // the re-render entirely, instead of just hoping downstream effects ignore it.
           const { width, height } = e.nativeEvent.layout;
-          setContainerSize({ width, height });
+          setContainerSize((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }));
         }}
       >
         {/* AR camera layer (Phase B) + AR-anchored target markers (Phase C). `viroAppProps` is
@@ -267,7 +287,7 @@ export default function ArMainApp() {
         <ViroARSceneNavigator
           ref={navigatorRef}
           style={StyleSheet.absoluteFill}
-          viroAppProps={{ targets, frameSize, containerSize } satisfies ViroAppProps}
+          viroAppProps={{ targets, targetsGeneration, frameSize, containerSize } satisfies ViroAppProps}
           initialScene={{ scene: arMainSceneFactory as unknown as () => React.JSX.Element }}
         />
         {isSpeaking && (
