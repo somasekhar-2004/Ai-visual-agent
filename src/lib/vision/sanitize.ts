@@ -173,6 +173,25 @@ function filterInconsistentTargets(targets: VisualTarget[], text: string): Visua
   });
 }
 
+/**
+ * The model is asked to set a destination's linkedTargetId to its paired source (see prompt rule
+ * 6b), but doesn't always do so even when it clearly means one specific source - observed live
+ * against the real API (a "connect this wire to that hole" response with a valid destination
+ * target but linkedTargetId: null). When exactly one source target survived filtering, any
+ * unlinked destination unambiguously refers to it, so link it - this is what lets
+ * CameraOverlay draw the connecting arrow instead of showing two unrelated-looking markers.
+ * Left alone (not guessed) whenever there's more than one source, since guessing which one would
+ * risk drawing a connector to the wrong object.
+ */
+function linkOrphanDestinations(targets: VisualTarget[]): VisualTarget[] {
+  const sources = targets.filter((t) => t.role !== "destination");
+  if (sources.length !== 1) return targets;
+  const onlySourceId = sources[0].id;
+  return targets.map((t) =>
+    t.role === "destination" && !t.linkedTargetId ? { ...t, linkedTargetId: onlySourceId } : t,
+  );
+}
+
 function sanitizeSafetyFlag(raw: unknown): SafetyFlag | null {
   if (!raw || typeof raw !== "object") return null;
   const s = raw as Record<string, unknown>;
@@ -203,7 +222,7 @@ export function sanitizeAnalysisResponse(raw: unknown): VisionAnalysisResponse {
   // Consistency net: only ever show a target that's actually corroborated by what this same
   // response says, across every field the user might hear or read - see filterInconsistentTargets.
   const consistencyText = [observation, instruction, spokenInstruction, clarifyingQuestion ?? ""].join(" ");
-  const targets = filterInconsistentTargets(sanitizeTargets(r.targets), consistencyText);
+  const targets = linkOrphanDestinations(filterInconsistentTargets(sanitizeTargets(r.targets), consistencyText));
 
   return {
     status,

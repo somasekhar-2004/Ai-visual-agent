@@ -145,7 +145,7 @@ export function CameraOverlay({ videoRef, targets, active }: CameraOverlayProps)
           ctx.stroke();
           ctx.beginPath();
           ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-          ctx.fillStyle = ACCENT;
+          ctx.fillStyle = color;
           ctx.fill();
         } else {
           const radius = 8;
