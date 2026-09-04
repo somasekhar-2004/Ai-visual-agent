@@ -79,6 +79,11 @@ export default function ArMainApp() {
   // coordinateMapping.ts) - here its output is hit-tested into the AR world instead of drawn as
   // an SVG shape. See ArMainScene.tsx/arTargetPlacement.ts for the rest of the pipeline.
   const [containerSize, setContainerSize] = useState<Size | null>(null);
+  // The AR square view's side length in dp, measured from arSquareWrap's own onLayout (a plain
+  // View, which resolves a definite width/height through ordinary flex - see the long comment
+  // below on why this can't be done with `aspectRatio` on ViroARSceneNavigator itself). Null
+  // until the first layout pass completes; the AR view isn't rendered before that.
+  const [squareSide, setSquareSide] = useState<number | null>(null);
   const [frameSize, setFrameSize] = useState<Size>({ width: RESIZE_MAX_WIDTH, height: RESIZE_MAX_WIDTH });
   const [targets, setTargets] = useState<VisualTarget[]>([]);
   // Bumped once per real backend response (see handleAsk) - the actual signal ArMainScene.tsx's
@@ -152,7 +157,13 @@ export default function ArMainApp() {
   const handleAsk = async () => {
     const text = question.trim();
     if (!text || isBusy) return;
-    if (!navigatorRef.current) {
+    // Real crash found on-device: takeScreenshot() was called while the AR view's measured
+    // width was still 0 (a genuine layout bug, now fixed below - see the long comment on
+    // squareSide/arSquareWrap) and threw a native ImageLoadingFailedException trying to open a
+    // screenshot file that was never written, since a 0-sized native view never renders any
+    // content to capture. This guard is the requested safety net, independent of that layout
+    // fix: never attempt a screenshot before the AR view has reported a real, non-zero size.
+    if (!navigatorRef.current || !containerSize || containerSize.width <= 0 || containerSize.height <= 0) {
       setErrorMessage("AR camera isn't ready yet - point it at your circuit and wait a moment.");
       return;
     }
@@ -264,37 +275,73 @@ export default function ArMainApp() {
             frame/container aspect-ratio mismatch at the source instead of correcting for it in
             the coordinate math. takeScreenshot()'s output resizes to ~896x909 (frameSize logged
             below) - very close to square - while the full device screen is a tall ~2:1 portrait
-            rectangle; constraining the *live* AR view to aspectRatio:1 makes containerSize match
-            frameSize's shape by construction, not by calculation. The letterboxing is an
-            intentional, accepted tradeoff for accurate marker placement, not a layout bug. */}
-        <View style={styles.arSquareWrap} pointerEvents="box-none">
-          {/* AR camera layer (Phase B) + AR-anchored target markers (Phase C). `viroAppProps` is
-              the one channel ViroARSceneNavigator actually keeps in sync on an already-mounted
-              scene after its first render - `initialScene.scene` is only invoked once, at mount,
-              so a normal prop passed through it would freeze at whatever `targets` was on that
-              very first render (an empty array) and never update again. Confirmed by reading
-              ViroARSceneNavigator's own render()/componentDidUpdate - it explicitly re-syncs
-              `this.arSceneNavigator.viroAppProps` from `this.props.viroAppProps` on every render,
-              and componentDidUpdate does not do the same for `initialScene`. ArMainScene.tsx
-              reads these back out via the scene factory's own `arSceneNavigator` prop. */}
-          <ViroARSceneNavigator
-            ref={navigatorRef}
-            style={styles.arSquare}
-            viroAppProps={{ targets, targetsGeneration, frameSize, containerSize } satisfies ViroAppProps}
-            initialScene={{ scene: arMainSceneFactory as unknown as () => React.JSX.Element }}
-            // This view's own bounds are now the real containerSize source - it's square by the
-            // `arSquare` style below, so this should report a near-square size matching
-            // frameSize's own ~896x909 shape (logged by arTargetPlacement.ts as "mismatch=...%",
-            // expected near 0% now instead of the ~44% it was reporting when this view filled the
-            // whole tall screen). Same same-value bail-out as before so a redundant firing (this
-            // view still triggers repeated onLayout calls same as the full-screen version did)
-            // doesn't create a new object reference and re-trigger placement.
-            onLayout={(e) => {
-              const { width, height } = e.nativeEvent.layout;
-              console.log(`[ar-anchor:coords] AR square view onLayout: ${width}x${height}`);
-              setContainerSize((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }));
-            }}
-          />
+            rectangle. The letterboxing is an intentional, accepted tradeoff for accurate marker
+            placement, not a layout bug.
+
+            Real regression found on-device from the first attempt at this: giving
+            ViroARSceneNavigator itself `{width: "100%", aspectRatio: 1}` produced a *measured
+            width of 0* on every layout pass (height resolved fine, varying with keyboard/safe-area
+            changes - width did not), which meant the native AR view never actually rendered any
+            pixels, and a screenshot of it crashed (ImageLoadingFailedException - no file, because
+            nothing was ever drawn to capture).
+
+            Why: `aspectRatio` combined with a *percentage* width, on a *custom native component*
+            (not a plain View - Yoga's box model is fully native for View, but a component like
+            ViroARSceneNavigator needs its size resolved through a measure-based path), nested
+            inside a parent using `alignItems: "center"`, is a known-unreliable combination in
+            React Native's Yoga layout engine. A plain `<View>` in the same spot resolves
+            percentage+aspectRatio fine because its entire box model lives inside Yoga; a custom
+            native view needing a measure pass can hit that pass before the percentage parent
+            reference is treated as definite, and comes back with width 0 - while height, having no
+            such percentage/aspectRatio dependency of its own, falls back to consuming the
+            available space independently. That mismatched fallback (0 width, real height) is
+            exactly what the logs showed.
+
+            Fix: don't ask Yoga to resolve percentage+aspectRatio for this native component at all.
+            arSquareWrap (a plain View, immune to the same issue) measures the real available
+            space via its own onLayout, this file computes the square side length in plain JS
+            (Math.min of what's available, so it's correct even if height ever becomes the
+            constraining dimension), and ViroARSceneNavigator receives that as an explicit numeric
+            width/height - a value Yoga never has to derive, only place. It isn't mounted at all
+            until a real, positive size is known, so it can never be laid out at 0x0. */}
+        <View
+          style={styles.arSquareWrap}
+          pointerEvents="box-none"
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            // Floor, not just Math.min: onLayout can report sub-pixel-different values across
+            // repeated firings for what's really the same size (the same "fires more than you'd
+            // expect" behavior already seen from this view once) - rounding avoids treating that
+            // jitter as a real size change and triggering an avoidable re-render.
+            const side = Math.floor(Math.min(width, height));
+            setSquareSide((prev) => (prev === side ? prev : side));
+          }}
+        >
+          {squareSide != null && squareSide > 0 && (
+            // AR camera layer (Phase B) + AR-anchored target markers (Phase C). `viroAppProps` is
+            // the one channel ViroARSceneNavigator actually keeps in sync on an already-mounted
+            // scene after its first render - `initialScene.scene` is only invoked once, at mount,
+            // so a normal prop passed through it would freeze at whatever `targets` was on that
+            // very first render (an empty array) and never update again. Confirmed by reading
+            // ViroARSceneNavigator's own render()/componentDidUpdate - it explicitly re-syncs
+            // `this.arSceneNavigator.viroAppProps` from `this.props.viroAppProps` on every render,
+            // and componentDidUpdate does not do the same for `initialScene`. ArMainScene.tsx
+            // reads these back out via the scene factory's own `arSceneNavigator` prop.
+            <ViroARSceneNavigator
+              ref={navigatorRef}
+              style={{ width: squareSide, height: squareSide }}
+              viroAppProps={{ targets, targetsGeneration, frameSize, containerSize } satisfies ViroAppProps}
+              initialScene={{ scene: arMainSceneFactory as unknown as () => React.JSX.Element }}
+              // This view's own reported bounds are the real containerSize source. With an
+              // explicit numeric style (not percentage/aspectRatio), this should simply echo back
+              // squareSide x squareSide - logged so that's actually confirmed, not assumed.
+              onLayout={(e) => {
+                const { width, height } = e.nativeEvent.layout;
+                console.log(`[ar-anchor:coords] AR square view onLayout: ${width}x${height}`);
+                setContainerSize((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }));
+              }}
+            />
+          )}
         </View>
         {isSpeaking && (
           <View style={styles.speakingBadge}>
@@ -365,9 +412,10 @@ const styles = StyleSheet.create({
   buttonText: { color: "#022c33", fontWeight: "600" },
   cameraWrap: { flex: 1, position: "relative", backgroundColor: "#000" },
   // Centers the square AR view within all the vertical space cameraWrap has - the leftover space
-  // above/below renders as this View's own black background (the letterbox bars).
+  // above/below renders as this View's own black background (the letterbox bars). The square
+  // itself gets an explicit numeric {width, height} inline (see squareSide) rather than a style
+  // here - deliberately not aspectRatio/percentage-based, see the comment at its call site.
   arSquareWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  arSquare: { width: "100%", aspectRatio: 1 },
   speakingBadge: {
     position: "absolute",
     top: 56,

@@ -741,9 +741,85 @@ angles since the root cause wasn't certain without a device:
    with a dark backdrop behind it, and if there's a source+destination pair, are their two labels
    now visibly separated (one above, one below its marker) rather than stacked on each other?
 
-Please paste the `[ar-anchor:coords]` log block again alongside what you see on-screen for both of
-these - the log confirms the math, but only a real look at the screen confirms the marker is
-actually where it should be.
+**Regression found on-device from this change:** the square view's `{width: "100%", aspectRatio:
+1}` style produced a measured width of 0 on every layout pass, so no AR content ever rendered
+(full black screen) and `takeScreenshot()` crashed trying to capture a view that had never drawn
+anything. Root cause and fix below.
+
+## Phase C fix: the square view's real width=0 bug
+
+### The bug, and why it happened (not just what fixed it)
+
+The previous section's `arSquare: { width: "100%", aspectRatio: 1 }` looked reasonable, and the
+math for *why* a plain `<View>` would resolve it correctly is straightforward: `container` →
+`cameraWrap` → `arSquareWrap` all get a definite width through ordinary flex stretch (the RN root
+view always has one, and nothing in that chain overrides the `alignItems: "stretch"` default), so
+`arSquareWrap` has a real, non-zero width by the time its child is laid out. A `100%` width on that
+child should resolve against that real number.
+
+The device logs showed it didn't: width was 0 on every pass while height correctly tracked the
+available space (828, 481, 568 as the keyboard/safe-area changed it). That split - one axis
+resolving, the other stuck at 0 with no dependency on the first - is the tell. **`ViroARSceneNavigator`
+is not a plain `<View>`.** A `<View>`'s entire box model lives inside Yoga (React Native's layout
+engine), so percentage width + `aspectRatio` resolve together in one pass, guaranteed. A custom
+native component - anything backed by its own native view, which `ViroARSceneNavigator` is - can
+need its size resolved through a separate *measure* step, and percentage-width resolution for that
+step isn't guaranteed to see the parent's width as "definite" yet, particularly nested inside a
+parent using `alignItems: "center"` (which is exactly this layout: `arSquareWrap` centers its
+child rather than stretching it, which is what made an explicit `width: "100%"` necessary here in
+the first place). This combination - percentage width + aspectRatio, on a custom native component,
+inside a centered flex parent - is a documented, known-unreliable one in React Native. Landing on
+width 0 while height falls back to "whatever's available" independently is consistent with that
+failure mode, not some other cause: nothing else in this component's props changed in a way that
+would explain a JS-side 0, and a native `takeScreenshot()` throwing "no such file" is exactly what
+a 0-sized native view - which draws nothing - would produce when asked to capture itself.
+
+### The fix
+
+Stop asking Yoga to resolve percentage-width-plus-aspectRatio for this specific native component at
+all - that combination is the thing that's unreliable, so the fix removes it rather than
+rearranging around it:
+
+1. `arSquareWrap` (a plain `View`, unaffected by the native-component measure-path issue) measures
+   its own real available space via its own `onLayout`.
+2. `ArMainApp.tsx` computes the square's side length in plain JS - `Math.floor(Math.min(width,
+   height))` (not just `width`, so this stays correct even in a hypothetical case where height ends
+   up the constraining dimension; floored to absorb sub-pixel jitter across repeated `onLayout`
+   firings, the same "fires more than expected" behavior already seen from this view once before).
+3. `ViroARSceneNavigator` receives that as an **explicit numeric** `{width, height}` style - a
+   value Yoga only has to place, never derive. No percentage, no `aspectRatio`, nothing for the
+   measure-path ambiguity to apply to.
+4. It isn't mounted at all until a real, positive `squareSide` is known, so there's no window where
+   it could be laid out - or screenshotted - at 0x0.
+
+### Independent safety net, as explicitly asked for
+
+`handleAsk`'s existing "AR camera isn't ready yet" guard now also requires `containerSize` to be a
+real, positive size (not just that `navigatorRef.current` exists) before ever calling
+`takeScreenshot()`. This doesn't depend on the layout fix above being correct - even if some other,
+future change reintroduced a 0-sized AR view, this stops a screenshot attempt (and the crash it
+caused) before it happens, rather than relying on the view always being properly sized.
+
+### What was verified from this sandbox (no Mac needed for these)
+
+- `npx tsc --noEmit` passes cleanly.
+- `npx expo export --platform ios` succeeds, and the `--dev` bundle contains `squareSide`,
+  `arSquareWrap`, and the updated `takeScreenshot` guard at the expected call sites.
+- `npx expo prebuild --clean` still succeeds - no new native dependency needed.
+
+**What I need from you, per your two-part verification ask:**
+
+1. **The log:** `[ar-anchor:coords] AR square view onLayout: WxH` should now show a **stable,
+   non-zero W and H** (and W should no longer be 0 on any pass) - paste a few consecutive lines to
+   confirm it's stable, not just non-zero once.
+2. **The explanation above** is the real reasoning, not a "tried a different arrangement" guess -
+   happy to go a level deeper on any part of it if something there doesn't match what the next
+   round of logs shows.
+
+Once both of those hold, the actual visual check from the previous section (does the marker land on
+the real wire, are labels legible and non-overlapping) is still the open item - this fix addresses
+why the app was crashing/black-screening, not by itself the marker-placement accuracy question,
+though it does restore the ability to test that at all.
 
 ## Prerequisites
 
