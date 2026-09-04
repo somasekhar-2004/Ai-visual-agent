@@ -616,12 +616,66 @@ Two changes, addressing this at both ends:
 - `npx expo export --platform ios` succeeds, and the `--dev` bundle contains `targetsGeneration`
   at the expected call sites.
 
-**What I cannot verify from here, and need from you:** the actual fix - "does exactly one
-`placement pass starting`/`done` pair appear per response, not several" - can only be confirmed by
-re-running on your device and reading the real Metro log. Please paste the log sequence for a
-single question/response (ideally the same test as before, for a direct comparison) so this can be
-confirmed rather than assumed. If the loop is gone but markers still don't render/persist, that's a
-new, separate problem worth reporting with its own log evidence.
+**Confirmed fixed on-device:** exactly one placement pass per response now, verified from your
+Metro logs.
+
+## Phase C investigation: markers placing at the wrong location
+
+**New bug found on-device:** placement now succeeds (`"2 placed, 0 skipped"`), but a target Gemini
+located near the bottom of the frame rendered near the top of the screen instead - a genuine
+coordinate-mapping bug, not a hit-testing limitation (the previous fixes already proved hit-testing
+itself works when given a correct point).
+
+### What was checked, and what's still an open question
+
+I re-traced the full transform chain (Gemini's normalized point → `computeCoverTransform`/
+`mapPoint` → dp → `* PixelRatio.get()` → `performARHitTestWithPoint`) and re-verified the "cover"
+math itself (`src/overlay/coordinateMapping.ts`) is algebraically correct for a top-left-origin,
+y-down convention with no sign or axis-swap bug - it's the same, unmodified math the 2D SVG overlay
+uses. I worked out on paper what a pure `frameSize`/`containerSize` aspect-ratio mismatch would
+actually produce: for one direction of mismatch it pushes a point *beyond* the container's edge
+(a miss, not a relocation to the opposite edge); for the other, it doesn't distort the Y axis at
+all. Neither cleanly produces "bottom becomes top" on its own, which is a genuine, symmetric-looking
+inversion - so a **Y-axis flip is the strongest single-cause hypothesis**: either Gemini's normalized
+y is measured from a different edge than assumed here (unlikely, since this is the same convention
+the already-working 2D overlay uses), or - more likely, and something Phase B's "content is
+accurate" confirmation never actually tested - an orientation/EXIF mismatch between the pixel
+buffer `frameSize` describes (from `manipulateAsync`'s resize output) and the one Gemini actually
+analyzed. **This is a hypothesis to test against real data, not a diagnosis** - I have no device to
+inspect an actual screenshot's orientation metadata, and guessed compensations aren't going in
+without evidence per your instruction.
+
+### Diagnostic logging added (no behavior change)
+
+`arTargetPlacement.ts` now logs, for every hit-test attempt:
+- `frameSize`/`containerSize` (dimensions and derived aspect ratio) once per placement pass, with
+  an explicit `⚠` warning if they differ by more than 3% - directly surfaces a crop/letterboxing
+  mismatch between the captured screenshot and what's on-screen, if there is one.
+- Per target: the original normalized `(nx, ny)`, the computed on-screen dp point, the final
+  device-pixel point actually handed to `performARHitTestWithPoint`, and the `PixelRatio.get()`
+  value used - the full chain, in one place, per attempt (including retries).
+- Per target: where the point would have landed **if the Y axis were flipped** (`1 - ny`) -
+  purely so it can be compared against the real device-pixel point and, most usefully, against
+  where the marker actually rendered on your screen. If the flipped point lines up with reality and
+  the unflipped one doesn't, that confirms the Y-flip hypothesis directly from the log rather than
+  from another guess.
+
+`ArMainApp.tsx` also now logs `ViroARSceneNavigator`'s own `onLayout` size separately from
+`cameraWrap`'s (which is what actually feeds `containerSize`) - `style={StyleSheet.absoluteFill}`
+*should* make these identical, but that's an assumption I haven't verified on-device. If they
+differ, `containerSize` has been coming from the wrong view this whole time.
+
+### What was verified from this sandbox (no Mac needed for these)
+
+- `npx tsc --noEmit` passes cleanly with the new logging and its plumbing.
+- `npx expo export --platform ios` succeeds.
+
+**What I need from you:** re-run the same test and paste the full `[ar-anchor:coords]` log block
+for the misplaced target, plus roughly where the marker actually appeared vs. where the purple wire
+actually was (e.g. "marker showed up near the top third of the screen, wire was in the bottom
+quarter"). With the normalized point, the dp point, the device-pixel point, the flipped-point
+comparison, the frame/container aspect ratios, and the two `onLayout` sizes all in one log, this
+should go from "investigate" to "confirmed fix" in one more round rather than another guess.
 
 ## Prerequisites
 

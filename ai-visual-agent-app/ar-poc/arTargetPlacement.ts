@@ -51,7 +51,8 @@ function pickBestHit(results: ViroARHitTestResult[] | null | undefined): ViroARH
 
 /** One hit-test attempt at a normalized (0-1) frame point - converts to on-screen dp via the
  * shared "cover" mapping, then to raw device pixels the same way ViroReact's own tap-to-place
- * does (see the comment at its call site below), and returns the best-ranked usable result. */
+ * does (see the comment at its call site below), and returns the best-ranked usable result.
+ * `label` is only for the diagnostic log line - identifies which target/retry this attempt is. */
 async function hitTestAt(
   scene: ViroARScene,
   nx: number,
@@ -59,12 +60,18 @@ async function hitTestAt(
   frameSize: Size,
   transform: ReturnType<typeof computeCoverTransform>,
   pixelRatio: number,
+  label: string,
 ): Promise<ViroARHitTestResult | null> {
   const screenPoint = mapPoint(nx, ny, frameSize, transform);
-  const results: ViroARHitTestResult[] = await scene.performARHitTestWithPoint(
-    screenPoint.x * pixelRatio,
-    screenPoint.y * pixelRatio,
+  const physX = screenPoint.x * pixelRatio;
+  const physY = screenPoint.y * pixelRatio;
+  // Requested diagnostic logging for the mismatched-marker investigation: the full chain from
+  // Gemini's normalized point down to the exact pixel handed to the native hit test, so a
+  // mapping bug shows up as numbers in the log instead of something that has to be guessed at.
+  console.log(
+    `[ar-anchor:coords] ${label} normalized=(${nx.toFixed(4)}, ${ny.toFixed(4)}) -> dp=(${screenPoint.x.toFixed(1)}, ${screenPoint.y.toFixed(1)}) -> devicePx=(${physX.toFixed(1)}, ${physY.toFixed(1)}) [pixelRatio=${pixelRatio}]`,
   );
+  const results: ViroARHitTestResult[] = await scene.performARHitTestWithPoint(physX, physY);
   return pickBestHit(results);
 }
 
@@ -151,6 +158,31 @@ export async function placeTargets(
   const placed: PlacedMarker[] = [];
   let skipped = 0;
 
+  // Requested diagnostic: frameSize (the screenshot Gemini actually analyzed, resized by width
+  // only so its aspect ratio here is exactly the raw screenshot's) vs. containerSize (the live
+  // ViroARSceneNavigator view's own on-screen bounds - see ArMainApp.tsx for why it's now read
+  // directly from the navigator itself, not an ancestor View). The "cover" mapping this hit-test
+  // pipeline uses assumes these represent the *same* rectangle (same crop/field of view), just at
+  // different sizes - if takeScreenshot() actually captures a different aspect ratio than what's
+  // displayed edge-to-edge (letterboxing, a different crop, anything like that), this ratio will
+  // visibly disagree, and that's a real, exact-source-of-error signal, not a guess.
+  const frameAspect = frameSize.height / frameSize.width;
+  const containerAspect = containerSize.height / containerSize.width;
+  const aspectMismatchPct = Math.abs(frameAspect - containerAspect) / containerAspect;
+  console.log(
+    `[ar-anchor:coords] frameSize=${frameSize.width}x${frameSize.height} (aspect ${frameAspect.toFixed(4)}), ` +
+      `containerSize=${containerSize.width}x${containerSize.height} (aspect ${containerAspect.toFixed(4)}), ` +
+      `mismatch=${(aspectMismatchPct * 100).toFixed(1)}%`,
+  );
+  if (aspectMismatchPct > 0.03) {
+    console.warn(
+      `[ar-anchor:coords] frameSize/containerSize aspect ratios differ by ${(aspectMismatchPct * 100).toFixed(1)}% - ` +
+        `the captured screenshot likely does NOT represent the same crop as what's on-screen. The "cover" mapping ` +
+        `below is only valid when they match; a mismatch this size will misplace markers, worse the further a ` +
+        `target is from the frame's center.`,
+    );
+  }
+
   for (const target of targets) {
     if (isCancelled()) break;
 
@@ -161,6 +193,18 @@ export async function placeTargets(
       continue;
     }
 
+    // Diagnostic only (no behavior change) for the misplaced-marker investigation: a "bottom of
+    // frame ends up near the top of the screen" symptom is exactly what a Y-axis flip would
+    // produce (e.g. Gemini's normalized y measured from a different edge than assumed here, or an
+    // orientation/EXIF mismatch between the pixel buffer frameSize describes and the one Gemini
+    // actually analyzed) - this line computes where the Y-flipped point (1-ny) would land, purely
+    // so it can be compared against the real device-pixel point above in the log, without
+    // committing to that guess as an actual fix.
+    const flippedPoint = mapPoint(center.x, 1 - center.y, frameSize, transform);
+    console.log(
+      `[ar-anchor:coords] ${target.id} (${target.label}) if-Y-flipped would map to dp=(${flippedPoint.x.toFixed(1)}, ${flippedPoint.y.toFixed(1)}) - compare against the real hit test's dp point below and where the marker actually showed up on-device`,
+    );
+
     // performARHitTestWithPoint expects raw device pixels, not React Native's dp units - confirmed
     // by reading ViroReact's own Studio tap-to-place call site, which does
     // `locationX * PixelRatio.get()` before calling it. hitTestAt() reproduces that same
@@ -168,13 +212,21 @@ export async function placeTargets(
     let best: ViroARHitTestResult | null = null;
     let hitAt = "exact";
     try {
-      best = await hitTestAt(scene, center.x, center.y, frameSize, transform, pixelRatio);
+      best = await hitTestAt(scene, center.x, center.y, frameSize, transform, pixelRatio, `${target.id} (${target.label}) exact`);
       if (!best) {
         for (const offset of RETRY_OFFSETS_NORMALIZED) {
           if (isCancelled()) break;
           const nx = Math.min(1, Math.max(0, center.x + offset.dx));
           const ny = Math.min(1, Math.max(0, center.y + offset.dy));
-          best = await hitTestAt(scene, nx, ny, frameSize, transform, pixelRatio);
+          best = await hitTestAt(
+            scene,
+            nx,
+            ny,
+            frameSize,
+            transform,
+            pixelRatio,
+            `${target.id} (${target.label}) retry dx=${offset.dx} dy=${offset.dy}`,
+          );
           if (best) {
             hitAt = `nearby (dx=${offset.dx}, dy=${offset.dy})`;
             break;

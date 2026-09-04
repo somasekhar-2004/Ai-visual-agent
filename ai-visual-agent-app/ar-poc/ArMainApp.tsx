@@ -289,6 +289,15 @@ export default function ArMainApp() {
           style={StyleSheet.absoluteFill}
           viroAppProps={{ targets, targetsGeneration, frameSize, containerSize } satisfies ViroAppProps}
           initialScene={{ scene: arMainSceneFactory as unknown as () => React.JSX.Element }}
+          // Diagnostic only, for the misplaced-marker investigation - does NOT feed containerSize;
+          // `style={StyleSheet.absoluteFill}` should make this identical to cameraWrap's own
+          // onLayout above, but that's an assumption, not something verified on-device. If this
+          // logs a different size than the "[ar-anchor:coords] frameSize=.../containerSize=..."
+          // line, that's the mismatch: containerSize would be coming from the wrong view.
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            console.log(`[ar-anchor:coords] ViroARSceneNavigator's own onLayout: ${width}x${height}`);
+          }}
         />
         {isSpeaking && (
           <View style={styles.speakingBadge}>
