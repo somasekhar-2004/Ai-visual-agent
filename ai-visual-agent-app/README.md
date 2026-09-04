@@ -670,12 +670,80 @@ differ, `containerSize` has been coming from the wrong view this whole time.
 - `npx tsc --noEmit` passes cleanly with the new logging and its plumbing.
 - `npx expo export --platform ios` succeeds.
 
-**What I need from you:** re-run the same test and paste the full `[ar-anchor:coords]` log block
-for the misplaced target, plus roughly where the marker actually appeared vs. where the purple wire
-actually was (e.g. "marker showed up near the top third of the screen, wire was in the bottom
-quarter"). With the normalized point, the dp point, the device-pixel point, the flipped-point
-comparison, the frame/container aspect ratios, and the two `onLayout` sizes all in one log, this
-should go from "investigate" to "confirmed fix" in one more round rather than another guess.
+**Decision made from this investigation, before the confirming log round happened:** rather than
+correcting the coordinate math for two different aspect ratios, eliminate the mismatch at the
+source - see below.
+
+## Phase C fix: square AR view (removes the aspect-ratio mismatch) + label backdrop
+
+### 1. Square AR camera view
+
+The live `ViroARSceneNavigator` no longer fills the whole screen. It's now constrained to
+`aspectRatio: 1` (`ar-poc/ArMainApp.tsx`'s `arSquare` style), centered inside the available space
+with the leftover area above/below rendering as plain black letterboxing (`cameraWrap`'s own
+`backgroundColor: "#000"`). `takeScreenshot()`'s output resizes to ~896x909 (logged as `frameSize`)
+- close to square - while a full device screen is a tall ~2:1 portrait rectangle; the ~44% aspect
+mismatch reported in the previous round's diagnostic log was exactly that shape difference. Making
+the *live view itself* square means `containerSize` (now read from the square view's own
+`onLayout`, not `cameraWrap`'s - see the code comment on why) matches `frameSize`'s shape by
+construction, not by a calculation that has to assume the two already agree.
+
+Working through the "cover" transform math by hand for the specific numbers in the previous round's
+log (frame ~896x909, a tall ~390x750 container) turned up something worth being upfront about: that
+*particular* mismatch (a near-square frame inside a much taller container) mathematically distorts
+the **X axis** (heavy horizontal cropping - a target near the left/right edge of the frame could
+map to a point entirely outside the container), not Y. It doesn't cleanly explain the reported
+"bottom of frame renders near the top of the screen" symptom on its own. That means this fix
+directly and confirmably resolves a real X-axis cropping bug from the aspect mismatch, and removes
+the mismatch as a source of error entirely (a real, structural improvement) - but if the Y-axis
+symptom has a separate cause (the orientation/EXIF-flip hypothesis from the previous round is still
+live), this fix alone might not resolve it. The same `[ar-anchor:coords]` diagnostic logging is
+still in place, including the Y-flip comparison point, specifically so that can still be checked.
+
+### 2. Label backdrop + de-overlapped offsets
+
+Two changes to `ArAnchoredTargets.tsx`, addressing "garbled/overlapping" labels from two different
+angles since the root cause wasn't certain without a device:
+
+- **A dark backdrop behind every label** (`ViroQuad`, `rgba(2,6,23,0.85)`, same convention as the
+  2D web/gyroscope overlay's own label badges), billboarding and scaling together with its text as
+  one rigid unit. Real AR text has no built-in background - directly over a busy real-world camera
+  image with no backdrop, small text is exactly what tends to read as "garbled" even when it's
+  technically rendering correctly, just illegible against a busy background.
+- **Source labels sit above their marker, destination labels below** (previously both used the
+  same above-marker offset). If a source/destination pair - which the connector line already
+  implies are related and can plausibly be hit-tested close together - had labels at the same
+  offset, two labels would land in the same place. This makes that specific collision structurally
+  impossible regardless of how close the two markers end up.
+
+### What was verified from this sandbox (no Mac needed for these)
+
+- `npx tsc --noEmit` passes cleanly.
+- `npx expo export --platform ios` succeeds, and the `--dev` bundle contains the square-view
+  styles, the `ar_label_backdrop` material, and the asymmetric `labelOffsetY` logic.
+- `npx expo prebuild --clean` still succeeds - no new native dependency needed (`ViroQuad` is
+  already part of the installed `@reactvision/react-viro` package).
+
+**What I could NOT verify, and what to specifically look at on-device:**
+
+1. **The coordinate fix** - watch for the `[ar-anchor:coords]` log line reading
+   `frameSize=896x909 (aspect ~1.01), containerSize=<square>x<square> (aspect ~1.00), mismatch=~0-2%`
+   (not the previous round's ~44%) - that's the direct evidence the square-container fix is working
+   as intended, from the log rather than a guess.
+2. **The actual visual check, which logs can't substitute for:** point the camera at the purple
+   wire, ask the same kind of question, and look at *where on the square AR view* the marker
+   lands relative to the wire - specifically whether it's now on/very near the wire rather than
+   somewhere else on screen. The square view will look visually different than before (letterboxed,
+   with black bars top/bottom) - that's expected, not a bug; what matters is whether the marker
+   itself is now in the right place *within* that square. If it's close but still off, the
+   remaining `[ar-anchor:coords]` Y-flip comparison log line is the next thing to check.
+3. **The label fix:** is "2. purple wire" (or whichever label) now clearly readable as one label,
+   with a dark backdrop behind it, and if there's a source+destination pair, are their two labels
+   now visibly separated (one above, one below its marker) rather than stacked on each other?
+
+Please paste the `[ar-anchor:coords]` log block again alongside what you see on-screen for both of
+these - the log confirms the math, but only a real look at the screen confirms the marker is
+actually where it should be.
 
 ## Prerequisites
 

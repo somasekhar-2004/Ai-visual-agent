@@ -1,4 +1,4 @@
-import { ViroNode, ViroPolyline, ViroSphere, ViroText, ViroMaterials } from "@reactvision/react-viro";
+import { ViroNode, ViroPolyline, ViroQuad, ViroSphere, ViroText, ViroMaterials } from "@reactvision/react-viro";
 
 import type { PlacedMarker } from "./arTargetPlacement";
 
@@ -8,11 +8,20 @@ import type { PlacedMarker } from "./arTargetPlacement";
 const SOURCE_COLOR = "#22d3ee";
 const DEST_COLOR = "#f59e0b";
 const CONNECTOR_COLOR = "#e2e8f0";
+// Same dark label-backdrop convention as the web app / 2D overlay's text badges
+// (CameraOverlay.tsx: `rgba(2,6,23,0.75)` behind every label) - real AR text has no such backdrop
+// unless one is drawn explicitly, and on a busy real-world camera feed that's the difference
+// between legible and "garbled" (device-tested finding: without it, a label over a busy
+// background reads as visual noise, easily mistaken for two overlapping labels).
+const LABEL_BACKDROP_COLOR = "rgba(2,6,23,0.85)";
 
 ViroMaterials.createMaterials({
   ar_marker_source: { diffuseColor: SOURCE_COLOR, lightingModel: "Constant" },
   ar_marker_destination: { diffuseColor: DEST_COLOR, lightingModel: "Constant" },
   ar_connector_line: { diffuseColor: CONNECTOR_COLOR, lightingModel: "Constant" },
+  // blendMode: "Alpha" is required for the rgba() alpha channel above to actually render as
+  // translucent - Viro materials default to opaque regardless of an alpha component otherwise.
+  ar_label_backdrop: { diffuseColor: LABEL_BACKDROP_COLOR, lightingModel: "Constant", blendMode: "Alpha", writesToDepthBuffer: false },
 });
 
 const MARKER_RADIUS_M = 0.012;
@@ -70,23 +79,31 @@ export function ArAnchoredTargets({ markers }: { markers: PlacedMarker[] }) {
       {markers.map((marker) => {
         const isDestination = marker.role === "destination";
         const displayLabel = isDestination ? `${marker.marker}. → ${marker.label}` : `${marker.marker}. ${marker.label}`;
+        // Source labels sit above their sphere, destination labels below - a fixed, deliberate
+        // asymmetry (not just "above" for both) so a source/destination pair that happens to be
+        // hit-tested close together in world space doesn't stack both labels at the same offset,
+        // which is what "overlapping/garbled" text on-device most likely was.
+        const labelOffsetY = isDestination ? -(MARKER_RADIUS_M + 0.025) : MARKER_RADIUS_M + 0.025;
         return (
           <ViroNode key={marker.id} position={marker.position}>
             <ViroSphere radius={MARKER_RADIUS_M} materials={[isDestination ? "ar_marker_destination" : "ar_marker_source"]} />
-            <ViroText
-              text={displayLabel}
-              position={[0, MARKER_RADIUS_M + 0.025, 0]}
-              scale={[LABEL_SCALE, LABEL_SCALE, LABEL_SCALE]}
-              width={1}
-              height={0.3}
-              style={{
-                fontFamily: "Arial",
-                fontSize: 14,
-                color: isDestination ? DEST_COLOR : SOURCE_COLOR,
-                textAlign: "center",
-              }}
-              transformBehaviors={["billboard"]}
-            />
+            {/* Label + its backdrop billboard and scale together as one rigid unit, so the
+                backdrop always stays exactly behind the text from the viewer's angle - if only
+                the text billboarded, the two would visually separate as the camera moved. */}
+            <ViroNode position={[0, labelOffsetY, 0]} scale={[LABEL_SCALE, LABEL_SCALE, LABEL_SCALE]} transformBehaviors={["billboard"]}>
+              <ViroQuad width={1.05} height={0.34} position={[0, 0, -0.01]} materials={["ar_label_backdrop"]} />
+              <ViroText
+                text={displayLabel}
+                width={1}
+                height={0.3}
+                style={{
+                  fontFamily: "Arial",
+                  fontSize: 14,
+                  color: isDestination ? DEST_COLOR : SOURCE_COLOR,
+                  textAlign: "center",
+                }}
+              />
+            </ViroNode>
           </ViroNode>
         );
       })}

@@ -259,46 +259,43 @@ export default function ArMainApp() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <StatusBar style="light" />
-      <View
-        style={styles.cameraWrap}
-        onLayout={(e) => {
-          // Guard against a real bug found on-device: onLayout can fire repeatedly (observed
-          // happening continuously here, plausibly from the AR view's own rendering marking the
-          // native view hierarchy dirty) reporting the *same* size every time. Naively calling
-          // setContainerSize({width, height}) on every firing creates a brand-new object each
-          // time even when nothing changed, and that reference churn was silently retriggering
-          // ArMainScene's placement effect in a tight loop (see the long comment there and in
-          // handleAsk's targetsGeneration for the full fix). Returning the previous state object
-          // unchanged when the size is actually the same lets React's setState bail out and skip
-          // the re-render entirely, instead of just hoping downstream effects ignore it.
-          const { width, height } = e.nativeEvent.layout;
-          setContainerSize((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }));
-        }}
-      >
-        {/* AR camera layer (Phase B) + AR-anchored target markers (Phase C). `viroAppProps` is
-            the one channel ViroARSceneNavigator actually keeps in sync on an already-mounted
-            scene after its first render - `initialScene.scene` is only invoked once, at mount,
-            so a normal prop passed through it would freeze at whatever `targets` was on that very
-            first render (an empty array) and never update again. Confirmed by reading
-            ViroARSceneNavigator's own render()/componentDidUpdate - it explicitly re-syncs
-            `this.arSceneNavigator.viroAppProps` from `this.props.viroAppProps` on every render,
-            and componentDidUpdate does not do the same for `initialScene`. ArMainScene.tsx reads
-            these back out via the scene factory's own `arSceneNavigator` prop. */}
-        <ViroARSceneNavigator
-          ref={navigatorRef}
-          style={StyleSheet.absoluteFill}
-          viroAppProps={{ targets, targetsGeneration, frameSize, containerSize } satisfies ViroAppProps}
-          initialScene={{ scene: arMainSceneFactory as unknown as () => React.JSX.Element }}
-          // Diagnostic only, for the misplaced-marker investigation - does NOT feed containerSize;
-          // `style={StyleSheet.absoluteFill}` should make this identical to cameraWrap's own
-          // onLayout above, but that's an assumption, not something verified on-device. If this
-          // logs a different size than the "[ar-anchor:coords] frameSize=.../containerSize=..."
-          // line, that's the mismatch: containerSize would be coming from the wrong view.
-          onLayout={(e) => {
-            const { width, height } = e.nativeEvent.layout;
-            console.log(`[ar-anchor:coords] ViroARSceneNavigator's own onLayout: ${width}x${height}`);
-          }}
-        />
+      <View style={styles.cameraWrap}>
+        {/* Square AR view, centered with letterboxing (black bars) above/below - eliminates the
+            frame/container aspect-ratio mismatch at the source instead of correcting for it in
+            the coordinate math. takeScreenshot()'s output resizes to ~896x909 (frameSize logged
+            below) - very close to square - while the full device screen is a tall ~2:1 portrait
+            rectangle; constraining the *live* AR view to aspectRatio:1 makes containerSize match
+            frameSize's shape by construction, not by calculation. The letterboxing is an
+            intentional, accepted tradeoff for accurate marker placement, not a layout bug. */}
+        <View style={styles.arSquareWrap} pointerEvents="box-none">
+          {/* AR camera layer (Phase B) + AR-anchored target markers (Phase C). `viroAppProps` is
+              the one channel ViroARSceneNavigator actually keeps in sync on an already-mounted
+              scene after its first render - `initialScene.scene` is only invoked once, at mount,
+              so a normal prop passed through it would freeze at whatever `targets` was on that
+              very first render (an empty array) and never update again. Confirmed by reading
+              ViroARSceneNavigator's own render()/componentDidUpdate - it explicitly re-syncs
+              `this.arSceneNavigator.viroAppProps` from `this.props.viroAppProps` on every render,
+              and componentDidUpdate does not do the same for `initialScene`. ArMainScene.tsx
+              reads these back out via the scene factory's own `arSceneNavigator` prop. */}
+          <ViroARSceneNavigator
+            ref={navigatorRef}
+            style={styles.arSquare}
+            viroAppProps={{ targets, targetsGeneration, frameSize, containerSize } satisfies ViroAppProps}
+            initialScene={{ scene: arMainSceneFactory as unknown as () => React.JSX.Element }}
+            // This view's own bounds are now the real containerSize source - it's square by the
+            // `arSquare` style below, so this should report a near-square size matching
+            // frameSize's own ~896x909 shape (logged by arTargetPlacement.ts as "mismatch=...%",
+            // expected near 0% now instead of the ~44% it was reporting when this view filled the
+            // whole tall screen). Same same-value bail-out as before so a redundant firing (this
+            // view still triggers repeated onLayout calls same as the full-screen version did)
+            // doesn't create a new object reference and re-trigger placement.
+            onLayout={(e) => {
+              const { width, height } = e.nativeEvent.layout;
+              console.log(`[ar-anchor:coords] AR square view onLayout: ${width}x${height}`);
+              setContainerSize((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }));
+            }}
+          />
+        </View>
         {isSpeaking && (
           <View style={styles.speakingBadge}>
             <Text style={styles.speakingBadgeText}>Speaking…</Text>
@@ -366,7 +363,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   buttonText: { color: "#022c33", fontWeight: "600" },
-  cameraWrap: { flex: 1, position: "relative" },
+  cameraWrap: { flex: 1, position: "relative", backgroundColor: "#000" },
+  // Centers the square AR view within all the vertical space cameraWrap has - the leftover space
+  // above/below renders as this View's own black background (the letterbox bars).
+  arSquareWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  arSquare: { width: "100%", aspectRatio: 1 },
   speakingBadge: {
     position: "absolute",
     top: 56,
