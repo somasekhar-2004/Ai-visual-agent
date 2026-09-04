@@ -821,6 +821,139 @@ the real wire, are labels legible and non-overlapping) is still the open item - 
 why the app was crashing/black-screening, not by itself the marker-placement accuracy question,
 though it does restore the ability to test that at all.
 
+**Abandoned.** The square-view approach caused two consecutive real regressions on-device (this
+width=0 crash, then a persistent black screen with "AR camera isn't ready yet" that never resolved
+even after the fix above) without ever getting to test the thing it was meant to fix. Per
+instruction, the AR camera view is reverted to full-screen (the reliable, always-worked state from
+every prior test today), and the aspect-ratio mismatch is instead handled purely in the coordinate
+math - see the next section.
+
+## Phase C fix: revert to full-screen, fix the coordinate math instead
+
+### What was reverted, and what was kept
+
+`ar-poc/ArMainApp.tsx`'s camera layer is restored to its state as of commit `ec1b7a5` (the last
+commit before the square-view change, `c8c009a`, was introduced) - `ViroARSceneNavigator` is back
+to `style={StyleSheet.absoluteFill}`, filling the whole screen, with `containerSize` read from
+`cameraWrap`'s own `onLayout` (the same source that worked reliably across every test today before
+the square-view detour). `arSquareWrap`/`squareSide`/the conditional-mount logic are gone entirely.
+
+One thing from the abandoned attempt was kept, since it's a genuinely independent improvement, not
+part of the square-view's own layout logic: `handleAsk`'s guard now still requires `containerSize`
+to be a real, positive size (not just that `navigatorRef.current` exists) before ever calling
+`takeScreenshot()` - cheap, harmless, and a real safety net regardless of the camera view's shape.
+
+`arTargetPlacement.ts` (the actual coordinate-math file) was never touched by the square-view work
+at all - confirmed via `git log -- ar-poc/arTargetPlacement.ts`, its last change predates the
+square-view commit. `ArAnchoredTargets.tsx`'s label-backdrop fix (dark background behind labels,
+asymmetric source/destination offsets) is also unrelated to the camera-view shape and was left in
+place.
+
+### The coordinate math, walked through explicitly
+
+The transform this pipeline already uses (`src/overlay/coordinateMapping.ts`'s
+`computeCoverTransform`/`mapPoint`, unchanged - shared with the working 2D SVG overlay) **is**
+already the correct formula for a "cover" fit (scale up until both dimensions are at least as large
+as the container, using the *larger* of the two required scale factors, then center and let the
+overflow crop symmetrically - the same rule as CSS `object-fit: cover`, not `contain` and not
+stretch):
+
+```
+scale   = max(container.width / frame.width, container.height / frame.height)
+dispW   = frame.width  * scale        // the frame's full width once scaled to "cover"
+dispH   = frame.height * scale        // the frame's full height once scaled to "cover"
+offsetX = (container.width  - dispW) / 2   // negative when the frame overflows horizontally
+offsetY = (container.height - dispH) / 2   // negative when the frame overflows vertically
+
+screenX(nx) = offsetX + nx * frame.width  * scale
+screenY(ny) = offsetY + ny * frame.height * scale
+```
+
+`scale` is the *larger* ratio specifically because "cover" means the image must be at least as big
+as the container in **both** dimensions simultaneously - using the smaller ratio would be
+`contain` (letterboxing, the image fully visible but not filling the container), which is not what
+a full-screen camera view does.
+
+**Working through it with this app's actual numbers** (`frameSize` ≈ 896x909, the near-square
+`takeScreenshot()` output; `containerSize` ≈ 440x793, the full portrait screen minus the bottom
+panel):
+
+```
+scale = max(440/896, 793/909) = max(0.4911, 0.8724) = 0.8724   (height-based scale wins)
+
+dispW = 896 * 0.8724 ≈ 781.7
+dispH = 909 * 0.8724 ≈ 793.0   (exactly container.height, as it must be when height's ratio wins)
+
+offsetX = (440 - 781.7) / 2 ≈ -170.9
+offsetY = (793 - 793.0) / 2 = 0
+```
+
+**Reference point 1 - image center** `(nx, ny) = (0.5, 0.5)`:
+```
+screenX = -170.9 + 0.5 * 896 * 0.8724 ≈ -170.9 + 390.9 ≈ 220.0   =  container.width / 2 ✓
+screenY =    0   + 0.5 * 909 * 0.8724 ≈           396.5          ≈  container.height / 2 ✓
+```
+The image's center point correctly lands exactly at the screen's center - as it must, since
+"cover" always keeps the source centered.
+
+**Reference point 2 - top-left corner** `(nx, ny) = (0, 0)`:
+```
+screenX = -170.9 + 0 = -170.9   (negative → off-screen, to the LEFT of the visible container)
+screenY =    0   + 0 =    0     (exactly the container's top edge)
+```
+
+**Reference point 3 - bottom-right corner** `(nx, ny) = (1, 1)`:
+```
+screenX = -170.9 + 781.7 ≈ 610.8   (> container.width=440 → off-screen, to the RIGHT)
+screenY =    0   + 793.0 ≈ 793.0   (exactly the container's bottom edge)
+```
+
+This is internally consistent and is what "cover" is *supposed* to do for a near-square image
+inside a much taller container: the **Y axis maps losslessly and linearly, edge to edge, with zero
+distortion** (`offsetY` is exactly 0 here), while the **X axis is significantly cropped** - only
+normalized `nx` roughly within **[0.219, 0.781]** (the range that keeps `screenX` within
+`[0, 440]`) corresponds to anything actually visible on screen; a target nearer the left/right ~22%
+of the captured frame maps to a point *outside* the live container entirely.
+
+**What this means, stated plainly:** the coordinate math was already correct before this round -
+verified now with the exact numbers reported from real hardware, not the earlier rough estimate.
+Restoring the full-screen container doesn't introduce a new formula bug; it reinstates a **real,
+already-documented X-axis cropping consequence** of this specific mismatch (frame: near-square;
+container: tall) - a target near either horizontal edge of the captured frame can genuinely miss
+the live view altogether, through no bug, just geometry. That's a known, honest limitation of
+reverting to full-screen rather than something this round's math change was meant to fix.
+
+**What this math does NOT explain, and I want to be direct about that:** the originally-reported
+symptom - a target near the *bottom* of the frame rendering near the *top* of the screen - is a
+**Y-axis** effect, and this transform's `offsetY` computes to exactly 0 for this frame/container
+pairing, meaning Y should map perfectly linearly with no distortion at all. I checked the other
+place a Y-axis bug could hide - whether Gemini's normalized coordinates are top-left-origin like
+this code assumes - directly against the backend's own prompt (`src/lib/vision/prompt.ts`:
+*"normalized 0-1 (x/y = top-left corner...)"*), which confirms top-left/y-down, matching this code
+exactly. So this round's fix is real and needed (it's the correct formula, now verified against
+real numbers, and it's what "should have been done from the start" for the X-axis cropping
+question) - but it is not expected, on its own, to resolve the original Y-axis symptom, because
+that symptom was never something this transform could produce for this specific mismatch direction.
+The Y-flip diagnostic (`arTargetPlacement.ts`'s per-target "if-Y-flipped" comparison log, untouched
+throughout the square-view detour and still in place) remains the tool to actually pin that down -
+worth checking on the very same test that confirms full-screen rendering is restored.
+
+### What was verified from this sandbox (no Mac needed for these)
+
+- `npx tsc --noEmit` passes cleanly.
+- `npx expo export --platform ios` succeeds.
+- `npx expo prebuild --clean` still succeeds.
+- The math above was checked by hand against three reference points (center, both opposite
+  corners), not just asserted - shown in full rather than only in code, per your request.
+
+**What I need from you:** confirm the full-screen camera feed renders reliably again (the primary,
+non-negotiable thing this round was about) - live video, no black screen, no crash on asking a
+question. Then, when you ask a question, paste the `[ar-anchor:coords]` log block again, including
+the Y-flip comparison line, alongside where the marker actually appears on screen relative to the
+wire. If the flipped point matches reality and the unflipped one doesn't, that confirms where the
+remaining bug actually is - a separate, real problem from the X-axis cropping this round's math
+walkthrough surfaces, and one I have not touched or guessed a fix for this round, as instructed.
+
 ## Prerequisites
 
 - Node.js (same version as the main project)
