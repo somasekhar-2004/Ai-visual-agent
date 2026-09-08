@@ -70,9 +70,40 @@ export function SpeakingFeedbackView({
         ))}
       </Card>
 
+      {evaluation.developmentNote ? (
+        <Card style={{ marginBottom: theme.spacing.md, borderColor: theme.colors.warning, borderWidth: 1 }}>
+          <Text variant="bodyMedium" color="warning" style={{ marginBottom: theme.spacing.xs }}>
+            Answers were underdeveloped
+          </Text>
+          <Text variant="body" color="secondary">
+            {evaluation.developmentNote}
+          </Text>
+        </Card>
+      ) : null}
+
       <ListSection title="Strengths" items={evaluation.strengths} tone="success" />
       <ListSection title="Areas to improve" items={evaluation.weaknesses} tone="warning" />
       <ListSection title="Personalized exercises" items={evaluation.suggestedExercises} tone="brand" />
+
+      {evaluation.repeatedWords.length ? (
+        <Card style={{ marginBottom: theme.spacing.md }}>
+          <Text variant="bodyMedium" style={{ marginBottom: theme.spacing.xs }}>
+            Repeated words
+          </Text>
+          <Text variant="body" color="secondary">
+            You repeated these words often enough to stand out: {evaluation.repeatedWords.join(', ')}.
+          </Text>
+        </Card>
+      ) : null}
+
+      <Card style={{ marginBottom: theme.spacing.md }}>
+        <Text variant="bodyMedium" style={{ marginBottom: theme.spacing.xs }}>
+          Highest-leverage next step
+        </Text>
+        <Text variant="body" color="secondary">
+          {evaluation.nextBandAction}
+        </Text>
+      </Card>
 
       <Card style={{ marginBottom: theme.spacing.lg }}>
         <Text variant="bodyMedium" style={{ marginBottom: theme.spacing.xs }}>

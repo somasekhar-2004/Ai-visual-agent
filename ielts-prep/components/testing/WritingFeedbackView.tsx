@@ -66,6 +66,36 @@ export function WritingFeedbackView({ evaluation, onDone }: { evaluation: Writin
       <ListSection title="Areas to improve" items={evaluation.weaknesses} tone="warning" />
       <ListSection title="Suggested next steps" items={evaluation.suggestions} tone="brand" />
 
+      {evaluation.repeatedWords.length ? (
+        <Card style={{ marginBottom: theme.spacing.md }}>
+          <Text variant="bodyMedium" style={{ marginBottom: theme.spacing.xs }}>
+            Repeated words
+          </Text>
+          <Text variant="body" color="secondary">
+            You used these words often enough that a synonym swap would help Lexical Resource: {evaluation.repeatedWords.join(', ')}.
+          </Text>
+        </Card>
+      ) : null}
+
+      {evaluation.sentenceIssues.length ? (
+        <Card style={{ marginBottom: theme.spacing.md, gap: theme.spacing.sm }}>
+          <Text variant="bodyMedium">Sentence-level issues</Text>
+          {evaluation.sentenceIssues.map((issue, i) => (
+            <View key={i} style={{ gap: 2 }}>
+              <Text variant="body" style={{ fontStyle: 'italic' }} color="secondary">
+                &ldquo;{issue.original}&rdquo;
+              </Text>
+              <Text variant="caption" color="warning">
+                {issue.issue}
+              </Text>
+              <Text variant="caption" color="secondary">
+                Fix: {issue.suggestion}
+              </Text>
+            </View>
+          ))}
+        </Card>
+      ) : null}
+
       <Card style={{ marginBottom: theme.spacing.md }}>
         <Text variant="bodyMedium" style={{ marginBottom: theme.spacing.xs }}>
           Improved example
@@ -80,7 +110,7 @@ export function WritingFeedbackView({ evaluation, onDone }: { evaluation: Writin
           How to reach Band {nextBand.toFixed(1)}
         </Text>
         <Text variant="body" color="secondary">
-          Focus on the lowest-scoring criterion above first — small, consistent improvements there tend to move your overall band fastest. Aim to apply at least one suggestion above in your next writing task before moving on.
+          {evaluation.nextBandAction}
         </Text>
       </Card>
 

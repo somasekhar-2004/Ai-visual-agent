@@ -197,7 +197,11 @@ export async function saveReadingAttempt(
       answers: input.answers,
     });
   }
-  await addTestHistory(userId, 'reading', attempt.id, input.band, { rawScore: input.rawScore, totalQuestions: input.totalQuestions });
+  await addTestHistory(userId, 'reading', attempt.id, input.band, {
+    rawScore: input.rawScore,
+    totalQuestions: input.totalQuestions,
+    timeSpentSeconds: input.timeSpentSeconds,
+  });
   return attempt;
 }
 
@@ -321,7 +325,12 @@ export async function saveWritingFeedback(
       ai_model: feedback.aiModel,
     });
   }
-  await addTestHistory(userId, 'writing', submissionId, feedback.overallBand, { taskAchievement: feedback.taskAchievement });
+  await addTestHistory(userId, 'writing', submissionId, feedback.overallBand, {
+    taskAchievement: feedback.taskAchievement,
+    coherenceCohesion: feedback.coherenceCohesion,
+    lexicalResource: feedback.lexicalResource,
+    grammaticalRange: feedback.grammaticalRange,
+  });
   return full;
 }
 
@@ -441,7 +450,13 @@ export async function saveSpeakingFeedback(
       suggested_exercises: feedback.suggestedExercises,
     });
   }
-  await addTestHistory(userId, 'speaking', sessionId, feedback.overallBand, { fillerWordCount: feedback.fillerWordCount });
+  await addTestHistory(userId, 'speaking', sessionId, feedback.overallBand, {
+    fillerWordCount: feedback.fillerWordCount,
+    fluencyCoherence: feedback.fluencyCoherence,
+    lexicalResource: feedback.lexicalResource,
+    grammaticalRange: feedback.grammaticalRange,
+    pronunciation: feedback.pronunciation,
+  });
   return full;
 }
 

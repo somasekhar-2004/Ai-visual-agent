@@ -9,7 +9,10 @@ const WRITING_JSON_SHAPE = `{
   "strengths": string[] (2-4 specific, concrete strengths),
   "weaknesses": string[] (2-4 specific, concrete weaknesses),
   "suggestions": string[] (2-4 actionable next steps),
-  "improvedExample": string (one improved sentence or short passage from the essay)
+  "improvedExample": string (one improved sentence or short passage from the essay),
+  "sentenceIssues": [{ "original": string (a real sentence quoted from the response), "issue": string (the specific grammar/clarity problem), "suggestion": string (how to fix it) }] (0-4 items — omit if the essay has no notable sentence-level issues),
+  "repeatedWords": string[] (content words the candidate overused; empty array if none),
+  "nextBandAction": string (the single highest-leverage change to make next attempt)
 }`;
 
 export function buildWritingEvalPrompt(input: WritingEvalInput): string {
@@ -40,7 +43,10 @@ const SPEAKING_JSON_SHAPE = `{
   "fillerWordCount": number,
   "strengths": string[] (2-4 items),
   "weaknesses": string[] (2-4 items),
-  "suggestedExercises": string[] (2-4 concrete practice exercises)
+  "suggestedExercises": string[] (2-4 concrete practice exercises),
+  "repeatedWords": string[] (content words the candidate overused; empty array if none),
+  "developmentNote": string | null (set only if answers were too short/underdeveloped to properly judge; otherwise null),
+  "nextBandAction": string (the single highest-leverage change to make next attempt)
 }`;
 
 export function buildSpeakingEvalPrompt(input: SpeakingEvalInput): string {

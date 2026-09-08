@@ -4,6 +4,8 @@ import {
   countSentences,
   countWords,
   FILLER_WORDS,
+  findLongSentences,
+  findRepeatedWords,
   LINKING_WORDS,
   SUBORDINATING_CONJUNCTIONS,
   uniqueWordRatio,
@@ -85,6 +87,24 @@ export class MockAiProvider implements AiProvider {
           ? 'Overall, the data indicate a clear upward trend across most categories over the period shown, with one notable exception that plateaued in the final years.'
           : 'I am writing to bring to your attention an issue that has arisen recently and to request your assistance in resolving it as soon as possible.';
 
+    const repeated = findRepeatedWords(essayText);
+    const repeatedWords = repeated.map((r) => r.word);
+    const sentenceIssues = findLongSentences(essayText).map((sentence) => ({
+      original: sentence,
+      issue: 'This sentence is 25+ words long, which raises the risk of a run-on structure or a grammar slip getting lost in the length.',
+      suggestion: 'Consider splitting it into two sentences, or cutting one clause and starting a new sentence with a linking word.',
+    }));
+
+    // The single highest-leverage fix — picked from the lowest criterion so
+    // the student always has one clear next action rather than a flat list.
+    const criteria: { key: string; value: number; action: string }[] = [
+      { key: 'taskAchievement', value: taskAchievement, action: lengthRatio < 1 ? `Write at least ${minWords} words — right now you are ${wordCount < minWords ? 'under' : 'over'} the minimum, which caps this score regardless of quality.` : 'Make sure every part of the task prompt is directly addressed, not just the general topic.' },
+      { key: 'coherenceCohesion', value: coherenceCohesion, action: 'Add one clear linking word at the start of each new paragraph, and vary which ones you use.' },
+      { key: 'lexicalResource', value: lexicalResource, action: repeatedWords.length ? `Replace repeated uses of "${repeatedWords[0]}" with a synonym in at least two places.` : 'Push for more precise, topic-specific vocabulary instead of general words.' },
+      { key: 'grammaticalRange', value: grammaticalRange, action: sentenceIssues.length ? 'Break up your longest sentence(s) — length is outrunning control of the grammar.' : 'Mix in a conditional or a relative clause to show a wider range of structures.' },
+    ];
+    const nextBandAction = criteria.sort((a, b) => a.value - b.value)[0].action;
+
     return {
       overallBand,
       taskAchievement,
@@ -95,6 +115,9 @@ export class MockAiProvider implements AiProvider {
       weaknesses: weaknesses.length ? weaknesses : ['Minor inconsistencies in tone were noted — review word choice for full formality.'],
       suggestions: suggestions.length ? suggestions : ['Read your essay aloud once before submitting to catch awkward phrasing.'],
       improvedExample,
+      sentenceIssues,
+      repeatedWords,
+      nextBandAction,
     };
   }
 
@@ -145,6 +168,24 @@ export class MockAiProvider implements AiProvider {
 
     if (vocabRichness > 0.5) strengths.push('You used a good range of vocabulary rather than repeating the same words.');
 
+    const repeatedWords = findRepeatedWords(transcript, 3).map((r) => r.word);
+
+    // A very low word count for the time given usually means answers were
+    // too short to demonstrate range — flag it distinctly rather than
+    // folding it into a generic weakness.
+    const developmentNote =
+      wordCount > 0 && wpm < 70
+        ? 'Your answers were quite short for the time given — examiners cannot credit fluency, vocabulary, or grammar range they never hear. Aim to extend each answer with a reason, an example, or a brief contrast.'
+        : null;
+
+    const criteria: { value: number; action: string }[] = [
+      { value: fluencyCoherence, action: fillerRatio >= 0.03 ? `Cut filler words — you used about ${fillerWordCount}. Pause silently instead of saying "um"/"like" while you think.` : 'Practise linking ideas with "which means", "so", or "because" instead of pausing between sentences.' },
+      { value: lexicalResource, action: repeatedWords.length ? `You repeated "${repeatedWords[0]}" several times — prepare 2-3 synonyms for topics you expect to discuss.` : 'Push for more precise, topic-specific vocabulary in your answers.' },
+      { value: grammaticalRange, action: complexClauseHits < 2 ? 'Extend answers with "because", "although", or "which" to show more complex grammar, not just simple sentences.' : 'Try a conditional ("If I had...") to add structural variety.' },
+      { value: pronunciation, action: 'Record yourself and listen for words you stress incorrectly or run together — pronunciation is rated on clarity, not accent.' },
+    ];
+    const nextBandAction = developmentNote ?? criteria.sort((a, b) => a.value - b.value)[0].action;
+
     return {
       overallBand,
       fluencyCoherence,
@@ -157,6 +198,9 @@ export class MockAiProvider implements AiProvider {
       suggestedExercises: suggestedExercises.length
         ? suggestedExercises
         : ['Practise Part 3 style follow-up questions to build comfort with more abstract, opinion-based answers.'],
+      repeatedWords,
+      developmentNote,
+      nextBandAction,
     };
   }
 
