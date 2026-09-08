@@ -8,7 +8,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { Chip, DemoAiBadge, IconCircle, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
-import { chatWithCoach, type CoachContext } from '@/services/ai';
+import { chatWithCoach, type AiSource, type CoachContext } from '@/services/ai';
 import { addMessage, createConversation, getMessages, listConversations } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -38,6 +38,7 @@ export default function AiCoachScreen() {
   const [conversationId, setConversationId] = useState<string | null>(params.conversationId ?? null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [lastReplySource, setLastReplySource] = useState<AiSource | null>(null);
 
   const conversationsQuery = useQuery({
     queryKey: ['ai-conversations', userId],
@@ -92,7 +93,8 @@ export default function AiCoachScreen() {
     };
 
     const history = (await getMessages(conversationId)).map((m) => ({ role: m.role, content: m.content }));
-    const reply = await chatWithCoach(history as any, context);
+    const { reply, aiSource } = await chatWithCoach(history as any, context);
+    setLastReplySource(aiSource);
     await addMessage(conversationId, 'assistant', reply);
     queryClient.invalidateQueries({ queryKey: ['ai-messages', conversationId] });
     setSending(false);
@@ -114,7 +116,7 @@ export default function AiCoachScreen() {
           }
         />
         <View style={{ alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
-          <DemoAiBadge />
+          <DemoAiBadge source={lastReplySource ?? undefined} />
         </View>
       </View>
 

@@ -1,4 +1,4 @@
-import type { PurchaseProduct, PurchaseResult, PurchasesProvider } from './types';
+import type { EntitlementStatus, PurchaseProduct, PurchaseResult, PurchasesProvider } from './types';
 
 const PRODUCTS: PurchaseProduct[] = [
   {
@@ -40,5 +40,12 @@ export class MockPurchasesProvider implements PurchasesProvider {
   async restore(): Promise<PurchaseResult> {
     await new Promise((r) => setTimeout(r, 400));
     return { success: false, error: 'No previous purchase found in Demo Mode.' };
+  }
+
+  async checkEntitlement(): Promise<EntitlementStatus> {
+    // Demo Mode has no external store to re-check against — the locally
+    // stored subscription record (set at purchase time) is already the
+    // source of truth, so there is nothing to reconcile here.
+    return { active: false, plan: null, expirationDate: null, willRenew: null };
   }
 }

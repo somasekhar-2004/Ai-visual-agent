@@ -1,5 +1,6 @@
 import { ANTHROPIC_API_KEY } from '@/lib/env';
 
+import { fetchWithRetry } from './httpClient';
 import { buildCoachSystemPrompt, buildSpeakingEvalPrompt, buildWritingEvalPrompt } from './prompts';
 import { SpeakingEvaluationSchema, WritingEvaluationSchema, type SpeakingEvaluation, type WritingEvaluation } from './schemas';
 import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, WritingEvalInput } from './types';
@@ -16,7 +17,7 @@ function extractJson(text: string): string {
 }
 
 async function callMessages(system: string | undefined, userContent: string, maxTokens = 1024): Promise<string> {
-  const res = await fetch(`${API_BASE}/messages`, {
+  const res = await fetchWithRetry(`${API_BASE}/messages`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -30,7 +31,6 @@ async function callMessages(system: string | undefined, userContent: string, max
       messages: [{ role: 'user', content: userContent }],
     }),
   });
-  if (!res.ok) throw new Error(`Anthropic request failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
   const text = data.content?.[0]?.text;
   if (!text) throw new Error('Anthropic response missing content');

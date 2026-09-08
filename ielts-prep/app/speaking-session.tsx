@@ -12,7 +12,7 @@ import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
 import { buildSpeakingTurns } from '@/lib/speakingFlow';
-import { evaluateSpeaking, transcribeAudio, type SpeakingEvaluation } from '@/services/ai';
+import { evaluateSpeaking, transcribeAudio, type SpeakingEvaluationResult } from '@/services/ai';
 import {
   addSpeakingResponse,
   completeSpeakingSession,
@@ -48,7 +48,7 @@ export default function SpeakingSessionScreen() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [transcripts, setTranscripts] = useState<string[]>([]);
   const [totalDuration, setTotalDuration] = useState(0);
-  const [evaluation, setEvaluation] = useState<SpeakingEvaluation | null>(null);
+  const [evaluation, setEvaluation] = useState<SpeakingEvaluationResult | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 

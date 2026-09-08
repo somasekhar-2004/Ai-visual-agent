@@ -3,6 +3,7 @@ import { DEMO_USER_ID, getDb, mutateDb } from '@/lib/demoStore';
 import { isDemoMode } from '@/lib/env';
 import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
+import { getPurchasesProvider, isPurchasesMocked } from '@/services/purchases';
 import type {
   IeltsType,
   NotificationCategory,
@@ -199,15 +200,49 @@ export async function getSubscription(userId: string): Promise<Subscription | nu
 export async function setSubscription(
   userId: string,
   plan: Subscription['plan'],
-  status: Subscription['status']
+  status: Subscription['status'],
+  currentPeriodEnd?: string | null
 ): Promise<void> {
   if (isDemoMode) {
     await mutateDb((db) => {
-      db.subscription = { ...db.subscription, plan, status };
+      db.subscription = { ...db.subscription, plan, status, ...(currentPeriodEnd !== undefined ? { currentPeriodEnd } : {}) };
     });
     return;
   }
-  await supabase!.from('subscriptions').update({ plan, status }).eq('user_id', userId);
+  await supabase!
+    .from('subscriptions')
+    .update({ plan, status, ...(currentPeriodEnd !== undefined ? { current_period_end: currentPeriodEnd } : {}) })
+    .eq('user_id', userId);
+}
+
+/** Re-checks the store's own entitlement record (RevenueCat when
+ * configured; a no-op in Demo Mode) and reconciles the locally stored
+ * subscription if it disagrees — the only way the app finds out about a
+ * cancellation or expiry that happened outside it (App Store / Play Store
+ * settings), since nothing pushes that event to the app otherwise. Never
+ * throws: a failed check just leaves the last-known local state in place
+ * rather than risking an incorrect downgrade. */
+export async function syncSubscriptionEntitlement(userId: string): Promise<void> {
+  if (isPurchasesMocked()) return;
+  try {
+    const status = await getPurchasesProvider().checkEntitlement();
+    const current = await getSubscription(userId);
+    if (status.active && status.plan) {
+      // Still entitled — but flag "cancelled" (rather than "active") once
+      // the user has turned off auto-renew, so the UI can say "active until
+      // <date>" instead of implying the subscription will continue.
+      const nextStatus: Subscription['status'] = status.willRenew === false ? 'cancelled' : 'active';
+      if (current?.plan !== status.plan || current?.status !== nextStatus || current?.currentPeriodEnd !== status.expirationDate) {
+        await setSubscription(userId, status.plan, nextStatus, status.expirationDate);
+      }
+    } else if (!status.active && current && current.plan !== 'free') {
+      // Confirmed inactive by the store itself (not a failed check) — the
+      // subscription lapsed or was cancelled outside the app.
+      await setSubscription(userId, 'free', 'expired', null);
+    }
+  } catch (err) {
+    console.warn('[subscription] entitlement sync failed, keeping last-known state:', (err as Error).message);
+  }
 }
 
 export async function getNotificationPrefs(userId: string): Promise<Record<NotificationCategory, boolean>> {

@@ -3,7 +3,7 @@ import { View } from 'react-native';
 
 import { Button, Card, DemoAiBadge, ProgressBar, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
-import type { WritingEvaluation } from '@/services/ai';
+import type { WritingEvaluation, WritingEvaluationResult } from '@/services/ai';
 
 const CRITERIA: { key: keyof WritingEvaluation; label: string }[] = [
   { key: 'taskAchievement', label: 'Task Achievement' },
@@ -32,7 +32,7 @@ function ListSection({ title, items, tone }: { title: string; items: string[]; t
   );
 }
 
-export function WritingFeedbackView({ evaluation, onDone }: { evaluation: WritingEvaluation; onDone: () => void }) {
+export function WritingFeedbackView({ evaluation, onDone }: { evaluation: WritingEvaluationResult; onDone: () => void }) {
   const theme = useTheme();
   const nextBand = Math.min(9, evaluation.overallBand + 0.5);
 
@@ -43,7 +43,7 @@ export function WritingFeedbackView({ evaluation, onDone }: { evaluation: Writin
           AI Evaluation — Estimated Band
         </Text>
         <Text variant="display">{evaluation.overallBand.toFixed(1)}</Text>
-        <DemoAiBadge />
+        <DemoAiBadge source={evaluation.aiSource} />
       </View>
 
       <Card style={{ marginBottom: theme.spacing.lg, gap: theme.spacing.sm }}>

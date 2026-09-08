@@ -3,7 +3,7 @@ import { View } from 'react-native';
 
 import { Badge, Button, Card, DemoAiBadge, ProgressBar, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
-import type { SpeakingEvaluation } from '@/services/ai';
+import type { SpeakingEvaluation, SpeakingEvaluationResult } from '@/services/ai';
 
 const CRITERIA: { key: keyof SpeakingEvaluation; label: string }[] = [
   { key: 'fluencyCoherence', label: 'Fluency & Coherence' },
@@ -37,7 +37,7 @@ export function SpeakingFeedbackView({
   transcript,
   onDone,
 }: {
-  evaluation: SpeakingEvaluation;
+  evaluation: SpeakingEvaluationResult;
   transcript: string;
   onDone: () => void;
 }) {
@@ -50,7 +50,7 @@ export function SpeakingFeedbackView({
           AI Evaluation — Estimated Speaking Band
         </Text>
         <Text variant="display">{evaluation.overallBand.toFixed(1)}</Text>
-        <DemoAiBadge />
+        <DemoAiBadge source={evaluation.aiSource} />
         <Badge label={`${evaluation.fillerWordCount} filler words detected`} tone={evaluation.fillerWordCount > 5 ? 'warning' : 'success'} />
       </View>
 

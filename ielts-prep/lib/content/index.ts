@@ -1,6 +1,8 @@
 import { achievements } from './achievements';
 import { grammarLessons } from './grammar';
 import { grammarQuestions } from './grammarQuestions';
+import { grammarQuestions2 } from './grammarQuestions2';
+import { grammarQuestions3 } from './grammarQuestions3';
 import { lessons } from './lessons';
 import { listeningQuestions, listeningTracks } from './listening';
 import { listeningQuestionsSet2, listeningTracksSet2 } from './listening2';
@@ -28,6 +30,8 @@ import { writingPrompts } from './writingPrompts';
 export * from './achievements';
 export * from './grammar';
 export * from './grammarQuestions';
+export * from './grammarQuestions2';
+export * from './grammarQuestions3';
 export * from './lessons';
 export * from './listening';
 export * from './listening2';
@@ -96,6 +100,7 @@ export const allVocabularyWords = [
   ...vocabularyWordsBatch5,
 ];
 export const allVocabularyTopics = Array.from(new Set(allVocabularyWords.map((v) => v.topic)));
+export const allGrammarQuestions = [...grammarQuestions, ...grammarQuestions2, ...grammarQuestions3];
 
 /** Static, bundled IELTS Prep content — used directly by demo mode, and as
  * the fallback source when Supabase is not configured. When Supabase *is*
@@ -113,7 +118,7 @@ export const content = {
   vocabularyWords: allVocabularyWords,
   vocabularyTopics: allVocabularyTopics,
   grammarLessons,
-  grammarQuestions,
+  grammarQuestions: allGrammarQuestions,
   achievements,
   mockTests,
   mockSections,

@@ -14,7 +14,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
 import { countWords } from '@/lib/textAnalysis';
-import { evaluateWriting, type WritingEvaluation } from '@/services/ai';
+import { evaluateWriting, getAiProviderName, type WritingEvaluationResult } from '@/services/ai';
 import { saveWritingFeedback, submitWriting } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -44,7 +44,7 @@ export default function WritingTestScreen() {
   const [essay, setEssay] = useState('');
   const [startTime] = useState(() => Date.now());
   const [phase, setPhase] = useState<'writing' | 'evaluating' | 'result'>('writing');
-  const [evaluation, setEvaluation] = useState<WritingEvaluation | null>(null);
+  const [evaluation, setEvaluation] = useState<WritingEvaluationResult | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(draftKey).then((saved) => {
@@ -102,7 +102,7 @@ export default function WritingTestScreen() {
       weaknesses: result.weaknesses,
       suggestions: result.suggestions,
       improvedExample: result.improvedExample,
-      aiModel: 'mock',
+      aiModel: result.aiSource === 'real' ? getAiProviderName() : 'mock',
     });
     await AsyncStorage.removeItem(draftKey);
     setPhase('result');

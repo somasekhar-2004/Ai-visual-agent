@@ -1,5 +1,6 @@
 import { OPENAI_API_KEY } from '@/lib/env';
 
+import { fetchWithRetry } from './httpClient';
 import { buildCoachSystemPrompt, buildSpeakingEvalPrompt, buildWritingEvalPrompt } from './prompts';
 import { SpeakingEvaluationSchema, WritingEvaluationSchema, type SpeakingEvaluation, type WritingEvaluation } from './schemas';
 import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, WritingEvalInput } from './types';
@@ -8,7 +9,7 @@ const CHAT_MODEL = process.env.EXPO_PUBLIC_OPENAI_MODEL || 'gpt-4o-mini';
 const API_BASE = 'https://api.openai.com/v1';
 
 async function chatCompletion(messages: { role: string; content: string }[], jsonMode: boolean): Promise<string> {
-  const res = await fetch(`${API_BASE}/chat/completions`, {
+  const res = await fetchWithRetry(`${API_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -21,7 +22,6 @@ async function chatCompletion(messages: { role: string; content: string }[], jso
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
     }),
   });
-  if (!res.ok) throw new Error(`OpenAI request failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content;
   if (!text) throw new Error('OpenAI response missing content');
@@ -62,12 +62,11 @@ export class OpenAiProvider implements AiProvider {
     form.append('file', { uri: audioUri, name: 'speech.m4a', type: 'audio/m4a' } as unknown as Blob);
     form.append('model', 'whisper-1');
 
-    const res = await fetch(`${API_BASE}/audio/transcriptions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: form,
-    });
-    if (!res.ok) throw new Error(`OpenAI transcription failed: ${res.status} ${await res.text()}`);
+    const res = await fetchWithRetry(
+      `${API_BASE}/audio/transcriptions`,
+      { method: 'POST', headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }, body: form },
+      { timeoutMs: 60_000 } // audio uploads/transcription take longer than a chat completion
+    );
     const data = await res.json();
     if (!data.text) throw new Error('OpenAI transcription response missing text');
     return data.text as string;

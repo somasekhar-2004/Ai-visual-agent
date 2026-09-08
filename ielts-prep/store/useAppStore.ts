@@ -18,6 +18,7 @@ import {
   type SkillBandMap,
   refreshOverallBand,
   saveOnboardingGoal,
+  syncSubscriptionEntitlement,
 } from '@/services/repository';
 import type { Profile, Subscription, UserGoal } from '@/types/models';
 
@@ -34,6 +35,7 @@ type AppState = {
 
   hydrate: () => Promise<void>;
   refreshUserData: (userId: string) => Promise<void>;
+  syncEntitlement: () => Promise<void>;
   enterDemoMode: () => Promise<void>;
   completeOnboarding: (input: OnboardingInput) => Promise<void>;
   signOut: () => Promise<void>;
@@ -54,7 +56,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   hydrate: async () => {
     const [userId, onboardingComplete] = await Promise.all([getCurrentUserId(), hasCompletedOnboarding()]);
     set({ userId, onboardingComplete, isHydrated: true });
-    if (userId) await get().refreshUserData(userId);
+    if (userId) {
+      await syncSubscriptionEntitlement(userId);
+      await get().refreshUserData(userId);
+    }
+  },
+
+  syncEntitlement: async () => {
+    const userId = get().userId;
+    if (!userId) return;
+    await syncSubscriptionEntitlement(userId);
+    await get().refreshUserData(userId);
   },
 
   refreshUserData: async (userId: string) => {

@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 import { REVENUECAT_API_KEY_ANDROID, REVENUECAT_API_KEY_IOS } from '@/lib/env';
 
-import type { PurchaseProduct, PurchaseResult, PurchasesProvider } from './types';
+import type { EntitlementStatus, PurchaseProduct, PurchaseResult, PurchasesProvider } from './types';
 
 let configured = false;
 
@@ -65,5 +65,33 @@ export class RevenueCatProvider implements PurchasesProvider {
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
+  }
+
+  /** Re-reads the store's own customer info — the source of truth for
+   * whether a subscription is still active, independent of whatever the app
+   * last wrote to Supabase/demoStore. Call on launch/foreground so a
+   * cancellation or expiry made outside the app (App Store / Play Store
+   * settings) is picked up without the user having to reopen the paywall. */
+  async checkEntitlement(): Promise<EntitlementStatus> {
+    await ensureConfigured();
+    const Purchases = await getPurchasesModule();
+    // Intentionally not caught here: a network/SDK failure should propagate
+    // so the caller can leave the last-known local subscription state alone
+    // instead of mistaking "couldn't check" for "confirmed not active."
+    const customerInfo = await Purchases.getCustomerInfo();
+    const active = Object.values(customerInfo.entitlements.active)[0] as
+      | { productIdentifier?: string; expirationDate?: string | null; willRenew?: boolean }
+      | undefined;
+    if (!active) return { active: false, plan: null, expirationDate: null, willRenew: null };
+    // Adjust this to match your actual RevenueCat product identifiers if
+    // they don't follow an "...annual.../...yearly..." naming convention.
+    const productId = (active.productIdentifier ?? '').toLowerCase();
+    const plan = productId.includes('annual') || productId.includes('year') ? 'premium_yearly' : 'premium_monthly';
+    return {
+      active: true,
+      plan,
+      expirationDate: active.expirationDate ?? null,
+      willRenew: active.willRenew ?? null,
+    };
   }
 }
