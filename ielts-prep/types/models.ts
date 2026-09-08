@@ -19,7 +19,7 @@ export type NotificationCategory =
   | 'test_countdown'
   | 'unfinished_plan'
   | 'weekly_summary';
-export type ActivityType = 'mock_test' | 'reading' | 'listening' | 'writing' | 'speaking' | 'practice';
+export type ActivityType = 'mock_test' | 'reading' | 'listening' | 'writing' | 'speaking' | 'practice' | 'ai_chat';
 export type BandScale = 'listening' | 'reading_academic' | 'reading_general';
 
 export type Profile = {

@@ -3,13 +3,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
+import { useShallow } from 'zustand/react/shallow';
+
 import { CollapsiblePanel } from '@/components/practice/CollapsiblePanel';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { HighlightablePassage } from '@/components/testing/HighlightablePassage';
 import { TranscriptAudioPlayer } from '@/components/testing/TranscriptAudioPlayer';
-import { Button, Chip, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Button, Chip, DailyLimitCard, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
+import { checkDailyLimit, FREE_DAILY_PRACTICE_QUESTIONS, practiceQuestionsUsedToday } from '@/lib/entitlements';
 import { groupQuestions } from '@/lib/practiceGrouping';
 import {
   getBookmarks,
@@ -29,7 +32,7 @@ export default function PracticeSessionScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { skill, mode } = useLocalSearchParams<Params>();
-  const userId = useAppStore((s) => s.userId);
+  const { userId, isPremium } = useAppStore(useShallow((s) => ({ userId: s.userId, isPremium: s.subscription?.plan !== 'free' })));
 
   const [difficulty, setDifficulty] = useState<Difficulty | 'all'>('all');
   const [index, setIndex] = useState(0);
@@ -60,6 +63,10 @@ export default function PracticeSessionScreen() {
 
   const current = questions[index];
   const bookmarkedIds = new Set(bookmarksQuery.data?.map((b) => b.questionId));
+  const limitStatus = checkDailyLimit(practiceQuestionsUsedToday(attemptsQuery.data ?? []), FREE_DAILY_PRACTICE_QUESTIONS, isPremium);
+  // Once already-attempted-today reaches the free cap, block starting a NEW
+  // session — but never cut off a session already in progress mid-question.
+  const blockedByLimit = index === 0 && results.length === 0 && !limitStatus.allowed;
 
   const groupByQuestionId = useMemo(() => {
     const map = new Map<string, ReturnType<typeof groupQuestions>[number]>();
@@ -93,6 +100,17 @@ export default function PracticeSessionScreen() {
       return;
     }
     setIndex((i) => i + 1);
+  }
+
+  if (blockedByLimit) {
+    return (
+      <Screen>
+        <ScreenHeader title="Practice" showBack />
+        <View style={{ marginTop: theme.spacing.xl }}>
+          <DailyLimitCard used={limitStatus.used} limit={limitStatus.limit} feature="Practice questions" />
+        </View>
+      </Screen>
+    );
   }
 
   if (questions.length === 0) {

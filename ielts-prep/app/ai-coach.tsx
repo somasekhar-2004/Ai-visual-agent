@@ -6,10 +6,11 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
-import { Chip, DemoAiBadge, IconCircle, ScreenHeader, Text, TextField } from '@/components/ui';
+import { Chip, DailyLimitCard, DemoAiBadge, IconCircle, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { activityUsedToday, checkDailyLimit, FREE_DAILY_AI_MESSAGES } from '@/lib/entitlements';
 import { chatWithCoach, type AiSource, type CoachContext } from '@/services/ai';
-import { addMessage, createConversation, getMessages, listConversations } from '@/services/repository';
+import { addMessage, addTestHistory, createConversation, getMessages, getTestHistory, listConversations } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
 const SUGGESTED_PROMPTS = [
@@ -27,12 +28,13 @@ export default function AiCoachScreen() {
   const queryClient = useQueryClient();
   const scrollRef = useRef<ScrollView>(null);
 
-  const { userId, profile, goal, bandScores, streak } = useAppStore(useShallow((s) => ({
+  const { userId, profile, goal, bandScores, streak, isPremium } = useAppStore(useShallow((s) => ({
     userId: s.userId,
     profile: s.profile,
     goal: s.goal,
     bandScores: s.bandScores,
     streak: s.streak,
+    isPremium: s.subscription?.plan !== 'free',
   })));
 
   const [conversationId, setConversationId] = useState<string | null>(params.conversationId ?? null);
@@ -51,6 +53,14 @@ export default function AiCoachScreen() {
     queryFn: () => getMessages(conversationId!),
     enabled: Boolean(conversationId),
   });
+
+  const historyQuery = useQuery({
+    queryKey: ['test-history', userId],
+    queryFn: () => getTestHistory(userId!),
+    enabled: Boolean(userId),
+  });
+  const usedToday = activityUsedToday(historyQuery.data ?? [], 'ai_chat');
+  const limitStatus = checkDailyLimit(usedToday, FREE_DAILY_AI_MESSAGES, isPremium);
 
   useEffect(() => {
     if (!userId || conversationId || !conversationsQuery.isFetched) return;
@@ -74,7 +84,7 @@ export default function AiCoachScreen() {
   }
 
   async function send(text: string) {
-    if (!text.trim() || !userId || !conversationId || sending) return;
+    if (!text.trim() || !userId || !conversationId || sending || !limitStatus.allowed) return;
     setInput('');
     setSending(true);
     await addMessage(conversationId, 'user', text.trim());
@@ -96,7 +106,9 @@ export default function AiCoachScreen() {
     const { reply, aiSource } = await chatWithCoach(history as any, context);
     setLastReplySource(aiSource);
     await addMessage(conversationId, 'assistant', reply);
+    await addTestHistory(userId, 'ai_chat', conversationId, null, {});
     queryClient.invalidateQueries({ queryKey: ['ai-messages', conversationId] });
+    queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
     setSending(false);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }
@@ -128,11 +140,13 @@ export default function AiCoachScreen() {
               <Text variant="h3" align="center">
                 Ask me anything about your IELTS prep
               </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, justifyContent: 'center' }}>
-                {SUGGESTED_PROMPTS.map((p) => (
-                  <Chip key={p} label={p} onPress={() => send(p)} />
-                ))}
-              </View>
+              {limitStatus.allowed ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, justifyContent: 'center' }}>
+                  {SUGGESTED_PROMPTS.map((p) => (
+                    <Chip key={p} label={p} onPress={() => send(p)} />
+                  ))}
+                </View>
+              ) : null}
             </View>
           ) : (
             messages.map((m) => (
@@ -159,26 +173,32 @@ export default function AiCoachScreen() {
           ) : null}
         </ScrollView>
 
-        <View style={{ flexDirection: 'row', gap: theme.spacing.sm, padding: theme.spacing.md, alignItems: 'flex-end' }}>
-          <View style={{ flex: 1 }}>
-            <TextField value={input} onChangeText={setInput} placeholder="Ask your coach..." multiline />
+        {limitStatus.allowed ? (
+          <View style={{ flexDirection: 'row', gap: theme.spacing.sm, padding: theme.spacing.md, alignItems: 'flex-end' }}>
+            <View style={{ flex: 1 }}>
+              <TextField value={input} onChangeText={setInput} placeholder="Ask your coach..." multiline />
+            </View>
+            <Pressable
+              onPress={() => send(input)}
+              disabled={sending || !input.trim()}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: theme.colors.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: sending || !input.trim() ? 0.5 : 1,
+              }}
+            >
+              <Ionicons name="send" size={18} color={theme.colors.onPrimary} />
+            </Pressable>
           </View>
-          <Pressable
-            onPress={() => send(input)}
-            disabled={sending || !input.trim()}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: theme.colors.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: sending || !input.trim() ? 0.5 : 1,
-            }}
-          >
-            <Ionicons name="send" size={18} color={theme.colors.onPrimary} />
-          </Pressable>
-        </View>
+        ) : (
+          <View style={{ padding: theme.spacing.md }}>
+            <DailyLimitCard used={limitStatus.used} limit={limitStatus.limit} feature="AI Coach messages" />
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

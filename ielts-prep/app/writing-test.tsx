@@ -4,19 +4,23 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useQuery } from '@tanstack/react-query';
+
 import { WritingFeedbackView } from '@/components/testing/WritingFeedbackView';
 import { WritingChart } from '@/components/writing/WritingChart';
-import { Badge, Button, Card, Text } from '@/components/ui';
+import { Badge, Button, Card, DailyLimitCard, Text } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
 import { confirmAsync } from '@/lib/confirm';
+import { activityUsedToday, checkDailyLimit, FREE_DAILY_WRITING_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
 import { countWords } from '@/lib/textAnalysis';
 import { evaluateWriting, getAiProviderName, type WritingEvaluationResult } from '@/services/ai';
-import { saveWritingFeedback, submitWriting } from '@/services/repository';
+import { getTestHistory, saveWritingFeedback, submitWriting } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
+import { useShallow } from 'zustand/react/shallow';
 
 type Params = { promptId?: string; mockAttemptId?: string; mockTestId?: string; stepIndex?: string; nextHref?: string };
 
@@ -32,8 +36,22 @@ export default function WritingTestScreen() {
     mockTestId && mockAttemptId && stepIndex != null
       ? nextFlowHref(mockTestId, mockAttemptId, Number(stepIndex))
       : firstParam(raw.nextHref);
-  const userId = useAppStore((s) => s.userId);
-  const ieltsType = useAppStore((s) => s.goal?.ieltsType ?? 'academic');
+  const { userId, ieltsType, isPremium } = useAppStore(useShallow((s) => ({
+    userId: s.userId,
+    ieltsType: s.goal?.ieltsType ?? 'academic',
+    isPremium: s.subscription?.plan !== 'free',
+  })));
+  // Only enforce the free daily limit for standalone practice — a writing
+  // task that's part of an already-unlocked mock attempt must not be
+  // blocked mid-mock.
+  const isStandalone = !mockAttemptId;
+  const historyQuery = useQuery({
+    queryKey: ['test-history', userId],
+    queryFn: () => getTestHistory(userId!),
+    enabled: Boolean(userId) && isStandalone,
+  });
+  const limitStatus = checkDailyLimit(activityUsedToday(historyQuery.data ?? [], 'writing'), FREE_DAILY_WRITING_EVALS, isPremium);
+  const blockedByLimit = isStandalone && !limitStatus.allowed;
 
   const prompt = useMemo(
     () => content.writingPrompts.find((p) => p.id === promptId) ?? content.writingPrompts.find((p) => p.ieltsType === ieltsType && p.taskType === 'task2') ?? content.writingPrompts[0],
@@ -123,6 +141,14 @@ export default function WritingTestScreen() {
         evaluation={evaluation}
         onDone={() => (nextHref ? router.replace(nextHref as any) : router.replace('/(tabs)/tests'))}
       />
+    );
+  }
+
+  if (blockedByLimit) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.md, justifyContent: 'center' }}>
+        <DailyLimitCard used={limitStatus.used} limit={limitStatus.limit} feature="Writing evaluations" />
+      </SafeAreaView>
     );
   }
 

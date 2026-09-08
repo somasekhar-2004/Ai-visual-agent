@@ -5,10 +5,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useQuery } from '@tanstack/react-query';
+import { useShallow } from 'zustand/react/shallow';
+
 import { SpeakingFeedbackView } from '@/components/testing/SpeakingFeedbackView';
-import { Badge, Button, Card, IconCircle, ProgressBar, Text } from '@/components/ui';
+import { Badge, Button, Card, DailyLimitCard, IconCircle, ProgressBar, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { activityUsedToday, checkDailyLimit, FREE_DAILY_SPEAKING_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
 import { buildSpeakingTurns } from '@/lib/speakingFlow';
@@ -17,6 +21,7 @@ import {
   addSpeakingResponse,
   completeSpeakingSession,
   createSpeakingSession,
+  getTestHistory,
   recordDailyActivity,
   saveSpeakingFeedback,
 } from '@/services/repository';
@@ -39,8 +44,19 @@ export default function SpeakingSessionScreen() {
     mockTestId && mockAttemptId && stepIndex != null
       ? nextFlowHref(mockTestId, mockAttemptId, Number(stepIndex))
       : firstParam(raw.nextHref);
-  const userId = useAppStore((s) => s.userId);
+  const { userId, isPremium } = useAppStore(useShallow((s) => ({ userId: s.userId, isPremium: s.subscription?.plan !== 'free' })));
   const recorder = useVoiceRecorder();
+
+  // Only enforce the free daily limit for standalone practice — a speaking
+  // part that's already inside an unlocked mock attempt must not be blocked.
+  const isStandalone = !mockAttemptId;
+  const historyQuery = useQuery({
+    queryKey: ['test-history', userId],
+    queryFn: () => getTestHistory(userId!),
+    enabled: Boolean(userId) && isStandalone,
+  });
+  const limitStatus = checkDailyLimit(activityUsedToday(historyQuery.data ?? [], 'speaking'), FREE_DAILY_SPEAKING_EVALS, isPremium);
+  const blockedByLimit = isStandalone && !limitStatus.allowed;
 
   const turns = useMemo(() => buildSpeakingTurns(part, groupId), [part, groupId]);
   const [turnIndex, setTurnIndex] = useState(0);
@@ -55,15 +71,16 @@ export default function SpeakingSessionScreen() {
   const turn = turns[turnIndex];
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || blockedByLimit) return;
     createSpeakingSession(userId, part, turn?.topicId ?? null).then((s) => {
       sessionIdRef.current = s.id;
     });
     // Intentionally runs once on mount to open a single session for the whole flow.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [blockedByLimit]);
 
   useEffect(() => {
+    if (blockedByLimit) return;
     if (phase === 'intro' && turn) {
       Speech.speak(turn.isCue ? `Here is your topic: ${turn.cueCardText}` : turn.questionText, { rate: 0.95 });
     }
@@ -171,6 +188,14 @@ export default function SpeakingSessionScreen() {
   }
 
   useEffect(() => clearTimer, []);
+
+  if (blockedByLimit) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.md, justifyContent: 'center' }}>
+        <DailyLimitCard used={limitStatus.used} limit={limitStatus.limit} feature="Speaking evaluations" />
+      </SafeAreaView>
+    );
+  }
 
   if (phase === 'permission_denied') {
     return (

@@ -16,6 +16,7 @@ It covers all four IELTS skills (Listening, Reading, Writing, Speaking), realist
 - [Supabase setup](#supabase-setup)
 - [AI provider setup](#ai-provider-setup)
 - [RevenueCat setup](#revenuecat-setup)
+- [Free vs. Premium boundary](#free-vs-premium-boundary)
 - [Development commands](#development-commands)
 - [Testing](#testing)
 - [Production builds (EAS)](#production-builds-eas)
@@ -175,6 +176,26 @@ npm run audio:generate
 **Entitlement sync (cancellations/expiry):** `checkEntitlement()` re-reads RevenueCat's `CustomerInfo` directly (not whatever was last written to Supabase) and is called on app launch and every foreground resume (`app/_layout.tsx`'s `AppState` listener → `useAppStore.syncEntitlement`), so a subscription cancelled or expired in the App Store/Play Store settings is reflected without the user reopening the paywall. `checkEntitlement()`'s plan detection (`services/purchases/revenuecatProvider.ts`) assumes product identifiers containing "annual"/"year" are the yearly plan — update that check to match your actual RevenueCat product identifiers. A subscription with auto-renew turned off but not yet expired is shown as `status: 'cancelled'` with the renewal date, distinct from `'expired'` (fully lapsed → downgraded to `free`).
 
 **Not yet sandbox-tested:** none of the above has been exercised against a real RevenueCat project or App Store/Play Store sandbox account in this environment — there is no way to do that without real store credentials and a native build. Everything is implemented and verified via `tsc`/lint/unit tests and mock-provider behavior only; a real end-to-end purchase/restore/cancel/expire flow still needs to be run on a device with a sandbox account before shipping.
+
+## Free vs. Premium boundary
+
+Every screen with a free/premium distinction reads `useAppStore().subscription?.plan !== 'free'` directly (no separate "entitlements" service to fall out of sync with) and, on the free plan, shows a `DailyLimitCard`/inline upsell instead of silently degrading or silently staying unlimited. The actual limits live in one place, `lib/entitlements.ts`:
+
+| Feature | Free | Premium |
+|---|---|---|
+| Full mock tests | 1 Academic + 1 General (of 12) | All 12 |
+| Lessons (Learn module) | Per-lesson `isPremium` flag in content | All |
+| Vocabulary topics | First 4 of 20 | All 20 |
+| Grammar lessons | First 6 of 40 | All 40 |
+| Practice questions | 20/day | Unlimited |
+| AI Coach messages | 5/day | Unlimited |
+| Writing evaluations | 1/day | Unlimited |
+| Speaking evaluations | 1/day | Unlimited |
+| Analytics | Skill bands, target progress, accuracy/streak/question-count | + predicted-band trend, weekly/monthly activity, minutes studied, Writing/Speaking by criterion, question-type accuracy |
+
+Daily counters reset at midnight and are derived from data already being written for other reasons (`question_attempts`, `test_history`) rather than a separate counter table — an AI Coach reply now also writes one `test_history` row (`activityType: 'ai_chat'`, migration `0004_ai_chat_activity_type.sql`) so its daily count can be computed the same way. A writing/speaking task that's part of an already-unlocked mock attempt is never blocked by the daily eval limit — the limit only applies to standalone practice, checked via the `mockAttemptId` param those screens already carry.
+
+This is enforced client-side only (consistent with the rest of this Expo/RN app's architecture) — a determined user could bypass it with a modified client. Real production enforcement of paid-tier limits should ultimately live server-side (e.g. checked in the same server-side AI proxy mentioned under "AI provider setup").
 
 ## Development commands
 

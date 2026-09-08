@@ -3,6 +3,7 @@ export * from './Badge';
 export * from './Button';
 export * from './Card';
 export * from './Chip';
+export * from './DailyLimitCard';
 export * from './DemoAiBadge';
 export * from './Divider';
 export * from './EmptyState';
