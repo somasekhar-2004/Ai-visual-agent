@@ -114,12 +114,13 @@ cp .env.example .env
 
 See `.env.example` for the full list and comments. In short:
 
-- **Nothing set** → Demo Mode (default, no backend).
-- **`EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY`** → real backend.
-- **`EXPO_PUBLIC_AI_PROVIDER=openai|anthropic` + matching API key** → real AI evaluation/coach.
+- **Nothing set** → Demo Mode (default, no backend, everything local).
+- **`EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY`** → real backend, and — automatically, no separate AI toggle — real AI evaluation/coach turns on too, *if* you've also configured an AI provider key on the **server** side (see "AI provider setup" below). This is deliberate: there is no client-side AI provider variable anymore.
 - **`EXPO_PUBLIC_REVENUECAT_IOS_KEY` / `_ANDROID_KEY`** → real subscriptions.
 
 Restart the Expo dev server after changing `.env` (`EXPO_PUBLIC_*` vars are inlined at build time).
+
+**Every variable in `.env`/`.env.example` is safe to ship inside the compiled app.** That's what the `EXPO_PUBLIC_` prefix means in Expo — those values are inlined into the JS bundle and can be extracted by anyone with the app binary or the web build's network tab. Nothing that must stay secret (AI provider keys, the Supabase service-role key, RevenueCat's private API key) belongs in this file — see "AI provider setup" for where those actually go.
 
 ## Supabase setup
 
@@ -139,28 +140,72 @@ Restart the Expo dev server after changing `.env` (`EXPO_PUBLIC_*` vars are inli
    ```
 6. Restart `npm run start`. The app now reads/writes Supabase instead of Demo Mode.
 
-The schema (`supabase/migrations/0001_init.sql`, plus `0002_content_expansion_schema.sql` for mock test numbering/difficulty and writing chart data, and `0003_grammar_practice.sql` for grammar practice questions/attempts) covers every table in the product spec: profiles, goals, lessons/progress, questions/attempts, passages, listening tracks, mock tests/sections/attempts, reading/listening attempts, writing submissions/feedback, speaking sessions/responses/feedback, band scores (with a configurable raw-score → band conversion table), study plans/items, vocabulary + spaced repetition, grammar lessons/questions/attempts, achievements, AI conversations/messages, subscriptions, notifications, bookmarks, and test history — 38 tables total, each with RLS so users can only read/write their own rows, and public content tables (lessons, questions, etc.) readable by anyone.
+The schema (`supabase/migrations/0001_init.sql`, plus `0002_content_expansion_schema.sql` for mock test numbering/difficulty and writing chart data, `0003_grammar_practice.sql` for grammar practice questions/attempts, `0004_ai_chat_activity_type.sql` for the AI Coach's daily-limit activity type, and `0005_ai_usage_log.sql` for server-side AI rate-limiting/audit logging) covers every table in the product spec: profiles, goals, lessons/progress, questions/attempts, passages, listening tracks, mock tests/sections/attempts, reading/listening attempts, writing submissions/feedback, speaking sessions/responses/feedback, band scores (with a configurable raw-score → band conversion table), study plans/items, vocabulary + spaced repetition, grammar lessons/questions/attempts, achievements, AI conversations/messages, subscriptions, notifications, bookmarks, test history, and the AI usage audit log — 39 tables total, each with RLS so users can only read/write their own rows, and public content tables (lessons, questions, etc.) readable by anyone.
 
-**Verification status:** every table listed above has RLS enabled and at least one policy (verified with a static script comparing `create table` / `enable row level security` / `create policy` statements — 38/38 tables covered, zero gaps), every foreign key uses `on delete cascade` (or `set null` where a null reference is meaningful, e.g. a question whose passage was removed), `subscriptions.user_id` and other 1:1 tables carry a `unique` constraint so upserts behave correctly, and every `.from('table_name')` call and column name in `services/repository/*.ts` was cross-checked against the actual migration column names — no drift found. **This is static verification only.** The schema and repository layer have **not** been exercised against a real, running Supabase project in this environment (no `DATABASE_URL`/Supabase credentials are available here) — running `npm run db:migrate && npm run db:seed` against a real project and smoke-testing sign-up → onboarding → a mock attempt → a writing submission is still needed before relying on the Supabase path in production.
+**Verification status:** every table listed above has RLS enabled and at least one policy (verified with a static script comparing `create table` / `enable row level security` / `create policy` statements — 39/39 tables covered, zero gaps; the RLS policies were additionally re-reviewed by hand as part of the server-side AI migration, including the 5 join-based child-table policies (`writing_feedback`, `speaking_responses`, `speaking_feedback`, `study_plan_items`, `ai_messages`) that scope through a parent owner row rather than a direct `user_id` column), every foreign key uses `on delete cascade` (or `set null` where a null reference is meaningful, e.g. a question whose passage was removed), `subscriptions.user_id` and other 1:1 tables carry a `unique` constraint so upserts behave correctly, and every `.from('table_name')` call and column name in `services/repository/*.ts` was cross-checked against the actual migration column names — no drift found. **This is static verification only.** The schema and repository layer have **not** been exercised against a real, running Supabase project in this environment (no `DATABASE_URL`/Supabase credentials are available here) — running `npm run db:migrate && npm run db:seed` against a real project and smoke-testing sign-up → onboarding → a mock attempt → a writing submission is still needed before relying on the Supabase path in production.
 
 ## AI provider setup
 
-`EXPO_PUBLIC_AI_PROVIDER` selects the provider (`services/ai/index.ts`); if the selected provider's key is missing, it silently falls back to mock so the app never breaks.
+**AI provider keys are server-only.** There is no `EXPO_PUBLIC_OPENAI_API_KEY` or `EXPO_PUBLIC_ANTHROPIC_API_KEY` — those would ship the key inside the app binary, which is never safe for a real paid key. Instead:
 
-- **`mock`** (default) — deterministic, heuristic scoring (word count, sentence variety, linking devices, filler words, vocabulary richness) that produces genuinely differentiated, useful feedback with zero setup. See `services/ai/mockProvider.ts`.
-- **`openai`** — set `EXPO_PUBLIC_OPENAI_API_KEY` (and optionally `EXPO_PUBLIC_OPENAI_MODEL`, default `gpt-4o-mini`). Also enables real audio transcription (Whisper) for the Speaking Examiner.
-- **`anthropic`** — set `EXPO_PUBLIC_ANTHROPIC_API_KEY` (and optionally `EXPO_PUBLIC_ANTHROPIC_MODEL`, default `claude-sonnet-5`). Anthropic has no audio transcription API, so Speaking transcription falls back to OpenAI (if configured) or the mock simulated transcript.
+- **`services/ai/mockProvider.ts`** — deterministic, heuristic scoring (word count, sentence variety, linking devices, filler words, vocabulary richness) that produces genuinely differentiated, useful feedback with zero setup. This is what runs in Demo Mode, and it's also the client's automatic fallback whenever the real path below is unavailable for any reason.
+- **`supabase/functions/`** — five Supabase Edge Functions (`evaluate-writing`, `evaluate-speaking`, `ai-coach`, `transcribe-audio`, `study-plan-suggestion`) are the *only* code anywhere in this project that holds a real OpenAI/Anthropic key or calls their APIs. The mobile app calls these functions instead, authenticated with the signed-in user's own Supabase session (supabase-js attaches that automatically) — see `services/ai/edgeFunctionProvider.ts`, the only client-side AI provider left, which holds no secret at all.
 
-All real-provider outputs are validated against Zod schemas (`services/ai/schemas.ts`) before use; a malformed or failed response falls back to the mock provider's output rather than crashing or showing garbage. Every screen that shows an AI-generated score (Writing feedback, Speaking feedback, AI Coach) displays a small "Demo AI" / "Live AI" badge reflecting **that specific result's** actual source (`services/ai/index.ts`'s `aiSource` field) — not just whether a provider is configured, since a single call can still fall back to mock output on a network error even with a real provider set up. `services/ai/httpClient.ts` adds a 30s timeout (60s for audio transcription) and retries transient failures (429/5xx/network errors, up to 3 attempts with exponential backoff) before falling back, so a slow or flaky provider degrades to Demo AI rather than hanging.
+The client's provider selection (`services/ai/index.ts`) is now just: Demo Mode (no Supabase configured) → always mock, zero network calls; Supabase configured → attempt the Edge Function, fall back to mock on any failure (network error, no server-side AI key configured, rate limit, invalid output). **This is what makes real AI turn on automatically once both Supabase and an AI key are configured, with no separate client-side switch to flip.**
 
-**Known gap — API keys are currently client-side.** `EXPO_PUBLIC_OPENAI_API_KEY`/`EXPO_PUBLIC_ANTHROPIC_API_KEY` are, by Expo's own convention, bundled directly into the shipped app/web build and are extractable by anyone with the binary — this is **not** safe for a real production release with paid API keys. Before shipping with real AI credentials, route these calls through a server-side proxy instead (e.g. a Supabase Edge Function that holds the real key and the app calls with only the user's Supabase auth token) so the key never reaches the client. `services/ai/openaiProvider.ts` / `anthropicProvider.ts` would need their `fetch` targets pointed at that proxy instead of the provider's API directly — the retry/timeout/schema-validation logic around them stays the same either way.
+### Deploying the Edge Functions
+
+Requires the [Supabase CLI](https://supabase.com/docs/guides/cli) and a project linked to this repo:
+
+```bash
+npx supabase login
+npx supabase link --project-ref <your-project-ref>   # Project Settings → General → Reference ID
+
+# Apply the ai_usage_log migration (or run npm run db:migrate, which covers all migrations)
+npx supabase db push
+
+# Set the real secret(s) — see supabase/functions/.env.example for the full list.
+# Never add EXPO_PUBLIC_ to any of these; they are read only inside the
+# Edge Function runtime, never bundled into the app.
+npx supabase secrets set OPENAI_API_KEY=sk-...
+npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...   # optional, if you also/instead want Anthropic
+npx supabase secrets set AI_PROVIDER=openai              # which to prefer if both are set
+
+# Deploy every function (SUPABASE_URL / SUPABASE_ANON_KEY are injected
+# automatically by the platform — do not set those yourself)
+npx supabase functions deploy evaluate-writing
+npx supabase functions deploy evaluate-speaking
+npx supabase functions deploy ai-coach
+npx supabase functions deploy transcribe-audio
+npx supabase functions deploy study-plan-suggestion
+```
+
+With neither `OPENAI_API_KEY` nor `ANTHROPIC_API_KEY` set, every function responds with a clean `ai_not_configured` error and the app quietly falls back to mock — deploying the functions with no key yet is safe and won't break anything.
+
+### What each function does
+
+Every function (`supabase/functions/<name>/index.ts`, sharing helpers from `supabase/functions/_shared/`) follows the same contract:
+
+1. **Auth** — rejects any request without a valid Supabase session JWT (`_shared/supabaseClient.ts`); there is no anonymous access to any AI operation.
+2. **Validation** — the request body is parsed against a Zod schema (`_shared/schemas.ts`); malformed input is rejected with a 400 before it ever reaches the AI provider.
+3. **Rate limiting** — `_shared/rateLimit.ts` enforces real, server-side daily caps per user per operation (checked against the `ai_usage_log` table, not trusted from the client), with a higher ceiling for Premium accounts (read from the user's own `subscriptions` row). This is the actual security boundary — the same-looking limits in `lib/entitlements.ts` are client-side UX only (hiding a button before a wasted request) and were never meant to be the enforcement layer.
+4. **The real call** — `_shared/aiProviders.ts` calls OpenAI or Anthropic with a 30s timeout (60s for transcription) and retries on 429/5xx (`_shared/httpClient.ts`, the server-side twin of the client's old retry logic).
+5. **Output validation** — the model's JSON response is parsed against the same Zod schemas used client-side (`WritingEvaluationSchema`/`SpeakingEvaluationSchema`); a malformed response is rejected (502) rather than passed through.
+6. **Usage logging** — every attempt (success or failure) is written to `ai_usage_log` (`user_id`, `operation`, `provider`, `success`, `created_at`) — both the audit trail and what step 3 counts against next time. RLS on that table means a user can only ever read their own usage rows.
+7. **Structured errors** — every non-2xx response is `{ error: { code, message } }` with a stable `code` (`unauthorized`, `invalid_request`, `rate_limited`, `ai_not_configured`, `invalid_ai_output`, `upstream_error`) so the client can react to failure classes, not parse free text.
+
+`study-plan-suggestion` is built and deployable like the rest, but the mobile app does not currently call it — the study plan screen's existing heuristic logic (`services/repository/studyPlan.ts`) was left as-is per this migration's "don't rebuild existing features" scope. It's there, fully wired end-to-end, for a future "AI note on your study plan" feature to call without another security migration.
+
+All real-provider outputs are validated against Zod schemas before use both server- and client-side; a malformed or failed response falls back to the mock provider's output rather than crashing or showing garbage. Every screen that shows an AI-generated score (Writing feedback, Speaking feedback, AI Coach) displays a small "Demo AI" / "Live AI" badge reflecting **that specific result's** actual source (`services/ai/index.ts`'s `aiSource` field) — not just whether a provider is configured, since a single call can still fall back to mock output on a network error even with everything configured.
+
+**Verification status:** the Edge Functions type-check under `deno check` conventions and were reviewed line-by-line against the auth/validation/rate-limit/logging contract above, and the client-side boundary (`EdgeFunctionProvider`, provider selection, error classification) has Jest coverage (`__tests__/edgeFunctionProvider.test.ts`, `__tests__/aiProviderSelection.test.ts`). **They have not been deployed or exercised against a real Supabase project or a real OpenAI/Anthropic key in this environment** — no Supabase CLI login or API keys are available here. Deploy them and run one real Writing evaluation, one Speaking evaluation, one AI Coach message, and one transcription before relying on this path in production.
 
 ## Listening audio generation
 
 Every listening track plays out of the box via real, audible on-device text-to-speech (`expo-speech`) — no listening button is ever a no-op. For higher-quality, pre-rendered audio instead:
 
 ```bash
-echo "EXPO_PUBLIC_OPENAI_API_KEY=sk-..." >> .env   # or OPENAI_API_KEY, server-side only
+echo "OPENAI_API_KEY=sk-..." >> .env   # dev-machine-only secret, read by this script alone — never EXPO_PUBLIC_
 npm run audio:generate
 ```
 
@@ -288,3 +333,4 @@ In Demo Mode, "Delete account" just resets the local on-device database — no f
 - **Pronunciation scoring** (both mock and real AI providers) is estimated from transcript/speech patterns, not full acoustic phoneme analysis — labeled as an estimate everywhere it's shown.
 - **`react-native-purchases`** requires a custom dev client / real build, not Expo Go.
 - Content (lessons, questions, vocabulary, mock tests) grows by editing `lib/content/*.ts` only, then running `npm run seed:generate` to regenerate the matching SQL — see "Content model" above.
+- **The Supabase Edge Functions (`supabase/functions/`) are implemented and reviewed but not yet deployed or run against a real AI key** — see "Verification status" at the end of "AI provider setup" above.

@@ -32,7 +32,10 @@ export type CoachContext = {
 export type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string };
 
 export interface AiProvider {
-  readonly name: string;
+  /** Not always readonly in practice: EdgeFunctionProvider updates this
+   * after each successful call to reflect which real provider the server
+   * actually used (see services/ai/edgeFunctionProvider.ts). */
+  name: string;
   evaluateWriting(input: WritingEvalInput): Promise<WritingEvaluation>;
   evaluateSpeaking(input: SpeakingEvalInput): Promise<SpeakingEvaluation>;
   chat(messages: ChatMessage[], context: CoachContext): Promise<string>;

@@ -2,10 +2,12 @@ export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-export type AiProviderName = 'mock' | 'openai' | 'anthropic';
-export const AI_PROVIDER = (process.env.EXPO_PUBLIC_AI_PROVIDER as AiProviderName) || 'mock';
-export const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? '';
-export const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY ?? '';
+// There is deliberately no client-side AI provider name or API key here.
+// OPENAI_API_KEY / ANTHROPIC_API_KEY / AI_PROVIDER live only in the
+// Supabase Edge Function runtime (supabase secrets set — see
+// supabase/functions/.env.example), never in this app's bundle. The client
+// only needs to know whether a backend exists to call at all
+// (isSupabaseConfigured, above) — see services/ai/index.ts.
 
 export const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '';
 export const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '';

@@ -2,16 +2,21 @@
 //
 //   npm run audio:generate
 //
-// Requires EXPO_PUBLIC_OPENAI_API_KEY (or OPENAI_API_KEY) in the environment
-// — without it, this prints instructions and exits without changing
-// anything. Every listening track already works without this: the app
-// falls back to real, audible on-device text-to-speech
+// Requires OPENAI_API_KEY in .env (a plain dev-machine secret — this is a
+// one-off local script, not part of the app bundle or the server-side Edge
+// Functions, so it does not use the EXPO_PUBLIC_ prefix or the Supabase
+// secrets store; see supabase/functions/.env.example for the *runtime* key
+// the Edge Functions use). Without it, this prints instructions and exits
+// without changing anything. Every listening track already works without
+// this: the app falls back to real, audible on-device text-to-speech
 // (components/testing/TranscriptAudioPlayer.tsx) for any track that has no
 // generated file. Running this script upgrades those tracks to pre-rendered,
 // higher-quality audio.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import dotenv from 'dotenv';
 
 import { content } from '../lib/content';
 
@@ -20,7 +25,9 @@ const ROOT = path.join(__dirname, '..');
 const ASSETS_DIR = path.join(ROOT, 'assets', 'audio');
 const REGISTRY_PATH = path.join(ROOT, 'lib', 'content', 'audioRegistry.ts');
 
-const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+dotenv.config({ path: path.join(ROOT, '.env') });
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1';
 // A couple of distinct voices so multi-speaker sections (receptionist/caller,
 // lecturer) don't all sound identical — assigned by track section number.
@@ -52,8 +59,8 @@ ${lines.join('\n')}
 
 async function main() {
   if (!OPENAI_API_KEY) {
-    console.log('No EXPO_PUBLIC_OPENAI_API_KEY / OPENAI_API_KEY set — nothing to generate.');
-    console.log('Add one of those to .env with a real OpenAI API key and re-run: npm run audio:generate');
+    console.log('No OPENAI_API_KEY set — nothing to generate.');
+    console.log('Add it to .env with a real OpenAI API key and re-run: npm run audio:generate');
     console.log('Every listening track already plays via on-device text-to-speech without this.');
     return;
   }
