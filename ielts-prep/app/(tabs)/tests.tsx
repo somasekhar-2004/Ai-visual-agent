@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Card, IconCircle, Screen, Text } from '@/components/ui';
+import { Badge, Card, Chip, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
 import { getMockAttempts, listMockTests } from '@/services/repository';
@@ -32,12 +32,18 @@ function lastAttempt(attempts: MockAttempt[]): MockAttempt | null {
   return [...attempts].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0];
 }
 
+type CompletedFilter = 'all' | 'completed' | 'not_completed';
+type AccessFilter = 'all' | 'free' | 'premium';
+
 export default function TestsHubScreen() {
   const theme = useTheme();
   const router = useRouter();
   const userId = useAppStore((s) => s.userId);
   const isPremium = useAppStore((s) => s.subscription?.plan !== 'free');
   const mockTests = listMockTests();
+  const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | 'all'>('all');
+  const [completedFilter, setCompletedFilter] = useState<CompletedFilter>('all');
+  const [accessFilter, setAccessFilter] = useState<AccessFilter>('all');
 
   const attemptsQuery = useQuery({
     queryKey: ['mock-attempts', userId],
@@ -54,13 +60,26 @@ export default function TestsHubScreen() {
     return map;
   }, [attemptsQuery.data]);
 
+  const filteredTests = useMemo(() => {
+    return mockTests.filter((test) => {
+      if (difficultyFilter !== 'all' && test.difficulty !== difficultyFilter) return false;
+      if (accessFilter !== 'all' && (accessFilter === 'free') !== test.isFree) return false;
+      if (completedFilter !== 'all') {
+        const completed = (attemptsByTest.get(test.id) ?? []).some((a) => a.status === 'completed');
+        if (completedFilter === 'completed' && !completed) return false;
+        if (completedFilter === 'not_completed' && completed) return false;
+      }
+      return true;
+    });
+  }, [mockTests, difficultyFilter, accessFilter, completedFilter, attemptsByTest]);
+
   const grouped = useMemo(() => {
     const byType: Record<IeltsType, typeof mockTests> = { academic: [], general: [] };
-    for (const test of mockTests) byType[test.ieltsType].push(test);
+    for (const test of filteredTests) byType[test.ieltsType].push(test);
     byType.academic.sort((a, b) => a.testNumber - b.testNumber);
     byType.general.sort((a, b) => a.testNumber - b.testNumber);
     return byType;
-  }, [mockTests]);
+  }, [filteredTests]);
 
   function renderMockTest(test: (typeof mockTests)[number]) {
     const attempts = attemptsByTest.get(test.id) ?? [];
@@ -108,15 +127,44 @@ export default function TestsHubScreen() {
         Full IELTS-style mock tests and section-specific timed tests.
       </Text>
 
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, marginBottom: theme.spacing.xs }}>
+        <Chip label="All difficulty" selected={difficultyFilter === 'all'} onPress={() => setDifficultyFilter('all')} />
+        {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
+          <Chip key={d} label={d} selected={difficultyFilter === d} onPress={() => setDifficultyFilter(d)} />
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, marginBottom: theme.spacing.xs }}>
+        <Chip label="All" selected={completedFilter === 'all'} onPress={() => setCompletedFilter('all')} />
+        <Chip label="Completed" selected={completedFilter === 'completed'} onPress={() => setCompletedFilter('completed')} />
+        <Chip label="Not completed" selected={completedFilter === 'not_completed'} onPress={() => setCompletedFilter('not_completed')} />
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, marginBottom: theme.spacing.md }}>
+        <Chip label="Free + Premium" selected={accessFilter === 'all'} onPress={() => setAccessFilter('all')} />
+        <Chip label="Free" selected={accessFilter === 'free'} onPress={() => setAccessFilter('free')} />
+        <Chip label="Premium" selected={accessFilter === 'premium'} onPress={() => setAccessFilter('premium')} />
+      </View>
+
       <Text variant="h3" style={{ marginBottom: theme.spacing.sm }}>
         Academic full mock tests
       </Text>
-      {grouped.academic.map(renderMockTest)}
+      {grouped.academic.length === 0 ? (
+        <Text color="secondary" style={{ marginBottom: theme.spacing.md }}>
+          No academic mocks match these filters.
+        </Text>
+      ) : (
+        grouped.academic.map(renderMockTest)
+      )}
 
       <Text variant="h3" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.sm }}>
         General Training full mock tests
       </Text>
-      {grouped.general.map(renderMockTest)}
+      {grouped.general.length === 0 ? (
+        <Text color="secondary" style={{ marginBottom: theme.spacing.md }}>
+          No General Training mocks match these filters.
+        </Text>
+      ) : (
+        grouped.general.map(renderMockTest)
+      )}
 
       <Text variant="h3" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.sm }}>
         Section-specific tests

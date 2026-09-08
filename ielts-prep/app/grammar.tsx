@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Badge, Button, Card, Chip, IconCircle, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { FREE_GRAMMAR_LESSON_LIMIT } from '@/lib/entitlements';
 import { listGrammarLessons } from '@/services/repository';
@@ -15,14 +15,43 @@ export default function GrammarHubScreen() {
   const isPremium = useAppStore((s) => s.subscription?.plan !== 'free');
   const lessons = listGrammarLessons();
   const lockedCount = Math.max(0, lessons.length - FREE_GRAMMAR_LESSON_LIMIT);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState<string>('all');
+
+  const categories = useMemo(() => Array.from(new Set(lessons.map((l) => l.category))), [lessons]);
+
+  const indexedLessons = useMemo(() => lessons.map((lesson, i) => ({ lesson, i })), [lessons]);
+  const filteredLessons = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return indexedLessons.filter(({ lesson }) => {
+      if (category !== 'all' && lesson.category !== category) return false;
+      if (q && !lesson.title.toLowerCase().includes(q) && !lesson.category.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [indexedLessons, search, category]);
 
   return (
     <Screen scroll>
       <ScreenHeader title="Grammar" showBack />
-      <Text variant="body" color="secondary" style={{ marginBottom: theme.spacing.lg }}>
+      <Text variant="body" color="secondary" style={{ marginBottom: theme.spacing.md }}>
         Targeted lessons on the grammar patterns that matter most for IELTS.
       </Text>
-      {lessons.map((lesson, i) => {
+
+      <TextField value={search} onChangeText={setSearch} placeholder="Search lessons..." style={{ marginBottom: theme.spacing.sm }} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, marginBottom: theme.spacing.md }}>
+        <Chip label="All topics" selected={category === 'all'} onPress={() => setCategory('all')} />
+        {categories.map((c) => (
+          <Chip key={c} label={c} selected={category === c} onPress={() => setCategory(c)} />
+        ))}
+      </View>
+
+      {filteredLessons.length === 0 ? (
+        <Text color="secondary" align="center" style={{ marginTop: theme.spacing.xl }}>
+          No lessons match these filters.
+        </Text>
+      ) : null}
+
+      {filteredLessons.map(({ lesson, i }) => {
         const locked = !isPremium && i >= FREE_GRAMMAR_LESSON_LIMIT;
         return (
           <Card
