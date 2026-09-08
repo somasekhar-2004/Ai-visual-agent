@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 import type {
   Bookmark,
   Difficulty,
+  GrammarQuestion,
+  GrammarQuestionAttempt,
   Lesson,
   Question,
   QuestionAttempt,
@@ -229,4 +231,75 @@ export async function reviewVocabWord(userId: string, wordId: string, remembered
 
 export function listGrammarLessons() {
   return content.grammarLessons;
+}
+
+export function getGrammarLessonById(id: string) {
+  return content.grammarLessons.find((l) => l.id === id);
+}
+
+export type GrammarQuestionFilters = { topic?: string; difficulty?: Difficulty };
+
+export function listGrammarQuestions(filters: GrammarQuestionFilters = {}): GrammarQuestion[] {
+  return content.grammarQuestions.filter((q) => {
+    if (filters.topic && q.topic !== filters.topic) return false;
+    if (filters.difficulty && q.difficulty !== filters.difficulty) return false;
+    return true;
+  });
+}
+
+export async function getGrammarQuestionAttempts(userId: string): Promise<GrammarQuestionAttempt[]> {
+  if (isDemoMode) {
+    const db = await getDb();
+    return db.grammarQuestionAttempts;
+  }
+  const { data } = await supabase!.from('grammar_question_attempts').select('*').eq('user_id', userId);
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    userId: row.user_id,
+    questionId: row.question_id,
+    selectedAnswer: row.selected_answer,
+    isCorrect: row.is_correct,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function recordGrammarAttempt(userId: string, questionId: string, selectedAnswer: string, isCorrect: boolean): Promise<void> {
+  if (isDemoMode) {
+    await mutateDb((db) => {
+      db.grammarQuestionAttempts.push({
+        id: generateId('ga'),
+        userId,
+        questionId,
+        selectedAnswer,
+        isCorrect,
+        createdAt: new Date().toISOString(),
+      });
+    });
+    return;
+  }
+  await supabase!.from('grammar_question_attempts').insert({
+    user_id: userId,
+    question_id: questionId,
+    selected_answer: selectedAnswer,
+    is_correct: isCorrect,
+  });
+}
+
+/** Topics where the user's grammar-question accuracy is below 70% (with at
+ * least 2 attempts) — used to recommend targeted grammar lessons from the
+ * study plan and weak-topic review, per the same pattern as weak vocabulary. */
+export function weakGrammarTopics(attempts: GrammarQuestionAttempt[]): string[] {
+  const byTopic = new Map<string, { correct: number; total: number }>();
+  for (const a of attempts) {
+    const q = content.grammarQuestions.find((gq) => gq.id === a.questionId);
+    if (!q) continue;
+    const stat = byTopic.get(q.topic) ?? { correct: 0, total: 0 };
+    stat.total += 1;
+    if (a.isCorrect) stat.correct += 1;
+    byTopic.set(q.topic, stat);
+  }
+  return [...byTopic.entries()]
+    .filter(([, s]) => s.total >= 2 && s.correct / s.total < 0.7)
+    .sort((a, b) => a[1].correct / a[1].total - b[1].correct / b[1].total)
+    .map(([topic]) => topic);
 }

@@ -369,6 +369,31 @@ export type GrammarLesson = {
   orderIndex: number;
 };
 
+export type GrammarQuestionType = 'multiple_choice' | 'error_correction' | 'fill_blank';
+
+export type GrammarQuestion = {
+  id: string;
+  /** Matches a GrammarLesson.category so weak-topic detection and
+   * "recommend grammar practice" logic can point at the right lessons. */
+  topic: string;
+  difficulty: Difficulty;
+  questionType: GrammarQuestionType;
+  prompt: string;
+  options: string[] | null;
+  correctAnswer: string;
+  explanation: string;
+  orderIndex: number;
+};
+
+export type GrammarQuestionAttempt = {
+  id: string;
+  userId: string;
+  questionId: string;
+  selectedAnswer: string | null;
+  isCorrect: boolean;
+  createdAt: string;
+};
+
 export type Achievement = {
   id: string;
   code: string;

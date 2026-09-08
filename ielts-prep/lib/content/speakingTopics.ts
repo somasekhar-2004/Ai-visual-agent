@@ -1847,4 +1847,929 @@ export const speakingTopics: SpeakingTopic[] = [
       "Why do some people hesitate to try food from other cultures?",
     ],
   },
+
+  // Group B1: An elderly person you know
+  {
+    id: "53000000-0000-0000-0000-000000000001",
+    part: "part1",
+    groupId: "groupb-elderly-person",
+    topicCategory: "Elderly people",
+    cueCardText: null,
+    questions: [
+      "Do you have any elderly relatives or neighbours?",
+      "Do you enjoy spending time with older people?",
+      "What can young people learn from older generations?",
+      "How do older and younger people in your family usually get along?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000002",
+    part: "part2",
+    groupId: "groupb-elderly-person",
+    topicCategory: "An elderly person you know",
+    cueCardText:
+      "Describe an elderly person you know well. You should say: who this person is, how you know them, what they are like, and explain what you have learned from them.",
+    questions: ["Describe an elderly person you know well."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000003",
+    part: "part3",
+    groupId: "groupb-elderly-person",
+    topicCategory: "Ageing and elderly care in society",
+    cueCardText: null,
+    questions: [
+      "How does the role of elderly people in society differ between generations?",
+      "Do you think families should take care of elderly relatives themselves, or is it acceptable to use care homes?",
+      "What problems do ageing populations create for a country?",
+      "How can societies make better use of the experience that elderly people have?",
+    ],
+  },
+
+  // Group B2: A classmate or colleague you get along well with
+  {
+    id: "53000000-0000-0000-0000-000000000004",
+    part: "part1",
+    groupId: "groupb-colleague-classmate",
+    topicCategory: "Classmates and colleagues",
+    cueCardText: null,
+    questions: [
+      "Do you get along well with your classmates or colleagues?",
+      "What do you usually talk about with the people you study or work with?",
+      "Is it important to have good relationships with the people you work or study with?",
+      "Have you ever worked closely with someone you didn't know well before?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000005",
+    part: "part2",
+    groupId: "groupb-colleague-classmate",
+    topicCategory: "A classmate or colleague you get along well with",
+    cueCardText:
+      "Describe a classmate or colleague you get along well with. You should say: who this person is, how you met them, what you usually do together, and explain why you get along well with them.",
+    questions: ["Describe a classmate or colleague you get along well with."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000006",
+    part: "part3",
+    groupId: "groupb-colleague-classmate",
+    topicCategory: "Relationships at school and work",
+    cueCardText: null,
+    questions: [
+      "What makes it easy or difficult for people to work well together?",
+      "Do you think it is important to be friends with the people you work with, or just professional?",
+      "How does teamwork in a workplace differ from teamwork at school?",
+      "Why do some people find it hard to build good relationships with colleagues or classmates?",
+    ],
+  },
+
+  // Group B3: A library you have visited
+  {
+    id: "53000000-0000-0000-0000-000000000007",
+    part: "part1",
+    groupId: "groupb-library-visited",
+    topicCategory: "Libraries",
+    cueCardText: null,
+    questions: [
+      "Do you often visit libraries?",
+      "What do you usually do when you go to a library?",
+      "Did you visit libraries often when you were a student?",
+      "Do you prefer reading in a library or at home?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000008",
+    part: "part2",
+    groupId: "groupb-library-visited",
+    topicCategory: "A library you have visited",
+    cueCardText:
+      "Describe a library you have visited. You should say: where it is, when you visited it, what it was like, and explain what you did there.",
+    questions: ["Describe a library you have visited."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000009",
+    part: "part3",
+    groupId: "groupb-library-visited",
+    topicCategory: "Libraries and access to information",
+    cueCardText: null,
+    questions: [
+      "Why are libraries still important in the age of the internet?",
+      "Do you think libraries will still exist in fifty years' time?",
+      "What can governments do to encourage people to use public libraries more?",
+      "How do libraries help people who cannot afford to buy books or use the internet at home?",
+    ],
+  },
+
+  // Group B4: A farm you have visited
+  {
+    id: "53000000-0000-0000-0000-000000000010",
+    part: "part1",
+    groupId: "groupb-farm-visited",
+    topicCategory: "Farms and rural life",
+    cueCardText: null,
+    questions: [
+      "Have you ever visited a farm?",
+      "Do you know much about how food is grown or produced?",
+      "Would you like to live in the countryside?",
+      "Do people in your country often visit farms or rural areas?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000011",
+    part: "part2",
+    groupId: "groupb-farm-visited",
+    topicCategory: "A farm you have visited",
+    cueCardText:
+      "Describe a farm you have visited. You should say: where it was, when you went there, what you saw and did there, and explain what you thought of the experience.",
+    questions: ["Describe a farm you have visited."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000012",
+    part: "part3",
+    groupId: "groupb-farm-visited",
+    topicCategory: "Agriculture and rural life",
+    cueCardText: null,
+    questions: [
+      "Why do fewer young people want to work in agriculture nowadays?",
+      "How important is farming to your country's economy?",
+      "What impact does modern technology have on farming methods?",
+      "Do you think city dwellers should learn more about where their food comes from?",
+    ],
+  },
+
+  // Group B5: A crowded place you have been to
+  {
+    id: "53000000-0000-0000-0000-000000000013",
+    part: "part1",
+    groupId: "groupb-crowded-place",
+    topicCategory: "Crowded places",
+    cueCardText: null,
+    questions: [
+      "Do you enjoy being in crowded places?",
+      "What is the most crowded place you have ever been to?",
+      "How do you usually feel when you are in a crowd?",
+      "Are there many crowded places in the city or town where you live?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000014",
+    part: "part2",
+    groupId: "groupb-crowded-place",
+    topicCategory: "A crowded place you have been to",
+    cueCardText:
+      "Describe a crowded place you have been to. You should say: where this place was, when you went there, why it was crowded, and explain how you felt being there.",
+    questions: ["Describe a crowded place you have been to."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000015",
+    part: "part3",
+    groupId: "groupb-crowded-place",
+    topicCategory: "Overcrowding and public spaces",
+    cueCardText: null,
+    questions: [
+      "Why do some places become more crowded than others?",
+      "What problems can overcrowding cause in cities?",
+      "How can governments manage crowded public spaces more effectively?",
+      "Do you think crowded cities will become more common in the future?",
+    ],
+  },
+
+  // Group B6: A museum you have visited
+  {
+    id: "53000000-0000-0000-0000-000000000016",
+    part: "part1",
+    groupId: "groupb-museum-visited",
+    topicCategory: "Museums",
+    cueCardText: null,
+    questions: [
+      "Do you enjoy visiting museums?",
+      "What kind of museums do you find most interesting?",
+      "Did you visit museums often as a child?",
+      "Do you think museums are important for a country?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000017",
+    part: "part2",
+    groupId: "groupb-museum-visited",
+    topicCategory: "A museum you have visited",
+    cueCardText:
+      "Describe a museum you have visited. You should say: where it is, what kind of museum it is, what you saw there, and explain what you thought of your visit.",
+    questions: ["Describe a museum you have visited."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000018",
+    part: "part3",
+    groupId: "groupb-museum-visited",
+    topicCategory: "Museums and cultural heritage",
+    cueCardText: null,
+    questions: [
+      "Why are museums important for preserving a country's history and culture?",
+      "Do you think museums should be free for everyone to visit?",
+      "How have museums changed with the use of new technology?",
+      "What can be done to encourage more young people to visit museums?",
+    ],
+  },
+
+  // Group B7: A useful tool or household item you own
+  {
+    id: "53000000-0000-0000-0000-000000000019",
+    part: "part1",
+    groupId: "groupb-useful-tool",
+    topicCategory: "Household items",
+    cueCardText: null,
+    questions: [
+      "What household items do you use most often?",
+      "Do you enjoy buying new tools or gadgets for your home?",
+      "Who usually looks after tools or equipment in your home?",
+      "Have you ever borrowed a tool from a friend or neighbour?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000020",
+    part: "part2",
+    groupId: "groupb-useful-tool",
+    topicCategory: "A useful tool or household item you own",
+    cueCardText:
+      "Describe a useful tool or household item you own. You should say: what it is, how long you have had it, how often you use it, and explain why it is useful to you.",
+    questions: ["Describe a useful tool or household item you own."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000021",
+    part: "part3",
+    groupId: "groupb-useful-tool",
+    topicCategory: "Household tools and everyday convenience",
+    cueCardText: null,
+    questions: [
+      "How have household tools changed over the past few decades?",
+      "Do you think people rely too much on tools and machines nowadays?",
+      "What tools do you think will become common in homes in the future?",
+      "Should children be taught how to use basic tools at school?",
+    ],
+  },
+
+  // Group B8: A photograph you like
+  {
+    id: "53000000-0000-0000-0000-000000000022",
+    part: "part1",
+    groupId: "groupb-photograph-like",
+    topicCategory: "Photographs",
+    cueCardText: null,
+    questions: [
+      "Do you like taking photographs?",
+      "How do you usually store or share your photographs?",
+      "Did people in your family take many photographs when you were young?",
+      "Do you prefer looking at printed photos or digital ones?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000023",
+    part: "part2",
+    groupId: "groupb-photograph-like",
+    topicCategory: "A photograph you like",
+    cueCardText:
+      "Describe a photograph you like. You should say: what is in the photograph, when it was taken, who took it, and explain why you like this photograph.",
+    questions: ["Describe a photograph you like."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000024",
+    part: "part3",
+    groupId: "groupb-photograph-like",
+    topicCategory: "Photography and memories",
+    cueCardText: null,
+    questions: [
+      "Why do people like to keep photographs of important moments in their lives?",
+      "How has digital photography changed the way people take and share photos?",
+      "Do you think people take too many photographs nowadays?",
+      "What role do old photographs play in helping people remember the past?",
+    ],
+  },
+
+  // Group B9: A vehicle you have travelled in
+  {
+    id: "53000000-0000-0000-0000-000000000025",
+    part: "part1",
+    groupId: "groupb-vehicle-travelled",
+    topicCategory: "Transport",
+    cueCardText: null,
+    questions: [
+      "What types of transport do you use most often?",
+      "Do you enjoy travelling by car, train, or plane?",
+      "What was your very first experience of travelling by vehicle?",
+      "Do you think public transport in your city is good?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000026",
+    part: "part2",
+    groupId: "groupb-vehicle-travelled",
+    topicCategory: "A vehicle you have travelled in",
+    cueCardText:
+      "Describe a vehicle you have travelled in that you remember well. You should say: what type of vehicle it was, where you travelled, who you were with, and explain why you remember this journey.",
+    questions: ["Describe a vehicle you have travelled in that you remember well."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000027",
+    part: "part3",
+    groupId: "groupb-vehicle-travelled",
+    topicCategory: "Transport and travel methods",
+    cueCardText: null,
+    questions: [
+      "How has transport changed in your country over the last few decades?",
+      "What are the advantages and disadvantages of public transport compared with private cars?",
+      "Do you think electric vehicles will replace petrol cars in the near future?",
+      "How can governments encourage people to use more environmentally friendly transport?",
+    ],
+  },
+
+  // Group B10: A time you got lost
+  {
+    id: "53000000-0000-0000-0000-000000000028",
+    part: "part1",
+    groupId: "groupb-time-got-lost",
+    topicCategory: "Directions and getting around",
+    cueCardText: null,
+    questions: [
+      "Do you have a good sense of direction?",
+      "How do you usually find your way to a new place?",
+      "Have you ever helped a stranger who was lost?",
+      "Do you prefer using a map or asking people for directions?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000029",
+    part: "part2",
+    groupId: "groupb-time-got-lost",
+    topicCategory: "A time you got lost",
+    cueCardText:
+      "Describe a time you got lost. You should say: where you were, why you got lost, what you did about it, and explain how you felt during the experience.",
+    questions: ["Describe a time you got lost."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000030",
+    part: "part3",
+    groupId: "groupb-time-got-lost",
+    topicCategory: "Navigation and finding your way",
+    cueCardText: null,
+    questions: [
+      "How have navigation apps changed the way people travel to unfamiliar places?",
+      "Do you think people's sense of direction is getting worse because of technology?",
+      "Why do some people get lost more easily than others?",
+      "What should people do to prepare before travelling to an unfamiliar place?",
+    ],
+  },
+
+  // Group B11: A time you waited a long time for something
+  {
+    id: "53000000-0000-0000-0000-000000000031",
+    part: "part1",
+    groupId: "groupb-long-wait",
+    topicCategory: "Waiting",
+    cueCardText: null,
+    questions: [
+      "Do you consider yourself a patient person?",
+      "What kinds of things do people usually have to wait for?",
+      "How do you usually pass the time while waiting?",
+      "Do you get frustrated easily when you have to wait?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000032",
+    part: "part2",
+    groupId: "groupb-long-wait",
+    topicCategory: "A time you waited a long time for something",
+    cueCardText:
+      "Describe a time you waited a long time for something. You should say: what you were waiting for, where you were, how long you waited, and explain how you felt while waiting.",
+    questions: ["Describe a time you waited a long time for something."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000033",
+    part: "part3",
+    groupId: "groupb-long-wait",
+    topicCategory: "Patience in modern life",
+    cueCardText: null,
+    questions: [
+      "Why do people seem to have less patience nowadays than in the past?",
+      "How has technology changed the way people cope with waiting?",
+      "Do you think waiting for something makes people appreciate it more?",
+      "What can organizations do to make waiting more pleasant for customers?",
+    ],
+  },
+
+  // Group B12: A live performance or concert you attended
+  {
+    id: "53000000-0000-0000-0000-000000000034",
+    part: "part1",
+    groupId: "groupb-concert-attended",
+    topicCategory: "Live performances",
+    cueCardText: null,
+    questions: [
+      "Do you enjoy attending live performances or concerts?",
+      "What kind of live events are popular in your country?",
+      "Have you ever performed in front of an audience?",
+      "Do you prefer watching a performance live or on a screen?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000035",
+    part: "part2",
+    groupId: "groupb-concert-attended",
+    topicCategory: "A live performance or concert you attended",
+    cueCardText:
+      "Describe a live performance or concert you attended. You should say: what the event was, where it took place, who you went with, and explain why you enjoyed this experience.",
+    questions: ["Describe a live performance or concert you attended."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000036",
+    part: "part3",
+    groupId: "groupb-concert-attended",
+    topicCategory: "Live entertainment and events",
+    cueCardText: null,
+    questions: [
+      "Why do people enjoy watching live performances more than recorded ones?",
+      "How has technology changed the way people experience live events?",
+      "Do you think live concerts and shows will remain popular in the future?",
+      "What impact do large public events have on a city or local community?",
+    ],
+  },
+
+  // Group B13: A time you worked as part of a team
+  {
+    id: "53000000-0000-0000-0000-000000000037",
+    part: "part1",
+    groupId: "groupb-teamwork-experience",
+    topicCategory: "Working with others",
+    cueCardText: null,
+    questions: [
+      "Do you prefer working alone or as part of a team?",
+      "What kinds of activities do you usually do in a team?",
+      "Have you ever had a disagreement with a teammate?",
+      "What do you think makes a team successful?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000038",
+    part: "part2",
+    groupId: "groupb-teamwork-experience",
+    topicCategory: "A time you worked as part of a team",
+    cueCardText:
+      "Describe a time you worked as part of a team. You should say: what the task was, who else was involved, what your role was, and explain how successful the teamwork was.",
+    questions: ["Describe a time you worked as part of a team."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000039",
+    part: "part3",
+    groupId: "groupb-teamwork-experience",
+    topicCategory: "Teamwork and collaboration",
+    cueCardText: null,
+    questions: [
+      "What skills do people need to work well in a team?",
+      "Do you think teamwork is more important in some jobs than others?",
+      "How can leaders help a team to work together more effectively?",
+      "Why do some teams fail to achieve their goals despite everyone working hard?",
+    ],
+  },
+
+  // Group B14: A podcast or radio programme you listen to
+  {
+    id: "53000000-0000-0000-0000-000000000040",
+    part: "part1",
+    groupId: "groupb-podcast-radio",
+    topicCategory: "Podcasts and radio",
+    cueCardText: null,
+    questions: [
+      "Do you listen to podcasts or the radio?",
+      "What kind of podcasts or radio programmes do you enjoy?",
+      "When and where do you usually listen to them?",
+      "Do you think podcasts are becoming more popular than traditional radio?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000041",
+    part: "part2",
+    groupId: "groupb-podcast-radio",
+    topicCategory: "A podcast or radio programme you listen to",
+    cueCardText:
+      "Describe a podcast or radio programme you listen to. You should say: what it is about, how you found out about it, how often you listen to it, and explain why you enjoy it.",
+    questions: ["Describe a podcast or radio programme you listen to."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000042",
+    part: "part3",
+    groupId: "groupb-podcast-radio",
+    topicCategory: "Audio media and communication",
+    cueCardText: null,
+    questions: [
+      "Why do you think podcasts have become so popular in recent years?",
+      "What are the advantages of audio media compared with video or written content?",
+      "Do you think radio will still exist in the future, given the rise of streaming services?",
+      "How can podcasts and radio programmes influence public opinion?",
+    ],
+  },
+
+  // Group B15: A game you enjoy playing now
+  {
+    id: "53000000-0000-0000-0000-000000000043",
+    part: "part1",
+    groupId: "groupb-game-play-now",
+    topicCategory: "Games",
+    cueCardText: null,
+    questions: [
+      "Do you enjoy playing games in your free time?",
+      "What kind of games do you like to play now?",
+      "Do you prefer playing games alone or with other people?",
+      "How much time do you usually spend playing games each week?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000044",
+    part: "part2",
+    groupId: "groupb-game-play-now",
+    topicCategory: "A game you enjoy playing now",
+    cueCardText:
+      "Describe a game you enjoy playing now. You should say: what the game is, how you learned to play it, who you usually play it with, and explain why you enjoy playing it.",
+    questions: ["Describe a game you enjoy playing now."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000045",
+    part: "part3",
+    groupId: "groupb-game-play-now",
+    topicCategory: "Gaming and entertainment",
+    cueCardText: null,
+    questions: [
+      "Why do you think games are popular among people of all ages?",
+      "Do you think video games can have educational value?",
+      "What are the possible negative effects of spending too much time playing games?",
+      "How has the gaming industry changed in the last twenty years?",
+    ],
+  },
+
+  // Group B16: A creative activity you enjoy
+  {
+    id: "53000000-0000-0000-0000-000000000046",
+    part: "part1",
+    groupId: "groupb-creative-activity",
+    topicCategory: "Creativity",
+    cueCardText: null,
+    questions: [
+      "Do you consider yourself a creative person?",
+      "What creative activities do you enjoy doing?",
+      "Did you do many creative activities when you were a child?",
+      "Do you think everyone has the ability to be creative?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000047",
+    part: "part2",
+    groupId: "groupb-creative-activity",
+    topicCategory: "A creative activity you enjoy",
+    cueCardText:
+      "Describe a creative activity you enjoy. You should say: what the activity is, when you started doing it, how often you do it, and explain why you find it enjoyable.",
+    questions: ["Describe a creative activity you enjoy."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000048",
+    part: "part3",
+    groupId: "groupb-creative-activity",
+    topicCategory: "Creativity in everyday life",
+    cueCardText: null,
+    questions: [
+      "Why is creativity considered important in many jobs today?",
+      "Do you think schools do enough to encourage creativity in students?",
+      "How does technology help or limit people's creativity?",
+      "Can creativity be taught, or is it something people are born with?",
+    ],
+  },
+
+  // Group B17: A law you think benefits society
+  {
+    id: "53000000-0000-0000-0000-000000000049",
+    part: "part1",
+    groupId: "groupb-good-law",
+    topicCategory: "Laws and rules",
+    cueCardText: null,
+    questions: [
+      "Do you follow the news about new laws in your country?",
+      "Are there any laws in your country that you strongly support?",
+      "Do you think most people in your country obey the law?",
+      "How do you usually find out about changes to the law?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000050",
+    part: "part2",
+    groupId: "groupb-good-law",
+    topicCategory: "A law you think benefits society",
+    cueCardText:
+      "Describe a law you think benefits society. You should say: what the law is, when it was introduced, who it affects, and explain why you think this law is beneficial.",
+    questions: ["Describe a law you think benefits society."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000051",
+    part: "part3",
+    groupId: "groupb-good-law",
+    topicCategory: "Laws and their role in society",
+    cueCardText: null,
+    questions: [
+      "Why do governments introduce new laws?",
+      "Do you think laws should be the same in every part of a country, or can they vary by region?",
+      "How can governments make sure that citizens understand new laws?",
+      "What happens when laws fail to keep up with changes in society?",
+    ],
+  },
+
+  // Group B18: A plan you have for the next few years
+  {
+    id: "53000000-0000-0000-0000-000000000052",
+    part: "part1",
+    groupId: "groupb-future-plan",
+    topicCategory: "Future plans",
+    cueCardText: null,
+    questions: [
+      "Do you like to plan things in advance?",
+      "What are your plans for the near future?",
+      "Do you think it is important to have a plan for your life?",
+      "Who do you usually talk to about your future plans?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000053",
+    part: "part2",
+    groupId: "groupb-future-plan",
+    topicCategory: "A plan you have for the next few years",
+    cueCardText:
+      "Describe a plan you have for the next few years. You should say: what the plan is, why you have this plan, how you intend to achieve it, and explain how you feel about it.",
+    questions: ["Describe a plan you have for the next few years."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000054",
+    part: "part3",
+    groupId: "groupb-future-plan",
+    topicCategory: "Planning for the future",
+    cueCardText: null,
+    questions: [
+      "Why do some people find it difficult to plan for the future?",
+      "Do you think it is better to plan carefully or to be flexible and adapt as things happen?",
+      "How does uncertainty, such as economic change, affect people's ability to plan ahead?",
+      "Should schools teach students how to plan for their careers and futures?",
+    ],
+  },
+
+  // Group B19: An invention that has changed people's lives
+  {
+    id: "53000000-0000-0000-0000-000000000055",
+    part: "part1",
+    groupId: "groupb-invention-changed-world",
+    topicCategory: "Inventions",
+    cueCardText: null,
+    questions: [
+      "What inventions do you use most often in daily life?",
+      "Do you think some inventions have been more important than others?",
+      "Are you interested in learning about the history of inventions?",
+      "What invention would you find hardest to live without?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000056",
+    part: "part2",
+    groupId: "groupb-invention-changed-world",
+    topicCategory: "An invention that has changed people's lives",
+    cueCardText:
+      "Describe an invention that has changed people's lives. You should say: what the invention is, who invented it, how it is used, and explain how it has changed people's lives.",
+    questions: ["Describe an invention that has changed people's lives."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000057",
+    part: "part3",
+    groupId: "groupb-invention-changed-world",
+    topicCategory: "Inventions and technological progress",
+    cueCardText: null,
+    questions: [
+      "What qualities do inventors need to be successful?",
+      "Do you think governments should invest more money in supporting new inventions?",
+      "How do inventions affect the way societies develop over time?",
+      "Can an invention have both positive and negative effects on society?",
+    ],
+  },
+
+  // Group B20: A time you did something to help the environment
+  {
+    id: "53000000-0000-0000-0000-000000000058",
+    part: "part1",
+    groupId: "groupb-helped-environment",
+    topicCategory: "The environment",
+    cueCardText: null,
+    questions: [
+      "Do you try to protect the environment in your daily life?",
+      "What environmental problems concern you the most?",
+      "Do you recycle regularly at home?",
+      "Do you think individuals can make a real difference to the environment?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000059",
+    part: "part2",
+    groupId: "groupb-helped-environment",
+    topicCategory: "A time you did something to help the environment",
+    cueCardText:
+      "Describe a time you did something to help the environment. You should say: what you did, when you did it, why you decided to do it, and explain how you felt about the outcome.",
+    questions: ["Describe a time you did something to help the environment."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000060",
+    part: "part3",
+    groupId: "groupb-helped-environment",
+    topicCategory: "Individual and collective environmental responsibility",
+    cueCardText: null,
+    questions: [
+      "What can individuals do to reduce their impact on the environment?",
+      "Do you think environmental problems should be solved mainly by governments or by individuals?",
+      "How effective are environmental campaigns at changing people's behaviour?",
+      "What are the biggest environmental challenges facing the world today?",
+    ],
+  },
+
+  // Group B21: An animal you find interesting
+  {
+    id: "53000000-0000-0000-0000-000000000061",
+    part: "part1",
+    groupId: "groupb-interesting-animal",
+    topicCategory: "Animals",
+    cueCardText: null,
+    questions: [
+      "Do you like animals?",
+      "Did you have any pets when you were growing up?",
+      "What animals are common in your country?",
+      "Have you ever seen wild animals in their natural habitat?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000062",
+    part: "part2",
+    groupId: "groupb-interesting-animal",
+    topicCategory: "An animal you find interesting",
+    cueCardText:
+      "Describe an animal you find interesting. You should say: what the animal is, where it lives, what it looks like, and explain why you find it interesting.",
+    questions: ["Describe an animal you find interesting."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000063",
+    part: "part3",
+    groupId: "groupb-interesting-animal",
+    topicCategory: "Wildlife and animal conservation",
+    cueCardText: null,
+    questions: [
+      "Why is it important to protect endangered animal species?",
+      "Do you think zoos are good or bad for animals?",
+      "How does the loss of natural habitats affect wildlife populations?",
+      "What can ordinary people do to help protect wildlife?",
+    ],
+  },
+
+  // Group B22: A restaurant you enjoyed eating at
+  {
+    id: "53000000-0000-0000-0000-000000000064",
+    part: "part1",
+    groupId: "groupb-restaurant-enjoyed",
+    topicCategory: "Eating out",
+    cueCardText: null,
+    questions: [
+      "Do you often eat at restaurants?",
+      "What kind of food do you usually order when eating out?",
+      "Do you prefer eating at home or eating out?",
+      "Who do you usually go to restaurants with?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000065",
+    part: "part2",
+    groupId: "groupb-restaurant-enjoyed",
+    topicCategory: "A restaurant you enjoyed eating at",
+    cueCardText:
+      "Describe a restaurant you enjoyed eating at. You should say: where it is, what kind of food it serves, who you went with, and explain why you enjoyed eating there.",
+    questions: ["Describe a restaurant you enjoyed eating at."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000066",
+    part: "part3",
+    groupId: "groupb-restaurant-enjoyed",
+    topicCategory: "Restaurants and eating out culture",
+    cueCardText: null,
+    questions: [
+      "Why has eating out become more popular in recent years?",
+      "What factors do people consider when choosing a restaurant?",
+      "Do you think fast food restaurants have a negative impact on people's health?",
+      "How has the restaurant industry changed with the growth of food delivery apps?",
+    ],
+  },
+
+  // Group B23: Something useful you learned outside school
+  {
+    id: "53000000-0000-0000-0000-000000000067",
+    part: "part1",
+    groupId: "groupb-learned-outside-school",
+    topicCategory: "Learning outside the classroom",
+    cueCardText: null,
+    questions: [
+      "Do you think people learn more inside or outside the classroom?",
+      "What useful things have you learned from your family?",
+      "Do you enjoy learning new things by yourself?",
+      "What is something practical you wish you had learned earlier in life?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000068",
+    part: "part2",
+    groupId: "groupb-learned-outside-school",
+    topicCategory: "Something useful you learned outside school",
+    cueCardText:
+      "Describe something useful you learned outside school. You should say: what you learned, who or what helped you learn it, when you learned it, and explain why it was useful to you.",
+    questions: ["Describe something useful you learned outside school."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000069",
+    part: "part3",
+    groupId: "groupb-learned-outside-school",
+    topicCategory: "Informal learning and life skills",
+    cueCardText: null,
+    questions: [
+      "What kinds of skills are better learned outside a formal classroom?",
+      "Do you think schools should teach more practical life skills?",
+      "How does learning from experience differ from learning from books?",
+      "How has the internet changed the way people learn things outside school?",
+    ],
+  },
+
+  // Group B24: A subject you enjoyed studying at school
+  {
+    id: "53000000-0000-0000-0000-000000000070",
+    part: "part1",
+    groupId: "groupb-subject-enjoyed",
+    topicCategory: "School subjects",
+    cueCardText: null,
+    questions: [
+      "What was your favourite subject at school?",
+      "Were you good at this subject?",
+      "Do you still use anything you learned from this subject today?",
+      "Did your school offer a wide range of subjects to choose from?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000071",
+    part: "part2",
+    groupId: "groupb-subject-enjoyed",
+    topicCategory: "A subject you enjoyed studying at school",
+    cueCardText:
+      "Describe a subject you enjoyed studying at school. You should say: what the subject was, who taught it, why you enjoyed it, and explain how it has been useful to you since.",
+    questions: ["Describe a subject you enjoyed studying at school."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000072",
+    part: "part3",
+    groupId: "groupb-subject-enjoyed",
+    topicCategory: "Education and curriculum choices",
+    cueCardText: null,
+    questions: [
+      "Do you think students should be able to choose which subjects they study?",
+      "How do you think school curriculums should change to prepare students for the future?",
+      "Should schools place more emphasis on subjects like science and maths than on the arts?",
+      "Why do students often have different opinions about which subjects are most important?",
+    ],
+  },
+
+  // Group B25: A happy memory from your childhood
+  {
+    id: "53000000-0000-0000-0000-000000000073",
+    part: "part1",
+    groupId: "groupb-childhood-memory",
+    topicCategory: "Childhood memories",
+    cueCardText: null,
+    questions: [
+      "Do you often think about your childhood?",
+      "What is one of your happiest childhood memories?",
+      "Who did you spend most of your time with as a child?",
+      "Do you think childhood is the happiest time of a person's life?",
+    ],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000074",
+    part: "part2",
+    groupId: "groupb-childhood-memory",
+    topicCategory: "A happy memory from your childhood",
+    cueCardText:
+      "Describe a happy memory from your childhood. You should say: what happened, where you were, who was with you, and explain why this memory is important to you.",
+    questions: ["Describe a happy memory from your childhood."],
+  },
+  {
+    id: "53000000-0000-0000-0000-000000000075",
+    part: "part3",
+    groupId: "groupb-childhood-memory",
+    topicCategory: "Childhood and its influence on adult life",
+    cueCardText: null,
+    questions: [
+      "Why do people often remember their childhood so vividly?",
+      "How do childhood experiences shape a person's character as an adult?",
+      "Do you think childhood today is very different from childhood in the past?",
+      "What can parents do to give their children a happy childhood?",
+    ],
+  },
 ];

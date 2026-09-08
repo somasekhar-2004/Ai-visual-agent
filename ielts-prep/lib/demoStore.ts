@@ -6,6 +6,7 @@ import type {
   AiMessage,
   Bookmark,
   BandScoreEntry,
+  GrammarQuestionAttempt,
   ListeningAttempt,
   MockAttempt,
   NotificationCategory,
@@ -33,6 +34,7 @@ export type DemoDb = {
   goal: UserGoal;
   lessonProgress: Record<string, string>; // lessonId -> completedAt ISO
   questionAttempts: QuestionAttempt[];
+  grammarQuestionAttempts: GrammarQuestionAttempt[];
   bookmarks: Bookmark[];
   mockAttempts: MockAttempt[];
   readingAttempts: ReadingAttempt[];
@@ -86,6 +88,7 @@ function buildDefaultDb(): DemoDb {
     },
     lessonProgress: {},
     questionAttempts: [],
+    grammarQuestionAttempts: [],
     bookmarks: [],
     mockAttempts: [],
     readingAttempts: [],
@@ -135,7 +138,10 @@ async function load(): Promise<DemoDb> {
   if (cache) return cache;
   if (!loadPromise) {
     loadPromise = getJSON<DemoDb | null>(STORAGE_KEY, null).then((stored) => {
-      cache = stored ?? buildDefaultDb();
+      // Merge over a fresh default so a DB persisted by an older build (missing
+      // newly-added top-level fields) never crashes on undefined access —
+      // existing stored data always wins, new fields just fill in as defaults.
+      cache = stored ? { ...buildDefaultDb(), ...stored } : buildDefaultDb();
       return cache;
     });
   }

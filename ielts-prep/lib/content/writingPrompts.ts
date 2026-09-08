@@ -1889,4 +1889,1210 @@ Give reasons for your answer and include any relevant examples from your own kno
 
 Write at least 250 words.`,
   },
+
+  // ===========================================================================
+  // TASK 1 ACADEMIC — 10 new prompts (bar x2, line x2, pie x2, table x2,
+  // process x1, map x1)
+  // ===========================================================================
+  {
+    id: '43000000-0000-0000-0000-000000000001',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'Streaming Service Subscriptions by Age Group',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'bar',
+      unit: '%',
+      series: [
+        {
+          label: 'Video Streaming',
+          points: [
+            { x: '18-24', y: 92 },
+            { x: '25-34', y: 85 },
+            { x: '35-49', y: 60 },
+            { x: '50+', y: 35 },
+          ],
+        },
+        {
+          label: 'Music Streaming',
+          points: [
+            { x: '18-24', y: 80 },
+            { x: '25-34', y: 70 },
+            { x: '35-49', y: 55 },
+            { x: '50+', y: 30 },
+          ],
+        },
+      ],
+    },
+    promptText: `The bar chart below shows the percentage of people in four age groups who subscribed to video streaming services and music streaming services in a survey conducted in 2023.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000002',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'Annual Book Sales by Format, 2000-2020',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'bar',
+      unit: 'million units',
+      series: [
+        {
+          label: 'Print Books',
+          points: [
+            { x: '2000', y: 120 },
+            { x: '2010', y: 95 },
+            { x: '2020', y: 80 },
+          ],
+        },
+        {
+          label: 'E-books',
+          points: [
+            { x: '2000', y: 0 },
+            { x: '2010', y: 25 },
+            { x: '2020', y: 45 },
+          ],
+        },
+        {
+          label: 'Audiobooks',
+          points: [
+            { x: '2000', y: 0 },
+            { x: '2010', y: 5 },
+            { x: '2020', y: 20 },
+          ],
+        },
+      ],
+    },
+    promptText: `The chart below shows the number of units sold, in millions, of print books, e-books, and audiobooks in a particular country in 2000, 2010, and 2020.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000003',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'Average House Prices in Three Cities, 2000-2020',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'line',
+      unit: 'thousand USD',
+      series: [
+        {
+          label: 'City A',
+          points: [
+            { x: '2000', y: 150 },
+            { x: '2005', y: 180 },
+            { x: '2010', y: 220 },
+            { x: '2015', y: 270 },
+            { x: '2020', y: 340 },
+          ],
+        },
+        {
+          label: 'City B',
+          points: [
+            { x: '2000', y: 200 },
+            { x: '2005', y: 230 },
+            { x: '2010', y: 260 },
+            { x: '2015', y: 310 },
+            { x: '2020', y: 400 },
+          ],
+        },
+        {
+          label: 'City C',
+          points: [
+            { x: '2000', y: 100 },
+            { x: '2005', y: 120 },
+            { x: '2010', y: 150 },
+            { x: '2015', y: 190 },
+            { x: '2020', y: 250 },
+          ],
+        },
+      ],
+    },
+    promptText: `The line graph below shows the average house price, in thousands of US dollars, in three cities between 2000 and 2020.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000004',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'Electric Vehicle Registrations in Four Countries, 2010-2022',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'line',
+      unit: 'thousand vehicles',
+      series: [
+        {
+          label: 'Country W',
+          points: [
+            { x: '2010', y: 1 },
+            { x: '2014', y: 10 },
+            { x: '2018', y: 60 },
+            { x: '2022', y: 250 },
+          ],
+        },
+        {
+          label: 'Country X',
+          points: [
+            { x: '2010', y: 0.5 },
+            { x: '2014', y: 5 },
+            { x: '2018', y: 40 },
+            { x: '2022', y: 180 },
+          ],
+        },
+        {
+          label: 'Country Y',
+          points: [
+            { x: '2010', y: 2 },
+            { x: '2014', y: 20 },
+            { x: '2018', y: 90 },
+            { x: '2022', y: 300 },
+          ],
+        },
+        {
+          label: 'Country Z',
+          points: [
+            { x: '2010', y: 0.2 },
+            { x: '2014', y: 2 },
+            { x: '2018', y: 15 },
+            { x: '2022', y: 90 },
+          ],
+        },
+      ],
+    },
+    promptText: `The line graph below shows the number of new electric vehicles registered, in thousands, in four countries between 2010 and 2022.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000005',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'Breakdown of Household Energy Use',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'pie',
+      unit: '%',
+      segments: [
+        { label: 'Heating', value: 40 },
+        { label: 'Water Heating', value: 18 },
+        { label: 'Appliances', value: 20 },
+        { label: 'Lighting', value: 12 },
+        { label: 'Other', value: 10 },
+      ],
+    },
+    promptText: `The pie chart below shows the breakdown of energy use in an average household in a particular country in 2022.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000006',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'How Office Employees Spend Their Working Day',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'pie',
+      unit: '%',
+      segments: [
+        { label: 'Meetings', value: 25 },
+        { label: 'Email', value: 20 },
+        { label: 'Focused Work', value: 30 },
+        { label: 'Breaks', value: 10 },
+        { label: 'Administrative Tasks', value: 15 },
+      ],
+    },
+    promptText: `The pie chart below shows how office employees at a company spent their average working day in 2022.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000007',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'Average Life Expectancy by Gender in Five Countries',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'table',
+      headers: ['Country', 'Male (years)', 'Female (years)'],
+      rows: [
+        ['Country A', '74', '80'],
+        ['Country B', '68', '75'],
+        ['Country C', '79', '84'],
+        ['Country D', '71', '77'],
+        ['Country E', '65', '70'],
+      ],
+    },
+    promptText: `The table below shows the average life expectancy, in years, for men and women in five countries in 2020.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000008',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'Visitor Numbers at Four City Museums, 2019 and 2022',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'table',
+      headers: ['Museum', '2019 Visitors (thousands)', '2022 Visitors (thousands)'],
+      rows: [
+        ['History Museum', '450', '280'],
+        ['Art Gallery', '620', '510'],
+        ['Science Centre', '380', '410'],
+        ['Natural History Museum', '500', '350'],
+      ],
+    },
+    promptText: `The table below shows the number of visitors, in thousands, to four museums in a city in 2019 and 2022.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000009',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'The Process of Making Paper from Wood Pulp',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'process',
+      steps: [
+        'Logs are transported from the forest to the paper mill',
+        'The bark is stripped from the logs and the wood is chipped into small pieces',
+        'The wood chips are mixed with water and chemicals and cooked to produce pulp',
+        'The pulp is washed and bleached to remove impurities and colour',
+        'The pulp is spread thinly onto a moving mesh screen to form a continuous sheet',
+        'The sheet is pressed and dried by large heated rollers',
+        'The finished paper is wound onto large rolls ready for cutting and distribution',
+      ],
+    },
+    promptText: `The diagram below shows the process by which paper is made from wood pulp.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000010',
+    taskType: 'task1_academic',
+    ieltsType: 'academic',
+    title: 'Redevelopment of a University Campus, 2005 and 2023',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: {
+      type: 'map',
+      description: 'The maps show a university campus in 2005 and the same campus in 2023.',
+      features: [
+        'A new library building was constructed in place of the old car park',
+        'A student accommodation block was added at the eastern edge of the campus',
+        'The sports field was reduced in size to make room for a science laboratory building',
+        'A pedestrian plaza with trees replaced the road that used to run through the centre of the campus',
+        'A new car park was built at the northern entrance of the campus',
+        'The old administration building was converted into a student centre',
+      ],
+    },
+    promptText: `The maps below show a university campus in 2005 and the same campus in 2023.
+
+Summarise the information by selecting and reporting the main features, and make comparisons where relevant.
+
+Write at least 150 words.`,
+  },
+
+  // ===========================================================================
+  // TASK 1 GENERAL TRAINING — 10 new letter-writing prompts
+  // ===========================================================================
+  {
+    id: '43000000-0000-0000-0000-000000000011',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Letter to a Bank About an Unauthorised Transaction',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `You noticed a transaction on your bank statement that you do not recognise. Write a letter to your bank. In your letter:
+
+- describe the transaction you are concerned about
+- explain what you have checked so far
+- ask what the bank can do to resolve the issue
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear Sir or Madam,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000012',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Complaint to a Travel Agency About a Cancelled Trip',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `A trip you booked through a travel agency was cancelled at short notice. Write a letter to the travel agency. In your letter:
+
+- explain which trip you had booked
+- describe the inconvenience the cancellation caused
+- say what you would like the agency to do
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear Sir or Madam,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000013',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Letter Asking to Borrow Equipment from a Neighbour',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `You need to borrow a piece of equipment from a neighbour for a short period. Write a letter to your neighbour. In your letter:
+
+- explain what you need to borrow and why
+- say how long you would need it for
+- offer to return the favour in some way
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear ___,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000014',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Inquiry About Joining a Sports Club',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `You are interested in joining a local sports club. Write a letter to the club manager. In your letter:
+
+- say which sport you are interested in and why
+- ask about membership fees and training times
+- ask whether the club offers sessions for your level of experience
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear Sir or Madam,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000015',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Complaint About a Meal at a Restaurant',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `You recently had a disappointing experience at a restaurant. Write a letter to the restaurant manager. In your letter:
+
+- describe what happened during your visit
+- explain how the staff responded at the time
+- say what you would like the manager to do
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear Sir or Madam,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000016',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Letter Returning a Borrowed Item to a Friend',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `You borrowed an item from a friend some time ago and are now ready to return it. Write a letter to your friend. In your letter:
+
+- remind them what you borrowed and when
+- explain why it has taken you this long to return it
+- suggest a time and place to meet so you can return it
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear ___,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000017',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Invitation to a Colleague Retirement Party',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `A colleague of yours is retiring soon and you are organising a party for them. Write a letter to another colleague inviting them to the event. In your letter:
+
+- explain who is retiring and why you are having a party
+- give the date, time, and location of the party
+- ask if they would like to help with the arrangements
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear ___,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000018',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Letter Suggesting a Product Improvement to a Company',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `You regularly use a product made by a particular company and have an idea for how it could be improved. Write a letter to the company. In your letter:
+
+- explain which product you are writing about
+- describe your suggestion for improving it
+- explain how this change would benefit customers
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear Sir or Madam,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000019',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Letter Requesting Time Off Work',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `You would like to request a period of leave from your job for personal reasons. Write a letter to your manager. In your letter:
+
+- explain when you would like to take leave and for how long
+- give the reason for your request
+- explain how your work will be covered while you are away
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear ___,"`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000020',
+    taskType: 'task1_general',
+    ieltsType: 'general',
+    title: 'Complaint to a Delivery Company About a Lost Package',
+    minWords: 150,
+    timeLimitMinutes: 20,
+    category: null,
+    chartData: null,
+    promptText: `A package you were expecting has not arrived, despite being marked as delivered. Write a letter to the delivery company. In your letter:
+
+- describe the package and when it was supposed to arrive
+- explain what you have already done to try to locate it
+- say what you would like the company to do
+
+Write at least 150 words. You do NOT need to write your own address. Begin your letter as follows: "Dear Sir or Madam,"`,
+  },
+
+  // ===========================================================================
+  // TASK 2 — ACADEMIC — 20 new prompts
+  // ===========================================================================
+  {
+    id: '43000000-0000-0000-0000-000000000021',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Funding Space Exploration',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'opinion',
+    chartData: null,
+    promptText: `Some people believe that governments should invest heavily in space exploration, while others think this money should be spent on solving problems on Earth, such as poverty and disease.
+
+To what extent do you agree or disagree?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000022',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Mandatory Pay Transparency',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'opinion',
+    chartData: null,
+    promptText: `Some people believe that companies should be required by law to publish the salaries they pay to employees in order to reduce pay differences between men and women.
+
+To what extent do you agree or disagree?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000023',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Keeping Animals in Zoos',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'opinion',
+    chartData: null,
+    promptText: `Some people believe that keeping wild animals in zoos is cruel and should be banned, while others believe zoos play an important role in education and conservation.
+
+To what extent do you agree or disagree?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000024',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'The Value of Standardised Testing',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'opinion',
+    chartData: null,
+    promptText: `Some people believe that standardised tests are the fairest way to measure a student's ability, while others believe such tests fail to reflect a student's true abilities.
+
+To what extent do you agree or disagree?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000025',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Four-Day Working Week',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'discussion',
+    chartData: null,
+    promptText: `Some people think companies should move to a four-day working week to improve employee wellbeing, while others believe a five-day week is necessary to maintain productivity.
+
+Discuss both views and give your own opinion.
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000026',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Online Learning Versus the Traditional Classroom',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'discussion',
+    chartData: null,
+    promptText: `Some people think that online courses are just as effective as traditional classroom learning, while others believe that attending classes in person produces better results.
+
+Discuss both views and give your own opinion.
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000027',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Genetically Modified Crops',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'discussion',
+    chartData: null,
+    promptText: `Some people believe that genetically modified crops are essential for feeding a growing world population, while others believe they pose serious risks to health and the environment.
+
+Discuss both views and give your own opinion.
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000028',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Self-Driving Cars on Public Roads',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'discussion',
+    chartData: null,
+    promptText: `Some people believe that self-driving cars will make roads safer, while others believe they introduce new and dangerous risks.
+
+Discuss both views and give your own opinion.
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000029',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Growth of Online Shopping',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'advantages_disadvantages',
+    chartData: null,
+    promptText: `An increasing number of consumers are choosing to buy products online rather than visiting physical stores.
+
+What are the advantages and disadvantages of this trend?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000030',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'The Rise of E-books',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'advantages_disadvantages',
+    chartData: null,
+    promptText: `Electronic books are becoming increasingly popular, and some readers now prefer them to printed books.
+
+What are the advantages and disadvantages of reading electronic books rather than printed books?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000031',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Commercial Space Tourism',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'advantages_disadvantages',
+    chartData: null,
+    promptText: `Several private companies now offer paid trips to space for members of the public who can afford the cost.
+
+What are the advantages and disadvantages of the growth of commercial space tourism?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000032',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Wearable Health Technology',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'advantages_disadvantages',
+    chartData: null,
+    promptText: `Devices such as smartwatches and fitness trackers, which monitor a person's heart rate and activity levels, have become extremely popular.
+
+What are the advantages and disadvantages of the widespread use of this technology?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000033',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Water Scarcity in Growing Cities',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'problem_solution',
+    chartData: null,
+    promptText: `As urban populations continue to grow, many cities are struggling to provide a reliable supply of clean water to their residents.
+
+What problems does this cause, and what solutions can you suggest?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000034',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Unemployment Among University Graduates',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'problem_solution',
+    chartData: null,
+    promptText: `In many countries, a growing number of university graduates are unable to find employment related to their field of study.
+
+What problems does this cause, and what solutions can you suggest?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000035',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Food Waste in Restaurants and Supermarkets',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'problem_solution',
+    chartData: null,
+    promptText: `Large quantities of edible food are thrown away by restaurants and supermarkets every year.
+
+What problems does this cause, and what solutions can you suggest?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000036',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Declining Bee Populations',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'problem_solution',
+    chartData: null,
+    promptText: `Bee populations, which play a vital role in pollinating crops, have declined sharply in many regions in recent decades.
+
+What problems does this cause, and what solutions can you suggest?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000037',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'The Rise of Freelance and Gig Work',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'two_part_question',
+    chartData: null,
+    promptText: `An increasing number of people are choosing to work as freelancers or take on short-term contracts rather than seeking permanent employment.
+
+Why has this happened, and what effects does it have on workers and employers?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000038',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Artificial Intelligence in Medical Diagnosis',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'two_part_question',
+    chartData: null,
+    promptText: `Hospitals are increasingly using artificial intelligence systems to help diagnose illnesses and diseases in patients.
+
+Why is this technology being adopted, and what impact will it have on the medical profession?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000039',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Growing Popularity of Online University Degrees',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'two_part_question',
+    chartData: null,
+    promptText: `An increasing number of students are choosing to complete university degrees entirely online rather than attending campus-based programmes.
+
+Why has this happened, and what effect will it have on traditional universities?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000040',
+    taskType: 'task2',
+    ieltsType: 'academic',
+    title: 'Declining Birth Rates in Developed Countries',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'two_part_question',
+    chartData: null,
+    promptText: `Birth rates have fallen significantly in many developed countries over the past few decades.
+
+Why has this happened, and what consequences will it have for these societies?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+
+  // ===========================================================================
+  // TASK 2 — GENERAL TRAINING — 20 new prompts
+  // ===========================================================================
+  {
+    id: '43000000-0000-0000-0000-000000000041',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Raising the Retirement Age',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'opinion',
+    chartData: null,
+    promptText: `Some people believe that governments should raise the age at which citizens are allowed to retire, given that people are living longer than in the past.
+
+To what extent do you agree or disagree?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000042',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Banning Advertising Aimed at Children',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'opinion',
+    chartData: null,
+    promptText: `Some people believe that advertising aimed at young children should be banned because children are not able to judge advertising claims critically.
+
+To what extent do you agree or disagree?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000043',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Mandatory Volunteering for Students',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'opinion',
+    chartData: null,
+    promptText: `Some people believe that all high school students should be required to complete a number of hours of volunteer work before they graduate.
+
+To what extent do you agree or disagree?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000044',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Replacing Tipping with Higher Wages',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'opinion',
+    chartData: null,
+    promptText: `Some people believe that restaurants should pay staff higher fixed wages and eliminate the custom of tipping altogether.
+
+To what extent do you agree or disagree?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000045',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Who Should Care for Elderly Relatives',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'discussion',
+    chartData: null,
+    promptText: `Some people believe that families should be responsible for caring for elderly relatives at home, while others believe elderly people are better looked after in care homes run by trained staff.
+
+Discuss both views and give your own opinion.
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000046',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Should School Uniforms Be Compulsory',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'discussion',
+    chartData: null,
+    promptText: `Some people think that school uniforms should be compulsory for all students, while others believe students should be free to choose what they wear to school.
+
+Discuss both views and give your own opinion.
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000047',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Homework for Young Children',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'discussion',
+    chartData: null,
+    promptText: `Some people believe that homework helps young children develop good study habits, while others believe it places an unnecessary burden on children at a young age.
+
+Discuss both views and give your own opinion.
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000048',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'The Right Number of Public Holidays',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'discussion',
+    chartData: null,
+    promptText: `Some people believe that countries should introduce more public holidays to give workers time to rest and spend with family, while others believe additional holidays would harm economic productivity.
+
+Discuss both views and give your own opinion.
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000049',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'The Trend Toward Living Alone',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'advantages_disadvantages',
+    chartData: null,
+    promptText: `In many countries, an increasing number of adults are choosing to live alone rather than with family or a partner.
+
+What are the advantages and disadvantages of this trend?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000050',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'The Growth of the Fast Fashion Industry',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'advantages_disadvantages',
+    chartData: null,
+    promptText: `Clothing companies now produce and sell new items of clothing at very low prices and at a very fast pace, a trend often called fast fashion.
+
+What are the advantages and disadvantages of this trend?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000051',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'The Rise of Food Delivery Apps',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'advantages_disadvantages',
+    chartData: null,
+    promptText: `Mobile apps that deliver restaurant meals directly to customers' homes have become extremely popular in recent years.
+
+What are the advantages and disadvantages of this trend?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000052',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Growth of Co-working Spaces',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'advantages_disadvantages',
+    chartData: null,
+    promptText: `An increasing number of freelancers and small businesses now rent desks in shared co-working spaces rather than working from a traditional office or from home.
+
+What are the advantages and disadvantages of this trend?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000053',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Rising Homelessness in Cities',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'problem_solution',
+    chartData: null,
+    promptText: `The number of people without permanent housing has increased in many major cities in recent years.
+
+What problems does this cause, and what solutions can you suggest?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000054',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Overuse of Antibiotics',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'problem_solution',
+    chartData: null,
+    promptText: `Doctors in many countries are concerned that antibiotics are being prescribed too often, leading to a rise in bacteria that are resistant to treatment.
+
+What problems does this cause, and what solutions can you suggest?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000055',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Sedentary Lifestyles Among Office Workers',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'problem_solution',
+    chartData: null,
+    promptText: `Many people who work in offices spend most of the day sitting down, with little physical activity.
+
+What problems does this cause, and what solutions can you suggest?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000056',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Rising Noise Pollution in Cities',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'problem_solution',
+    chartData: null,
+    promptText: `Noise levels have increased significantly in many cities because of traffic, construction, and crowded public spaces.
+
+What problems does this cause, and what solutions can you suggest?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000057',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'The Growing Popularity of Pet Ownership',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'two_part_question',
+    chartData: null,
+    promptText: `In many countries, an increasing number of households are choosing to keep a pet.
+
+Why has this happened, and what effects does pet ownership have on individuals and families?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000058',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'More People Living Alone',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'two_part_question',
+    chartData: null,
+    promptText: `The number of people living alone, rather than with family or a partner, has risen steadily in many countries.
+
+Why is this happening, and what effects does it have on society?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000059',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'The Growing Popularity of Fast Food Restaurants',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'two_part_question',
+    chartData: null,
+    promptText: `Fast food restaurants have become increasingly popular in many countries over the past few decades.
+
+Why has this happened, and what effects does this have on people's diet and health?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
+  {
+    id: '43000000-0000-0000-0000-000000000060',
+    taskType: 'task2',
+    ieltsType: 'general',
+    title: 'Declining Sense of Community in Neighbourhoods',
+    minWords: 250,
+    timeLimitMinutes: 40,
+    category: 'two_part_question',
+    chartData: null,
+    promptText: `Many people say that neighbours today interact with each other far less than in the past, leading to a weaker sense of community.
+
+Why has this happened, and what consequences does it have for neighbourhoods?
+
+Give reasons for your answer and include any relevant examples from your own knowledge or experience.
+
+Write at least 250 words.`,
+  },
 ];

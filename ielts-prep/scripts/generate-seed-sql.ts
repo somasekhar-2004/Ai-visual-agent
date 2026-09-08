@@ -69,6 +69,7 @@ function build(): string {
     'delete from lessons;',
     'delete from vocabulary_words;',
     'delete from grammar_lessons;',
+    'delete from grammar_questions;',
     'delete from achievements;',
     '',
   ];
@@ -191,6 +192,24 @@ function build(): string {
       'grammar_lessons',
       ['title', 'category', 'content', 'order_index'],
       content.grammarLessons.map((g) => [sqlStr(g.title), sqlStr(g.category), sqlJson(g.content), sqlNum(g.orderIndex)])
+    )
+  );
+
+  parts.push('-- Grammar questions');
+  parts.push(
+    insertBlock(
+      'grammar_questions',
+      ['topic', 'difficulty', 'question_type', 'prompt', 'options', 'correct_answer', 'explanation', 'order_index'],
+      content.grammarQuestions.map((g) => [
+        sqlStr(g.topic),
+        sqlStr(g.difficulty),
+        sqlStr(g.questionType),
+        sqlStr(g.prompt),
+        sqlJson(g.options),
+        sqlStr(g.correctAnswer),
+        sqlStr(g.explanation),
+        sqlNum(g.orderIndex),
+      ])
     )
   );
 
