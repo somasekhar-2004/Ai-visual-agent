@@ -76,6 +76,11 @@ export default function ListeningTestScreen() {
     });
   }
 
+  async function handleExit() {
+    const confirmed = await confirmAsync('Exit test?', 'Your progress on this test will not be saved. Are you sure you want to exit?', 'Exit');
+    if (confirmed) router.back();
+  }
+
   async function handleSubmit(auto = false) {
     const unanswered = questions.length - answeredIndices.size;
     if (!auto && unanswered > 0) {
@@ -156,6 +161,9 @@ export default function ListeningTestScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.md }}>
+        <Pressable onPress={handleExit} hitSlop={10}>
+          <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+        </Pressable>
         <Text variant="bodyMedium">{timerLabel}</Text>
         <Button label="Submit" size="sm" onPress={() => handleSubmit(false)} />
       </View>

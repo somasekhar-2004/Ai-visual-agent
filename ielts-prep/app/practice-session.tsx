@@ -23,15 +23,15 @@ import {
   toggleQuestionBookmark,
 } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
-import type { Difficulty, SkillKey } from '@/types/models';
+import type { Difficulty, QuestionType, SkillKey } from '@/types/models';
 
-type Params = { skill?: SkillKey; mode?: 'incorrect' | 'bookmarked' };
+type Params = { skill?: SkillKey; mode?: 'incorrect' | 'bookmarked'; questionType?: QuestionType };
 
 export default function PracticeSessionScreen() {
   const theme = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { skill, mode } = useLocalSearchParams<Params>();
+  const { skill, mode, questionType } = useLocalSearchParams<Params>();
   const { userId, isPremium } = useAppStore(useShallow((s) => ({ userId: s.userId, isPremium: s.subscription?.plan !== 'free' })));
 
   const [difficulty, setDifficulty] = useState<Difficulty | 'all'>('all');
@@ -50,7 +50,7 @@ export default function PracticeSessionScreen() {
   });
 
   const questions = useMemo(() => {
-    let list = listQuestions({ skill, difficulty: difficulty === 'all' ? undefined : difficulty });
+    let list = listQuestions({ skill, questionType, difficulty: difficulty === 'all' ? undefined : difficulty });
     if (mode === 'incorrect') {
       const incorrectIds = new Set(attemptsQuery.data?.filter((a) => !a.isCorrect).map((a) => a.questionId));
       list = list.filter((q) => incorrectIds.has(q.id));
@@ -59,7 +59,7 @@ export default function PracticeSessionScreen() {
       list = list.filter((q) => bookmarkedIds.has(q.id));
     }
     return list;
-  }, [skill, mode, difficulty, attemptsQuery.data, bookmarksQuery.data]);
+  }, [skill, mode, questionType, difficulty, attemptsQuery.data, bookmarksQuery.data]);
 
   const current = questions[index];
   const bookmarkedIds = new Set(bookmarksQuery.data?.map((b) => b.questionId));

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useQuery } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ import { SpeakingFeedbackView } from '@/components/testing/SpeakingFeedbackView'
 import { Badge, Button, Card, DailyLimitCard, IconCircle, ProgressBar, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { confirmAsync } from '@/lib/confirm';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_SPEAKING_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
@@ -90,6 +91,14 @@ export default function SpeakingSessionScreen() {
     // `turn` is derived from `turnIndex`, which is already a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, turnIndex]);
+
+  async function handleExit() {
+    const confirmed = await confirmAsync('Exit test?', 'Your progress on this speaking test will not be saved. Are you sure you want to exit?', 'Exit');
+    if (confirmed) {
+      Speech.stop();
+      router.back();
+    }
+  }
 
   function clearTimer() {
     if (intervalRef.current) {
@@ -240,6 +249,9 @@ export default function SpeakingSessionScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: theme.spacing.md }}>
+        <Pressable onPress={handleExit} hitSlop={10}>
+          <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+        </Pressable>
         <Badge label={turn.part.replace('part', 'Part ')} tone="brand" />
         <Text variant="caption" color="tertiary">
           Question {turnIndex + 1} of {turns.length}

@@ -37,6 +37,14 @@ export default function GrammarHubScreen() {
         Targeted lessons on the grammar patterns that matter most for IELTS.
       </Text>
 
+      <Button
+        label="Practice questions on your weak topics"
+        variant="secondary"
+        onPress={() => router.push({ pathname: '/grammar-practice', params: { mode: 'weak' } })}
+        style={{ marginBottom: theme.spacing.md }}
+        fullWidth
+      />
+
       <TextField value={search} onChangeText={setSearch} placeholder="Search lessons..." style={{ marginBottom: theme.spacing.sm }} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, marginBottom: theme.spacing.md }}>
         <Chip label="All topics" selected={category === 'all'} onPress={() => setCategory('all')} />

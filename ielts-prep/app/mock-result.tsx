@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { SkillBandCard } from '@/components/home/SkillBandCard';
-import { Badge, Button, Card, IconCircle, Screen, Text } from '@/components/ui';
+import { Badge, BandRing, Button, Card, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { computeOverallBand } from '@/lib/bandScore';
 import { firstParam } from '@/lib/firstParam';
@@ -102,11 +102,7 @@ export default function MockResultScreen() {
   return (
     <Screen scroll>
       <View style={{ alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xl }}>
-        <IconCircle name="trophy" size={80} backgroundColor={theme.colors.successSoft} color={theme.colors.success} />
-        <Text variant="caption" color="tertiary">
-          Estimated Overall Band
-        </Text>
-        <Text variant="display">{overall.toFixed(1)}</Text>
+        <BandRing band={overall} size={140} strokeWidth={12} color={theme.colors.success} label="Overall Band" />
       </View>
 
       <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>

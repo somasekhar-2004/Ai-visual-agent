@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useQuery } from '@tanstack/react-query';
@@ -77,6 +78,11 @@ export default function WritingTestScreen() {
   const { label: timerLabel, isExpired } = useCountdown(prompt.timeLimitMinutes * 60);
   const wordCount = countWords(essay);
   const belowMinimum = wordCount < prompt.minWords;
+
+  async function handleExit() {
+    const confirmed = await confirmAsync('Exit test?', 'Your draft is saved locally, but this submission will not be recorded. Are you sure you want to exit?', 'Exit');
+    if (confirmed) router.back();
+  }
 
   async function handleSubmit() {
     if (belowMinimum) {
@@ -155,6 +161,9 @@ export default function WritingTestScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.md }}>
+        <Pressable onPress={handleExit} hitSlop={10}>
+          <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+        </Pressable>
         <Text variant="bodyMedium" color={isExpired ? 'error' : 'primary'}>
           {timerLabel}
         </Text>

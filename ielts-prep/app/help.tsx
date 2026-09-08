@@ -60,23 +60,71 @@ export default function HelpScreen() {
         </Text>
       </Card>
 
-      <Card style={{ marginBottom: theme.spacing.md }}>
-        <Text variant="bodyMedium" style={{ marginBottom: theme.spacing.xs }}>
-          Privacy Policy
+      <Card style={{ marginBottom: theme.spacing.md, gap: theme.spacing.sm }}>
+        <Text variant="bodyMedium">Privacy Policy</Text>
+        <Text variant="caption" color="secondary">
+          Last updated: this build. This policy describes what IELTS Prep actually does with your data today.
         </Text>
         <Text variant="caption" color="secondary">
-          Placeholder — replace with your real privacy policy before publishing to the App Store or Google Play. This app stores study progress,
-          practice attempts, and (if you use a real AI provider) submits your writing/speaking responses to that provider for evaluation.
+          {'•'} Data we store: your profile (name, email, target band, exam date), practice/test attempts, vocabulary and grammar progress,
+          writing and speaking submissions, and subscription status.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Where it&apos;s stored: in Demo Mode, entirely on your device (local storage) and never sent to us. When you sign in with a
+          configured Supabase backend, the same data is stored in your account&apos;s rows in our database, isolated from other users.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Third parties: if a real AI provider (OpenAI or Anthropic) is configured, your written and transcribed spoken answers are sent
+          to that provider solely to generate feedback — see their own privacy policies for how they handle that data. If a real payments
+          provider (RevenueCat / your app store) is configured, purchase and subscription status is shared with them to validate your entitlement.
+          We do not sell your data to anyone.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Your rights: you can delete your account and all associated data at any time from this screen. Deletion is permanent and
+          cannot be undone.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Children: this app is not directed at children under 13, and we do not knowingly collect data from them.
+        </Text>
+        <Text variant="caption" color="secondary">
+          Questions about this policy can be sent to support@ieltsprep.app. Before a public store launch, have this policy reviewed by counsel
+          for your specific jurisdiction and business structure.
         </Text>
       </Card>
 
-      <Card style={{ marginBottom: theme.spacing.lg }}>
-        <Text variant="bodyMedium" style={{ marginBottom: theme.spacing.xs }}>
-          Terms of Service
+      <Card style={{ marginBottom: theme.spacing.lg, gap: theme.spacing.sm }}>
+        <Text variant="bodyMedium">Terms of Service</Text>
+        <Text variant="caption" color="secondary">
+          By using IELTS Prep, you agree to the following terms.
         </Text>
         <Text variant="caption" color="secondary">
-          Placeholder — replace with your real terms before publishing. All band scores shown in this app are AI-generated estimates for practice
-          purposes and are not affiliated with or endorsed by IDP, British Council, or Cambridge Assessment English.
+          {'•'} Practice tool, not an official result: every band score in this app — including AI-generated Writing and Speaking feedback —
+          is an estimate for practice purposes only. It is not an official IELTS score and is not affiliated with, endorsed by, or administered by
+          IDP, the British Council, or Cambridge Assessment English.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Your account: you are responsible for keeping your login credentials secure and for all activity under your account. You may
+          request deletion of your account at any time.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Subscriptions: Premium is billed on a recurring monthly or yearly basis through your app store account. You can manage or
+          cancel your subscription at any time from your device&apos;s subscription settings; access continues until the end of the current
+          billing period.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Acceptable use: you agree not to misuse the service — including attempting to bypass entitlement checks, reverse-engineer the
+          app, or submit content that is unlawful, abusive, or infringes on others&apos; rights.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Disclaimer and liability: the app is provided &quot;as is.&quot; We do not guarantee that using it will result in any particular
+          IELTS exam outcome, and we are not liable for decisions made based on its AI-generated feedback.
+        </Text>
+        <Text variant="caption" color="secondary">
+          {'•'} Changes: we may update these terms as the app evolves; continued use after an update means you accept the revised terms.
+        </Text>
+        <Text variant="caption" color="secondary">
+          Before a public store launch, have these terms reviewed by counsel and add your business&apos;s specific governing-law and
+          dispute-resolution clauses.
         </Text>
       </Card>
 

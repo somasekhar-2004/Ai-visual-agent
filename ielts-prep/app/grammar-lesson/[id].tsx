@@ -48,6 +48,12 @@ export default function GrammarLessonScreen() {
   return (
     <Screen scroll>
       <ScreenHeader title={lesson.title} subtitle={lesson.category} showBack />
+      <Button
+        label="Practice questions on this topic"
+        onPress={() => router.push({ pathname: '/grammar-practice', params: { topic: lesson.category } })}
+        style={{ marginBottom: theme.spacing.md }}
+        fullWidth
+      />
       {lesson.content.map((section, i) => (
         <Card key={i} style={{ marginBottom: theme.spacing.md }}>
           <Text variant="h3" style={{ marginBottom: theme.spacing.sm }}>

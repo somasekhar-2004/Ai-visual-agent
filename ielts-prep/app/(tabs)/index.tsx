@@ -11,6 +11,7 @@ import { SkillBandCard } from '@/components/home/SkillBandCard';
 import { StudyPlanItemRow } from '@/components/home/StudyPlanItemRow';
 import { Badge, Button, Card, IconCircle, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { studyPlanItemTarget } from '@/lib/studyPlanNav';
 import {
   completeStudyPlanItem,
   generateStudyPlan,
@@ -125,7 +126,7 @@ export default function HomeScreen() {
               key={item.id}
               item={item}
               onToggle={() => toggleItem(item.id, item.isCompleted)}
-              onPress={() => router.push({ pathname: '/practice-session', params: { skill: item.skill } })}
+              onPress={() => router.push(studyPlanItemTarget(item) as any)}
             />
           ))
         ) : (
