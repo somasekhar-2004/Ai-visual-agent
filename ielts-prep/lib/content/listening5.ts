@@ -85,22 +85,24 @@ DR PATEL: No problem — good luck with the ethics application.`,
   },
   {
     id: '35000000-0000-0000-0000-000000000004',
-    title: 'The Science of Bioluminescence',
+    title: 'The Physiology of Circadian Rhythms',
     audioUrl: null,
     sectionNumber: 4,
-    transcript: `LECTURER: Good morning, everyone. Today's lecture turns to a phenomenon that has fascinated scientists for centuries: bioluminescence, the ability of living organisms to produce their own light. It is found in an astonishingly wide range of species, from deep-sea fish to fireflies, and even some fungi.
+    transcript: `LECTURER: Good morning, everyone. Today's lecture looks at circadian rhythms — the roughly twenty-four-hour internal cycles that regulate sleep, alertness, body temperature, and hormone release in almost every living organism, from bacteria to humans.
 
-At the chemical level, bioluminescence relies on a reaction between a molecule called luciferin and an enzyme called luciferase. When luciferin is oxidised in the presence of luciferase, energy is released in the form of light rather than heat — which is why the process is sometimes called "cold light," since almost none of the energy is lost as heat, unlike a normal light bulb.
+At the centre of the human circadian system is a tiny cluster of around twenty thousand neurons in the hypothalamus called the suprachiasmatic nucleus, often abbreviated to the SCN. The SCN acts as the body's master clock, synchronising countless smaller clocks found in individual organs and tissues throughout the body.
 
-Now, why would an organism evolve the ability to glow? Researchers have identified several distinct functions. The first is defence. Some species of squid release a cloud of glowing liquid when threatened, similar to how other squid release ink, confusing predators long enough to escape. A second function is predation — the anglerfish, for example, uses a glowing lure dangling above its mouth to attract smaller fish close enough to catch.
+So how does the SCN know what time it is? The primary cue, or what scientists call a "zeitgeber" — a German term meaning "time giver" — is light. Specialised cells in the retina detect ambient light levels and send that information directly to the SCN via a pathway that is separate from the visual system used for seeing images. This is why even people who are completely blind, but whose retinas still detect light, can maintain a roughly normal circadian rhythm.
 
-A third function, and perhaps the most surprising, is communication. Fireflies use rhythmic flashing patterns to attract mates, and remarkably, each species has its own distinct flash pattern, almost like a signature, which allows fireflies to recognise members of their own species in the dark.
+One of the clearest hormonal outputs of the circadian system is melatonin, sometimes called the "hormone of darkness." The pineal gland begins releasing melatonin in the evening as light levels fall, and levels typically peak somewhere between two and four in the morning before declining again toward dawn. Crucially, exposure to bright light — including the blue-toned light emitted by many phone and computer screens — can suppress melatonin release, which is one reason researchers recommend limiting screen use in the hour or two before bedtime.
 
-Interestingly, the vast majority of bioluminescent organisms — over three quarters of them, according to recent estimates — live in the deep ocean, where sunlight never reaches. In fact, some marine biologists argue that bioluminescence may be the most common form of communication on the entire planet, simply because so much of Earth's surface is deep ocean.
+Circadian rhythms don't just govern sleep, though. Body temperature also follows a predictable daily pattern, typically reaching its lowest point in the early hours of the morning and its highest point in the late afternoon or early evening. Athletic performance tends to track this temperature curve fairly closely, which is part of the reason many world records in track and field have historically been set in late-afternoon competition sessions rather than early morning ones.
 
-Beyond pure biology, bioluminescence has practical applications too. Scientists have adapted the luciferase gene for use as what is called a "reporter gene" in laboratory research — by attaching it to another gene of interest, researchers can literally see, through the light produced, when and where that gene is active inside a living cell. This technique has become an invaluable tool in fields ranging from cancer research to drug development.
+Disruption to circadian rhythms has been linked to a range of health consequences. Shift workers, who are required to be alert during hours when their internal clock expects them to be asleep, show elevated rates of several conditions, including cardiovascular disease and certain metabolic disorders, when studied over long careers. Jet lag is a more temporary, though still uncomfortable, example of the same underlying mismatch — the internal clock remains set to the departure time zone for several days after arrival, gradually shifting by roughly one hour per day until it catches up with local time.
 
-Looking ahead, current research is exploring whether synthetic versions of luciferin could be engineered to glow in different colours, which would allow scientists to track multiple biological processes simultaneously within the same organism — something that is currently very difficult to achieve with a single-colour system.`,
+Finally, I want to mention chronotype — the natural tendency of an individual toward either an earlier or a later sleep-wake pattern, commonly described using the informal terms "morning lark" and "night owl." Chronotype appears to be substantially influenced by genetics, and research increasingly suggests that forcing a late chronotype into an early schedule, such as an early school or work start time, can produce a kind of chronic, low-grade sleep deprivation.
+
+Next week, we'll examine how circadian research has begun to influence shift-scheduling policy in hospitals and other twenty-four-hour industries.`,
   },
 
   // ---------- MOCK 9 ----------
@@ -439,47 +441,47 @@ export const listeningQuestionsSet5: Question[] = [
 
   // ===================== MOCK 8 · SECTION 4 =====================
   { id: 'lq-m8-s4-1', skill: 'listening', questionType: 'short_answer', topic: 'Academic lecture', difficulty: 'medium', estimatedBand: 6.5,
-    prompt: 'What enzyme reacts with luciferin to produce light?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
-    correctAnswer: ['luciferase', 'the enzyme luciferase'], explanation: 'The lecturer explains the reaction is "between a molecule called luciferin and an enzyme called luciferase."', strategyNote: 'Two similar-sounding technical terms appear together — note which one is the molecule and which is the enzyme.',
+    prompt: 'What is the master clock of the human circadian system called?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
+    correctAnswer: ['the suprachiasmatic nucleus', 'suprachiasmatic nucleus', 'SCN'], explanation: 'The lecturer identifies "a tiny cluster of around twenty thousand neurons in the hypothalamus called the suprachiasmatic nucleus."', strategyNote: 'The lecturer immediately provides an abbreviation (SCN) — either the full term or the abbreviation should be accepted.',
     tags: ['short_answer'], estimatedTimeSeconds: 45, orderIndex: 1, isPremium: false },
   { id: 'lq-m8-s4-2', skill: 'listening', questionType: 'note_completion', topic: 'Academic lecture', difficulty: 'hard', estimatedBand: 7.0,
-    prompt: 'The process is sometimes called "______ light" because little energy is lost as heat.', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
-    correctAnswer: 'cold', explanation: 'The lecturer says the process "is sometimes called \'cold light,\' since almost none of the energy is lost as heat."', strategyNote: '"Sometimes called" or "referred to as" introduces an alternative term — a common note-completion trap.',
+    prompt: 'The main cue that synchronises the body clock is known as a "______."', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
+    correctAnswer: 'zeitgeber', explanation: 'The lecturer says light is "what scientists call a \'zeitgeber\' — a German term meaning \'time giver.\'"', strategyNote: 'A foreign loanword introduced mid-sentence is a common note-completion answer — listen for the definition that follows it.',
     tags: ['note_completion'], estimatedTimeSeconds: 45, orderIndex: 2, isPremium: false },
   { id: 'lq-m8-s4-3', skill: 'listening', questionType: 'multiple_choice', topic: 'Academic lecture', difficulty: 'medium', estimatedBand: 6.5,
-    prompt: 'Which creature is given as an example of using light for defence?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004',
-    options: ['Firefly', 'Anglerfish', 'Squid', 'Jellyfish'],
-    correctAnswer: 'Squid', explanation: 'The lecturer explains "some species of squid release a cloud of glowing liquid when threatened."', strategyNote: 'The lecture lists three functions in order (defence, predation, communication) — track which creature matches each one.',
+    prompt: 'Why can blind people whose retinas still detect light maintain a normal circadian rhythm?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004',
+    options: ['Their SCN uses hearing instead of sight', 'The light-detection pathway to the SCN is separate from the visual system', 'They rely entirely on melatonin supplements', 'Their internal clock resets every day regardless of light'],
+    correctAnswer: 'The light-detection pathway to the SCN is separate from the visual system', explanation: 'The lecturer explains the retina sends light information to the SCN "via a pathway that is separate from the visual system used for seeing images."', strategyNote: 'Listen for a contrast signal ("separate from") that distinguishes two similar-sounding systems.',
     tags: ['multiple_choice'], estimatedTimeSeconds: 45, orderIndex: 3, isPremium: false },
   { id: 'lq-m8-s4-4', skill: 'listening', questionType: 'short_answer', topic: 'Academic lecture', difficulty: 'medium', estimatedBand: 6.5,
-    prompt: 'What does the anglerfish use to attract prey?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
-    correctAnswer: ['a glowing lure', 'lure'], explanation: 'The lecturer says the anglerfish "uses a glowing lure dangling above its mouth to attract smaller fish."', strategyNote: 'The word "lure" is the key technical noun in this sentence — keep the answer short.',
+    prompt: 'Which hormone is sometimes referred to as the "hormone of darkness"?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
+    correctAnswer: ['melatonin'], explanation: 'The lecturer introduces "melatonin, sometimes called the \'hormone of darkness.\'"', strategyNote: 'A nickname given right after a technical term usually signals the exact word the question wants.',
     tags: ['short_answer'], estimatedTimeSeconds: 40, orderIndex: 4, isPremium: false },
   { id: 'lq-m8-s4-5', skill: 'listening', questionType: 'note_completion', topic: 'Academic lecture', difficulty: 'hard', estimatedBand: 7.0,
-    prompt: 'Each firefly species has its own distinct flash ______.', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
-    correctAnswer: 'pattern', explanation: 'The lecturer notes "each species has its own distinct flash pattern, almost like a signature."', strategyNote: 'Compare "flash pattern" to "signature" mentioned right after — synonyms help confirm the correct term.',
+    prompt: 'Melatonin levels typically peak between two and ______ in the morning.', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
+    correctAnswer: 'four', explanation: 'The lecturer states levels "typically peak somewhere between two and four in the morning."', strategyNote: 'Time ranges are a classic note-completion trap — make sure you capture the second number, not the first.',
     tags: ['note_completion'], estimatedTimeSeconds: 45, orderIndex: 5, isPremium: false },
-  { id: 'lq-m8-s4-6', skill: 'listening', questionType: 'note_completion', topic: 'Academic lecture', difficulty: 'hard', estimatedBand: 7.5,
-    prompt: 'Over ______ of bioluminescent organisms live in the deep ocean.', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
-    correctAnswer: ['three quarters', '75%', 'three-quarters'], explanation: 'The lecturer states "over three quarters of them, according to recent estimates — live in the deep ocean."', strategyNote: 'Fraction language (three quarters) is equivalent to a percentage — either form should be accepted.',
-    tags: ['note_completion'], estimatedTimeSeconds: 45, orderIndex: 6, isPremium: false },
-  { id: 'lq-m8-s4-7', skill: 'listening', questionType: 'short_answer', topic: 'Academic lecture', difficulty: 'hard', estimatedBand: 7.0,
-    prompt: 'What term is used for the luciferase gene when used in laboratory research?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
-    correctAnswer: ['reporter gene', 'a reporter gene'], explanation: 'The lecturer says scientists use it "as what is called a \'reporter gene\' in laboratory research."', strategyNote: '"What is called" flags an exact technical term that should be copied precisely.',
-    tags: ['short_answer'], estimatedTimeSeconds: 45, orderIndex: 7, isPremium: false },
-  { id: 'lq-m8-s4-8', skill: 'listening', questionType: 'multiple_choice', topic: 'Academic lecture', difficulty: 'medium', estimatedBand: 6.5,
-    prompt: 'In which fields is the reporter gene technique used, according to the lecture?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004',
-    options: ['Architecture and design', 'Cancer research and drug development', 'Astronomy and physics', 'Agriculture and farming'],
-    correctAnswer: 'Cancer research and drug development', explanation: 'The lecturer says the technique "has become an invaluable tool in fields ranging from cancer research to drug development."', strategyNote: 'The phrase "ranging from X to Y" gives both boundaries of the answer — include both fields.',
-    tags: ['multiple_choice'], estimatedTimeSeconds: 45, orderIndex: 8, isPremium: false },
+  { id: 'lq-m8-s4-6', skill: 'listening', questionType: 'multiple_choice', topic: 'Academic lecture', difficulty: 'medium', estimatedBand: 6.5,
+    prompt: 'According to the lecture, why is screen use before bedtime discouraged?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004',
+    options: ['Screens are linked to eye strain only', 'Blue-toned light can suppress melatonin release', 'Screens raise body temperature', 'Screens interfere with the SCN directly'],
+    correctAnswer: 'Blue-toned light can suppress melatonin release', explanation: 'The lecturer notes that "exposure to bright light — including the blue-toned light emitted by many phone and computer screens — can suppress melatonin release."', strategyNote: 'The reason given is embedded in a longer sentence with an example (phone and computer screens) inserted — listen past the example to the main clause.',
+    tags: ['multiple_choice'], estimatedTimeSeconds: 45, orderIndex: 6, isPremium: false },
+  { id: 'lq-m8-s4-7', skill: 'listening', questionType: 'note_completion', topic: 'Academic lecture', difficulty: 'hard', estimatedBand: 7.0,
+    prompt: 'Body temperature typically reaches its highest point in the late ______ or early evening.', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
+    correctAnswer: 'afternoon', explanation: 'The lecturer says temperature "reaches its lowest point in the early hours of the morning and its highest point in the late afternoon or early evening."', strategyNote: 'Two time points are given in the same sentence — match "highest" to the second one, not the first.',
+    tags: ['note_completion'], estimatedTimeSeconds: 45, orderIndex: 7, isPremium: false },
+  { id: 'lq-m8-s4-8', skill: 'listening', questionType: 'short_answer', topic: 'Academic lecture', difficulty: 'hard', estimatedBand: 7.0,
+    prompt: 'By roughly how many hours per day does the internal clock adjust after a change of time zone?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
+    correctAnswer: ['one hour', 'one', 'roughly one hour'], explanation: 'The lecturer explains the internal clock "gradually shifting by roughly one hour per day until it catches up with local time."', strategyNote: 'The answer is a rate ("per day"), not a total — keep it to the single unit given.',
+    tags: ['short_answer'], estimatedTimeSeconds: 45, orderIndex: 8, isPremium: false },
   { id: 'lq-m8-s4-9', skill: 'listening', questionType: 'summary_completion', topic: 'Academic lecture', difficulty: 'hard', estimatedBand: 7.5,
-    prompt: 'Researchers hope synthetic luciferin could be engineered to glow in different ______.', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
-    correctAnswer: 'colours', explanation: 'The lecture ends by noting research into whether synthetic luciferin "could be engineered to glow in different colours."', strategyNote: 'The concluding sentence of a lecture often previews future research — expect a summary-completion question there.',
+    prompt: 'An individual\'s natural tendency toward an earlier or later sleep-wake pattern is called their ______.', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004', options: null,
+    correctAnswer: 'chronotype', explanation: 'The lecturer introduces "chronotype — the natural tendency of an individual toward either an earlier or a later sleep-wake pattern."', strategyNote: 'A formal technical term is often followed immediately by an informal definition — use the definition to confirm you heard the term correctly.',
     tags: ['summary_completion'], estimatedTimeSeconds: 50, orderIndex: 9, isPremium: false },
   { id: 'lq-m8-s4-10', skill: 'listening', questionType: 'multiple_choice', topic: 'Academic lecture', difficulty: 'hard', estimatedBand: 7.5,
-    prompt: 'Why does bioluminescence occur most commonly in the deep ocean, according to the lecture?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004',
-    options: ['Because deep-sea water is warmer', 'Because sunlight never reaches that depth', 'Because there is more food available there', 'Because predators are rare in the deep ocean'],
-    correctAnswer: 'Because sunlight never reaches that depth', explanation: 'The lecturer says these organisms "live in the deep ocean, where sunlight never reaches."', strategyNote: 'Inference questions often require linking two separate clauses in the same sentence — cause and location.',
+    prompt: 'What consequence does the lecturer suggest an early school or work start time can have on a "night owl" chronotype?', passageId: null, listeningTrackId: '35000000-0000-0000-0000-000000000004',
+    options: ['Improved long-term memory', 'A kind of chronic, low-grade sleep deprivation', 'A permanent shift to an earlier chronotype', 'No measurable effect at all'],
+    correctAnswer: 'A kind of chronic, low-grade sleep deprivation', explanation: 'The lecturer says forcing a late chronotype into an early schedule "can produce a kind of chronic, low-grade sleep deprivation."', strategyNote: 'This is the lecture\'s final substantive claim before the closing remark — concluding sentences often carry a key inference-question answer.',
     tags: ['multiple_choice'], estimatedTimeSeconds: 50, orderIndex: 10, isPremium: false },
 
   // ===================== MOCK 9 · SECTION 1 =====================
