@@ -163,6 +163,16 @@ npm run db:migrate   # Apply supabase/migrations/*.sql (requires DATABASE_URL)
 npm run db:seed      # Apply supabase/seed/*.sql + create the demo user (requires DATABASE_URL)
 ```
 
+### Standalone static preview (no dev server)
+
+`scripts/build-artifact.js` exports the web build and inlines the JS bundle plus every font/icon asset as data URIs into one self-contained `dist-artifact.html` — useful for sharing a click-to-open preview (e.g. as a hosted static file or a Claude Artifact) without running a server:
+
+```bash
+npx expo export --platform web
+node scripts/build-artifact.js
+# open dist-artifact.html directly, or serve it from any static host
+```
+
 ## Testing
 
 `npm run test` runs the Jest suite in `__tests__/`, covering:
