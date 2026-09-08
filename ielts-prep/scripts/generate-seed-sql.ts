@@ -16,7 +16,7 @@ import { content } from '../lib/content';
 
 const OUT_PATH = path.join(__dirname, '..', 'supabase', 'seed', '0002_generated_content.sql');
 
-function sqlStr(value: string | null | undefined): string {
+export function sqlStr(value: string | null | undefined): string {
   if (value == null) return 'null';
   return `'${value.replace(/'/g, "''")}'`;
 }
@@ -34,8 +34,14 @@ function sqlJson(value: unknown): string {
   return sqlStr(JSON.stringify(value));
 }
 
-function sqlTextArray(values: string[]): string {
-  return `'{${values.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(',')}}'`;
+export function sqlTextArray(values: string[]): string {
+  // Two distinct escaping levels apply here: a backslash-escaped double
+  // quote for Postgres's array-literal syntax (each element is `"..."`
+  // inside the `{...}`), and a doubled single quote for the outer SQL
+  // string literal the whole array is wrapped in — a value containing an
+  // apostrophe (e.g. "body's defences") would otherwise terminate that
+  // outer string early and break the statement's SQL syntax.
+  return `'{${values.map((v) => `"${v.replace(/"/g, '\\"')}"`.replace(/'/g, "''")).join(',')}}'`;
 }
 
 function row(values: string[]): string {

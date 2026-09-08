@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 import type { SupabaseClient, User } from 'npm:@supabase/supabase-js@2';
 
 export type AiOperation = 'writing_eval' | 'speaking_eval' | 'ai_coach' | 'transcription' | 'study_plan_suggestion';

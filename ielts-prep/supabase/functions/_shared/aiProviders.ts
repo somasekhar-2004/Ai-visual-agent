@@ -86,15 +86,15 @@ export async function runJsonPrompt(provider: ProviderName, prompt: string): Pro
   return extractJson(text);
 }
 
-export async function runWritingEval(provider: ProviderName, input: WritingEvalRequest): Promise<string> {
+export function runWritingEval(provider: ProviderName, input: WritingEvalRequest): Promise<string> {
   return runJsonPrompt(provider, buildWritingEvalPrompt(input));
 }
 
-export async function runSpeakingEval(provider: ProviderName, input: SpeakingEvalRequest): Promise<string> {
+export function runSpeakingEval(provider: ProviderName, input: SpeakingEvalRequest): Promise<string> {
   return runJsonPrompt(provider, buildSpeakingEvalPrompt(input));
 }
 
-export async function runStudyPlanSuggestion(
+export function runStudyPlanSuggestion(
   provider: ProviderName,
   context: CoachContext,
   weakQuestionTypeBySkill: Record<string, string> | undefined,

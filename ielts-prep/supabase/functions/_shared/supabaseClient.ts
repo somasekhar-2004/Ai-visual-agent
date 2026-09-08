@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 import { createClient, type SupabaseClient, type User } from 'npm:@supabase/supabase-js@2';
 
 // SUPABASE_URL and SUPABASE_ANON_KEY are reserved names the Supabase Edge
