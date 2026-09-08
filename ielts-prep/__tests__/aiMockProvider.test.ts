@@ -1,7 +1,23 @@
 import { MockAiProvider } from '@/services/ai/mockProvider';
-import { SpeakingEvaluationSchema, WritingEvaluationSchema } from '@/services/ai/schemas';
+import { SpeakingEvaluationSchema, StudyPlanSuggestionSchema, WritingEvaluationSchema } from '@/services/ai/schemas';
+import type { CoachContext } from '@/services/ai/types';
 
 const provider = new MockAiProvider();
+
+function baseContext(overrides: Partial<CoachContext> = {}): CoachContext {
+  return {
+    fullName: 'Alex',
+    ieltsType: 'academic',
+    targetBand: 7.5,
+    currentBand: 6,
+    examDate: null,
+    weakestSkill: 'reading',
+    bandBySkill: { reading: 5.5 },
+    streakDays: 0,
+    dailyStudyMinutes: 45,
+    ...overrides,
+  };
+}
 
 describe('MockAiProvider.evaluateWriting', () => {
   it('produces schema-valid output for a short, weak essay', async () => {
@@ -68,5 +84,38 @@ describe('MockAiProvider.chat', () => {
     });
     expect(reply.length).toBeGreaterThan(0);
     expect(reply.toLowerCase()).toContain('writing');
+  });
+});
+
+describe('MockAiProvider.suggestStudyPlanFocus', () => {
+  it('produces schema-valid output', async () => {
+    const result = await provider.suggestStudyPlanFocus({ context: baseContext() });
+    expect(StudyPlanSuggestionSchema.safeParse(result).success).toBe(true);
+  });
+
+  it('leads with the weak grammar topic when one is known, even over a weak skill', async () => {
+    const result = await provider.suggestStudyPlanFocus({
+      context: baseContext(),
+      weakGrammarTopic: 'subject-verb agreement',
+    });
+    expect(result.focusSummary.toLowerCase()).toContain('subject-verb agreement');
+  });
+
+  it('names the specific weak question type when known', async () => {
+    const result = await provider.suggestStudyPlanFocus({
+      context: baseContext({ weakestSkill: 'reading' }),
+      weakQuestionTypeBySkill: { reading: 'matching_headings' },
+    });
+    expect(result.focusSummary.toLowerCase()).toContain('matching headings');
+  });
+
+  it('falls back to naming the weakest skill when no finer-grained signal is known', async () => {
+    const result = await provider.suggestStudyPlanFocus({ context: baseContext({ weakestSkill: 'speaking' }) });
+    expect(result.focusSummary.toLowerCase()).toContain('speaking');
+  });
+
+  it('mentions the streak when it is meaningful (3+ days)', async () => {
+    const result = await provider.suggestStudyPlanFocus({ context: baseContext({ streakDays: 5 }) });
+    expect(result.motivationalNote).toContain('5-day streak');
   });
 });

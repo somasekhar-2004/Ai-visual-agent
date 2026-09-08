@@ -17,6 +17,9 @@ const ROWS: Row[] = [
   { title: 'Notification settings', icon: 'notifications-outline', href: '/notification-settings' },
   { title: 'Subscription', icon: 'star-outline', href: '/subscription' },
   { title: 'Help & support', icon: 'help-circle-outline', href: '/help' },
+  // Dev-build-only — see app/dev-health-check.tsx's own __DEV__ guard, which
+  // also protects direct navigation to it.
+  ...(__DEV__ ? [{ title: 'Developer health check', icon: 'pulse-outline' as const, href: '/dev-health-check' }] : []),
 ];
 
 export default function ProfileScreen() {

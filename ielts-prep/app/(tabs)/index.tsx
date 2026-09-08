@@ -9,12 +9,14 @@ import { useShallow } from 'zustand/react/shallow';
 import { AiCoachFab } from '@/components/home/AiCoachFab';
 import { SkillBandCard } from '@/components/home/SkillBandCard';
 import { StudyPlanItemRow } from '@/components/home/StudyPlanItemRow';
-import { Badge, Button, Card, IconCircle, Text } from '@/components/ui';
+import { Badge, Button, Card, DemoAiBadge, IconCircle, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { studyPlanItemTarget } from '@/lib/studyPlanNav';
+import type { CoachContext } from '@/services/ai';
 import {
   completeStudyPlanItem,
   generateStudyPlan,
+  getStudyPlanFocusSuggestion,
   getTestHistory,
   listMockTests,
 } from '@/services/repository';
@@ -52,6 +54,25 @@ export default function HomeScreen() {
     queryKey: ['test-history', userId],
     queryFn: () => getTestHistory(userId!),
     enabled: Boolean(userId),
+  });
+
+  const focusQuery = useQuery({
+    queryKey: ['study-plan-focus', userId, today()],
+    queryFn: () => {
+      const context: CoachContext = {
+        fullName: profile?.fullName ?? null,
+        ieltsType: goal!.ieltsType,
+        targetBand: goal!.targetBand,
+        currentBand: goal!.currentBand ?? null,
+        examDate: goal!.examDate ?? null,
+        weakestSkill: goal!.weakestSkill ?? null,
+        bandBySkill: bandScores,
+        streakDays: streak.count,
+        dailyStudyMinutes: goal!.dailyStudyMinutes,
+      };
+      return getStudyPlanFocusSuggestion(userId!, context);
+    },
+    enabled: Boolean(userId && goal),
   });
 
   if (!goal) return null;
@@ -120,6 +141,17 @@ export default function HomeScreen() {
         </Text>
       </View>
       <Card style={{ marginBottom: theme.spacing.lg }}>
+        {focusQuery.data ? (
+          <View style={{ marginBottom: theme.spacing.sm, paddingBottom: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border, gap: 4 }}>
+            <Text variant="bodyMedium">{focusQuery.data.focusSummary}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: theme.spacing.sm }}>
+              <Text variant="caption" color="secondary" style={{ flex: 1 }}>
+                {focusQuery.data.motivationalNote}
+              </Text>
+              <DemoAiBadge source={focusQuery.data.aiSource} />
+            </View>
+          </View>
+        ) : null}
         {planQuery.data?.items.length ? (
           planQuery.data.items.map((item) => (
             <StudyPlanItemRow

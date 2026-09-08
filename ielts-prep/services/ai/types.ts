@@ -1,5 +1,5 @@
 import type { WritingTaskType, SpeakingPart, IeltsType, SkillKey } from '@/types/models';
-import type { SpeakingEvaluation, WritingEvaluation } from './schemas';
+import type { SpeakingEvaluation, StudyPlanSuggestion, WritingEvaluation } from './schemas';
 
 export type WritingEvalInput = {
   taskType: WritingTaskType;
@@ -31,6 +31,12 @@ export type CoachContext = {
 
 export type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string };
 
+export type StudyPlanSuggestionInput = {
+  context: CoachContext;
+  weakQuestionTypeBySkill?: Partial<Record<'reading' | 'listening', string>>;
+  weakGrammarTopic?: string | null;
+};
+
 export interface AiProvider {
   /** Not always readonly in practice: EdgeFunctionProvider updates this
    * after each successful call to reflect which real provider the server
@@ -42,4 +48,9 @@ export interface AiProvider {
   /** Transcribes a recorded audio file (local URI) to text. Providers without
    * real speech-to-text should throw so callers can fall back gracefully. */
   transcribeAudio(audioUri: string): Promise<string>;
+  /** A short, personalized note (focus summary + motivational line) layered
+   * on top of the deterministic study plan built by
+   * services/repository/studyPlan.ts — that plan's items/durations/links
+   * never depend on this succeeding. */
+  suggestStudyPlanFocus(input: StudyPlanSuggestionInput): Promise<StudyPlanSuggestion>;
 }

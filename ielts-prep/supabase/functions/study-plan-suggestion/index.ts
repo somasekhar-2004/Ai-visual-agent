@@ -9,6 +9,7 @@
 // here so it's ready to wire in.
 import { getConfiguredTextProvider, runStudyPlanSuggestion } from '../_shared/aiProviders.ts';
 import { handleCorsPreflight } from '../_shared/cors.ts';
+import { healthCheckResponse, isHealthCheckPing } from '../_shared/healthCheck.ts';
 import { friendlyAiErrorMessage } from '../_shared/httpClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimit.ts';
 import { errorResponse, jsonResponse } from '../_shared/responses.ts';
@@ -30,6 +31,8 @@ Deno.serve(async (req) => {
   } catch {
     return errorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
   }
+  if (isHealthCheckPing(body)) return healthCheckResponse(getConfiguredTextProvider());
+
   const parsedInput = StudyPlanSuggestionRequestSchema.safeParse(body);
   if (!parsedInput.success) return errorResponse(400, 'invalid_request', 'Request failed validation.', parsedInput.error.flatten());
 

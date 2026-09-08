@@ -11,8 +11,10 @@ import {
   uniqueWordRatio,
 } from '@/lib/textAnalysis';
 
-import type { SpeakingEvaluation, WritingEvaluation } from './schemas';
-import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, WritingEvalInput } from './types';
+import type { SpeakingEvaluation, StudyPlanSuggestion, WritingEvaluation } from './schemas';
+import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, StudyPlanSuggestionInput, WritingEvalInput } from './types';
+
+const SKILL_LABEL: Record<string, string> = { reading: 'Reading', listening: 'Listening', writing: 'Writing', speaking: 'Speaking' };
 
 /**
  * Deterministic, heuristic-based "AI" that requires no API key. It analyses
@@ -240,5 +242,36 @@ export class MockAiProvider implements AiProvider {
 
   async transcribeAudio(_audioUri: string): Promise<string> {
     return '[Demo transcript — configure a real AI provider in .env to transcribe actual speech. This simulated transcript lets you preview the full Speaking flow: "I think this topic is quite interesting because it relates to my own experience. For example, when I was younger, I often thought about this, and it has shaped how I see things today."]';
+  }
+
+  async suggestStudyPlanFocus(input: StudyPlanSuggestionInput): Promise<StudyPlanSuggestion> {
+    const { context, weakQuestionTypeBySkill, weakGrammarTopic } = input;
+    const weakest = context.weakestSkill;
+    const weakestLabel = weakest ? SKILL_LABEL[weakest] : null;
+    const weakType = weakest === 'reading' || weakest === 'listening' ? weakQuestionTypeBySkill?.[weakest] : undefined;
+
+    let focusSummary: string;
+    if (weakGrammarTopic) {
+      focusSummary = `Grammar accuracy on ${weakGrammarTopic} has come up as your most consistent recent mistake — today's short review should compound quickly.`;
+    } else if (weakType) {
+      focusSummary = `${weakestLabel} — specifically ${weakType.replace(/_/g, ' ')} questions — is where you're losing the most marks right now.`;
+    } else if (weakestLabel) {
+      const band = context.bandBySkill[weakest as keyof typeof context.bandBySkill];
+      focusSummary = `${weakestLabel} is your lowest-scoring skill${band ? ` (around Band ${band})` : ''}, so today's plan leans into it.`;
+    } else {
+      focusSummary = 'No single weak area stands out yet — today keeps practice balanced across all four skills.';
+    }
+
+    const gap = context.targetBand - (context.currentBand ?? context.targetBand);
+    let motivationalNote: string;
+    if (context.streakDays >= 3) {
+      motivationalNote = `${context.streakDays}-day streak — consistency like this is what actually moves a band score.`;
+    } else if (gap > 0) {
+      motivationalNote = `You're roughly ${gap.toFixed(1)} band${gap === 1 ? '' : 's'} from your target — today's session is a real step toward it.`;
+    } else {
+      motivationalNote = `You're at or above your target band — keep sessions up to hold that level under exam pressure.`;
+    }
+
+    return { focusSummary, motivationalNote };
   }
 }

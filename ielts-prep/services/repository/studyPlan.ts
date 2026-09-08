@@ -3,6 +3,7 @@ import { getDb, mutateDb } from '@/lib/demoStore';
 import { isDemoMode } from '@/lib/env';
 import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
+import { suggestStudyPlanFocus, type CoachContext, type StudyPlanSuggestionResult } from '@/services/ai';
 import type { GrammarQuestionAttempt, QuestionAttempt, SkillKey, StudyPlan, StudyPlanItem, TestHistoryEntry, UserGoal } from '@/types/models';
 
 import { getQuestionAttempts, getGrammarQuestionAttempts, weakGrammarTopics } from './learning';
@@ -246,6 +247,29 @@ export async function generateStudyPlan(
     )
     .select('*');
   return mapPlanRow({ ...planRow, study_plan_items: itemRows });
+}
+
+/** A short AI-written note (focus summary + motivational line) layered on
+ * top of the deterministic plan above — this never changes which items are
+ * in the plan or their order/duration/links, only adds a sentence of
+ * framing. Uses the exact same real-AI-with-heuristic-fallback pattern as
+ * Writing/Speaking eval and the AI Coach (services/ai's `withFallback`):
+ * production AI when Supabase + a server-side AI key are configured, the
+ * same local heuristic MockAiProvider uses otherwise, and the result's
+ * `aiSource` tells the caller which one actually produced it so the UI can
+ * show "Live AI" vs "Demo AI" rather than imply every plan is AI-written. */
+export async function getStudyPlanFocusSuggestion(userId: string, context: CoachContext): Promise<StudyPlanSuggestionResult> {
+  const [questionAttempts, testHistory, grammarAttempts] = await Promise.all([
+    getQuestionAttempts(userId),
+    getTestHistory(userId),
+    getGrammarQuestionAttempts(userId),
+  ]);
+  const perf = derivePerformanceContext(questionAttempts, testHistory, grammarAttempts);
+  return suggestStudyPlanFocus({
+    context,
+    weakQuestionTypeBySkill: perf.weakQuestionTypeBySkill,
+    weakGrammarTopic: perf.weakGrammarTopic,
+  });
 }
 
 export async function completeStudyPlanItem(planId: string, itemId: string): Promise<void> {

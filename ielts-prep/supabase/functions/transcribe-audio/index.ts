@@ -6,6 +6,7 @@
 // transcript, exactly like a missing key does for the other operations.
 import { getConfiguredTranscriptionProvider, transcribeWithOpenAi } from '../_shared/aiProviders.ts';
 import { handleCorsPreflight } from '../_shared/cors.ts';
+import { healthCheckResponse, isHealthCheckPing } from '../_shared/healthCheck.ts';
 import { friendlyAiErrorMessage } from '../_shared/httpClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimit.ts';
 import { errorResponse, jsonResponse } from '../_shared/responses.ts';
@@ -38,6 +39,8 @@ Deno.serve(async (req) => {
   } catch {
     return errorResponse(400, 'invalid_json', 'Request body must be valid JSON.');
   }
+  if (isHealthCheckPing(body)) return healthCheckResponse(getConfiguredTranscriptionProvider());
+
   const parsedInput = TranscribeRequestSchema.safeParse(body);
   if (!parsedInput.success) return errorResponse(400, 'invalid_request', 'Request failed validation.', parsedInput.error.flatten());
   if (parsedInput.data.audioBase64.length > MAX_AUDIO_BASE64_CHARS) {

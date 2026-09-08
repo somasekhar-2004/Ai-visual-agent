@@ -3,8 +3,8 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { EdgeFunctionProvider } from './edgeFunctionProvider';
 import { friendlyAiErrorMessage } from './httpClient';
 import { MockAiProvider } from './mockProvider';
-import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, WritingEvalInput } from './types';
-import type { SpeakingEvaluation, WritingEvaluation } from './schemas';
+import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, StudyPlanSuggestionInput, WritingEvalInput } from './types';
+import type { SpeakingEvaluation, StudyPlanSuggestion, WritingEvaluation } from './schemas';
 
 export { friendlyAiErrorMessage } from './httpClient';
 
@@ -19,6 +19,7 @@ export type AiSource = 'real' | 'mock';
 export type WritingEvaluationResult = WritingEvaluation & { aiSource: AiSource };
 export type SpeakingEvaluationResult = SpeakingEvaluation & { aiSource: AiSource };
 export type ChatResult = { reply: string; aiSource: AiSource };
+export type StudyPlanSuggestionResult = StudyPlanSuggestion & { aiSource: AiSource };
 
 export * from './types';
 export * from './schemas';
@@ -91,4 +92,9 @@ export async function chatWithCoach(messages: ChatMessage[], context: CoachConte
 export async function transcribeAudio(audioUri: string): Promise<string> {
   const { data } = await withFallback(() => provider.transcribeAudio(audioUri), () => mock.transcribeAudio(audioUri));
   return data;
+}
+
+export async function suggestStudyPlanFocus(input: StudyPlanSuggestionInput): Promise<StudyPlanSuggestionResult> {
+  const { data, source } = await withFallback(() => provider.suggestStudyPlanFocus(input), () => mock.suggestStudyPlanFocus(input));
+  return { ...data, aiSource: source };
 }

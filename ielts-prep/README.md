@@ -11,6 +11,7 @@ It covers all four IELTS skills (Listening, Reading, Writing, Speaking), realist
 - [What's included](#whats-included)
 - [Tech stack](#tech-stack)
 - [Quick start (Demo Mode)](#quick-start-demo-mode)
+- [Production setup checklist](#production-setup-checklist)
 - [Project structure](#project-structure)
 - [Environment variables](#environment-variables)
 - [Supabase setup](#supabase-setup)
@@ -19,6 +20,8 @@ It covers all four IELTS skills (Listening, Reading, Writing, Speaking), realist
 - [Free vs. Premium boundary](#free-vs-premium-boundary)
 - [Development commands](#development-commands)
 - [Testing](#testing)
+- [Developer health check screen](#developer-health-check-screen)
+- [Edge Function integration tests](#edge-function-integration-tests)
 - [Production builds (EAS)](#production-builds-eas)
 - [Account deletion (Edge Function)](#account-deletion-edge-function)
 - [Known limitations](#known-limitations)
@@ -69,6 +72,50 @@ npm run start
 Press `i` / `a` / `w` in the Expo CLI to open iOS Simulator, Android Emulator, or web, or scan the QR code with Expo Go on a physical device (note: `expo-audio` recording and `expo-notifications` require a [custom dev client](https://docs.expo.dev/develop/development-builds/introduction/) rather than Expo Go for full functionality — everything else works in Expo Go).
 
 On first launch, choose **"Continue with Demo Mode"** during onboarding (or on the sign-in screen). This seeds a demo profile ("Alex", Academic, target Band 7.5, exam in 42 days) and stores all progress on-device via `AsyncStorage` — see `lib/demoStore.ts`.
+
+## Production setup checklist
+
+Everything above runs with zero configuration. This is the ordered checklist for connecting a real Supabase project and a real AI provider — each step links to the section with the full detail; this is just the sequence and the exact command for each.
+
+- [ ] **Create a Supabase project** — [supabase.com](https://supabase.com) → New project. Grab its URL, anon key, and Reference ID (Project Settings → API / General).
+- [ ] **Link the Supabase CLI** to that project:
+  ```bash
+  npx supabase login
+  npx supabase link --project-ref <your-project-ref>
+  ```
+- [ ] **Push the migrations** (creates all 39 tables, RLS policies, and the `ai_usage_log` table the Edge Functions rate-limit against):
+  ```bash
+  npx supabase db push
+  # or: npm run db:migrate   (requires DATABASE_URL in .env — see "Supabase setup")
+  ```
+  All 5 migration files were verified to apply cleanly, in order, to a fresh database as part of this checklist's own preparation — see "Supabase setup" → Verification status.
+- [ ] **Set the client's Supabase URL/anon key** in `.env` (`cp .env.example .env` first if you haven't):
+  ```
+  EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+  EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+  ```
+  Restart `npm run start` after saving — these are the *only* two things that switch the app out of Demo Mode.
+- [ ] **Set an AI provider key as a Supabase secret** (server-side only — never in `.env`):
+  ```bash
+  npx supabase secrets set OPENAI_API_KEY=sk-...
+  # and/or: npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+  npx supabase secrets set AI_PROVIDER=openai
+  ```
+- [ ] **Deploy the Edge Functions**:
+  ```bash
+  npx supabase functions deploy evaluate-writing
+  npx supabase functions deploy evaluate-speaking
+  npx supabase functions deploy ai-coach
+  npx supabase functions deploy transcribe-audio
+  npx supabase functions deploy study-plan-suggestion
+  ```
+- [ ] **Verify auth** — sign up a real account in the app (not "Continue with Demo Mode"); confirm a row appears in Supabase's `auth.users` and a matching row in `public.profiles` (the `handle_new_user` trigger creates it automatically).
+- [ ] **Verify RLS** — in the Supabase SQL editor, run `select * from question_attempts;` as the `service_role` (should see all rows) vs. querying through the app as two different signed-up users (each should only ever see their own data — practice attempts, mock results, writing/speaking submissions, AI Coach conversations, study plan, subscription). See "Supabase setup" → Verification status for what was already checked statically and live against a local database; this step is the one live check that still needs a real project.
+- [ ] **Test Writing evaluation** — Practice → Browse writing prompts → submit a short essay. The feedback screen's badge should read "Live AI (openai)" or "(anthropic)", not "Demo AI".
+- [ ] **Test Speaking evaluation** — Practice → Speaking practice → complete a Part 1/2/3 turn. Same badge check, plus confirm the transcript is real (not the mock's simulated placeholder text).
+- [ ] **Test AI Coach** — tap the floating AI Coach button on Home, send a message, confirm a real (non-canned) reply and the "Live AI" badge.
+- [ ] **(Optional, dev builds only)** Run the in-app health check screen (`/dev-health-check`, dev-mode-only — see "Developer health check screen") to verify all of the above — Supabase reachability, auth, DB read/write, each Edge Function, AI provider configuration, RevenueCat configuration, and listening audio assets — from one screen instead of manual testing.
+- [ ] **(Optional)** Run `scripts/verify-edge-functions.ts` (see "Edge Function integration tests") against the deployed functions with a real test-user session for an automated pass/fail check of the whole AI boundary.
 
 ## Project structure
 
@@ -142,7 +189,7 @@ Restart the Expo dev server after changing `.env` (`EXPO_PUBLIC_*` vars are inli
 
 The schema (`supabase/migrations/0001_init.sql`, plus `0002_content_expansion_schema.sql` for mock test numbering/difficulty and writing chart data, `0003_grammar_practice.sql` for grammar practice questions/attempts, `0004_ai_chat_activity_type.sql` for the AI Coach's daily-limit activity type, and `0005_ai_usage_log.sql` for server-side AI rate-limiting/audit logging) covers every table in the product spec: profiles, goals, lessons/progress, questions/attempts, passages, listening tracks, mock tests/sections/attempts, reading/listening attempts, writing submissions/feedback, speaking sessions/responses/feedback, band scores (with a configurable raw-score → band conversion table), study plans/items, vocabulary + spaced repetition, grammar lessons/questions/attempts, achievements, AI conversations/messages, subscriptions, notifications, bookmarks, test history, and the AI usage audit log — 39 tables total, each with RLS so users can only read/write their own rows, and public content tables (lessons, questions, etc.) readable by anyone.
 
-**Verification status:** every table listed above has RLS enabled and at least one policy (verified with a static script comparing `create table` / `enable row level security` / `create policy` statements — 39/39 tables covered, zero gaps; the RLS policies were additionally re-reviewed by hand as part of the server-side AI migration, including the 5 join-based child-table policies (`writing_feedback`, `speaking_responses`, `speaking_feedback`, `study_plan_items`, `ai_messages`) that scope through a parent owner row rather than a direct `user_id` column), every foreign key uses `on delete cascade` (or `set null` where a null reference is meaningful, e.g. a question whose passage was removed), `subscriptions.user_id` and other 1:1 tables carry a `unique` constraint so upserts behave correctly, and every `.from('table_name')` call and column name in `services/repository/*.ts` was cross-checked against the actual migration column names — no drift found. **This is static verification only.** The schema and repository layer have **not** been exercised against a real, running Supabase project in this environment (no `DATABASE_URL`/Supabase credentials are available here) — running `npm run db:migrate && npm run db:seed` against a real project and smoke-testing sign-up → onboarding → a mock attempt → a writing submission is still needed before relying on the Supabase path in production.
+**Verification status:** every table listed above has RLS enabled and at least one policy — this was confirmed two ways: a static script comparing `create table` / `enable row level security` / `create policy` statements across every migration (39/39 tables covered, zero gaps), and, separately, by actually applying all 5 migration files, in order, to a real fresh local Postgres 16 database (with a minimal hand-written stand-in for Supabase's own `auth.users` table + `auth.uid()` function, since those are normally provisioned by the Supabase platform itself, not by these migrations) and querying `pg_policies`/`pg_tables` afterward — same result, live: 39/39 tables with RLS, 39/39 with at least one policy, including the 5 join-based child-table policies (`writing_feedback`, `speaking_responses`, `speaking_feedback`, `study_plan_items`, `ai_messages`) that scope through a parent owner row rather than a direct `user_id` column. The migrations were also re-applied a second time against that same database to confirm they're idempotent (safe to re-run), and all 11 seed files were applied on top and produced row counts matching the content library exactly (36 reading passages, 48 listening tracks, 929 questions, 155 writing prompts, 300 speaking topics, 821 vocabulary words, 40 grammar lessons, 265 grammar questions, 12 mock tests) — that pass is what caught the seed-generator escaping bug documented above. Every foreign key uses `on delete cascade` (or `set null` where a null reference is meaningful, e.g. a question whose passage was removed), `subscriptions.user_id` and other 1:1 tables carry a `unique` constraint so upserts behave correctly, and every `.from('table_name')` call and column name in `services/repository/*.ts` was cross-checked against the actual migration column names — no drift found. **What this does *not* cover:** a real Supabase-hosted project's own GoTrue auth behavior, network latency/API surface, or platform-specific settings — only a locally-run vanilla Postgres with a minimal auth stand-in was used, since no real Supabase project or credentials are available in this environment. Running `npm run db:migrate && npm run db:seed` against a real Supabase project and smoke-testing sign-up → onboarding → a mock attempt → a writing submission is still needed before relying on the Supabase path in production — see "Production setup checklist" above.
 
 ## AI provider setup
 
@@ -198,7 +245,7 @@ Every function (`supabase/functions/<name>/index.ts`, sharing helpers from `supa
 
 All real-provider outputs are validated against Zod schemas before use both server- and client-side; a malformed or failed response falls back to the mock provider's output rather than crashing or showing garbage. Every screen that shows an AI-generated score (Writing feedback, Speaking feedback, AI Coach) displays a small "Demo AI" / "Live AI" badge reflecting **that specific result's** actual source (`services/ai/index.ts`'s `aiSource` field) — not just whether a provider is configured, since a single call can still fall back to mock output on a network error even with everything configured.
 
-**Verification status:** the Edge Functions type-check under `deno check` conventions and were reviewed line-by-line against the auth/validation/rate-limit/logging contract above, and the client-side boundary (`EdgeFunctionProvider`, provider selection, error classification) has Jest coverage (`__tests__/edgeFunctionProvider.test.ts`, `__tests__/aiProviderSelection.test.ts`). **They have not been deployed or exercised against a real Supabase project or a real OpenAI/Anthropic key in this environment** — no Supabase CLI login or API keys are available here. Deploy them and run one real Writing evaluation, one Speaking evaluation, one AI Coach message, and one transcription before relying on this path in production.
+**Verification status:** all 5 Edge Functions were type-checked and linted with a real Deno 2.2.7 binary (`deno check` + `deno lint`, both clean — see `supabase/functions/README.md`) and reviewed line-by-line against the auth/validation/rate-limit/logging contract above. The migrations they depend on (`ai_usage_log`, `subscriptions`) were verified by actually applying all 5 migrations to a fresh local Postgres database (see "Supabase setup" → Verification status) — that pass also caught and fixed a real SQL-escaping bug in the seed generator. The client-side boundary (`EdgeFunctionProvider`, provider selection, error classification, the study-plan-suggestion fallback) has Jest coverage (`__tests__/edgeFunctionProvider.test.ts`, `__tests__/aiProviderSelection.test.ts`, `__tests__/aiMockProvider.test.ts`). **They have not been deployed or exercised against a real Supabase project or a real OpenAI/Anthropic key in this environment** — no Supabase CLI login or API keys are available here. Deploy them and run one real Writing evaluation, one Speaking evaluation, one AI Coach message, and one transcription before relying on this path in production — the dev health check screen and `scripts/verify-edge-functions.ts` below make that fast to do.
 
 ## Listening audio generation
 
@@ -269,15 +316,48 @@ node scripts/build-artifact.js
 
 ## Testing
 
-`npm run test` runs the Jest suite in `__tests__/`, covering:
+`npm run test` runs the Jest suite in `__tests__/` (13 suites, 113 tests), covering:
 
 - IELTS band rounding and raw-score → band conversion (`bandScore.test.ts`)
 - Answer-checking logic across question types (`answerChecking.test.ts`)
 - Text-analysis heuristics used by the mock AI provider (`textAnalysis.test.ts`)
-- Mock AI provider output (schema validation + relative scoring) (`aiMockProvider.test.ts`)
+- Mock AI provider output, including Writing/Speaking/Coach and the study-plan focus-note heuristic (schema validation + relative scoring) (`aiMockProvider.test.ts`)
 - Demo-mode auth/session flow (`auth.test.ts`)
 - Mock subscription provider (`purchases.test.ts`)
 - Study plan generation logic (`studyPlan.test.ts`)
+- Study plan item → screen navigation mapping (`studyPlanNav.test.ts`)
+- Free-tier daily-limit entitlement logic (`entitlements.test.ts`)
+- Content library integrity — no duplicate IDs, every question maps to a real passage/track, mock tests don't reuse content, minimum content counts (`contentIntegrity.test.ts`)
+- Client-side AI provider selection (Demo Mode vs. Supabase-configured) (`aiProviderSelection.test.ts`)
+- The Edge Function client boundary — request shape, provider-name reporting, schema-validation rejection, 429/401 error classification (`edgeFunctionProvider.test.ts`)
+- The seed-SQL generator's string-escaping (a real bug this caught — see "Supabase setup" → Verification status) (`generateSeedSql.test.ts`)
+
+## Developer health check screen
+
+`app/dev-health-check.tsx`, linked from Profile → "Developer health check" — **only rendered when `__DEV__` is true**, both the screen itself and its Profile entry point, so it never ships in a production build. Runs a battery of live checks in one tap:
+
+- Supabase configured / reachable (a real query against a public table)
+- Auth working (`supabase.auth.getUser()` — a server-verified session, not just a cached local token)
+- Database read/write (round-trips a write + read against your own `profiles` row — no throwaway data left behind)
+- Every AI Edge Function reachable — pings each with `{ healthCheck: true }`, which every function answers immediately after verifying your session, before touching rate limits or the real AI provider, so running this costs nothing and never consumes your daily AI quota
+- AI provider configured (from the same ping — reports which of OpenAI/Anthropic is active server-side, or that neither is set)
+- Transcription provider configured (OpenAI-only, checked separately since Anthropic has no speech-to-text API)
+- RevenueCat configured
+- Listening audio assets (X/Y tracks pre-generated vs. relying on the on-device TTS fallback — never reported as a failure, since the fallback always works)
+
+Use it after deploying Edge Functions or connecting a new Supabase project to confirm everything is wired correctly without manually testing every screen.
+
+## Edge Function integration tests
+
+`scripts/verify-edge-functions.ts` is a standalone Node script (not part of `npm test`, since it needs real deployed infrastructure and a real account) that exercises every deployed Edge Function end-to-end once you have real credentials:
+
+```bash
+# .env needs: EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY,
+# EDGE_FN_TEST_EMAIL, EDGE_FN_TEST_PASSWORD (a real, already-signed-up test account)
+npx tsx scripts/verify-edge-functions.ts
+```
+
+It signs in as that test account, then for each function: sends a `{ healthCheck: true }` ping (reachability + provider-configured), and — only if `--full` is passed — a real minimal request that exercises an actual AI call end-to-end (costs real API usage and counts against that account's daily rate limit). Prints a pass/fail summary per function with the actual response, so a broken deploy or a missing secret shows up immediately instead of surfacing as a confusing failure inside the app. See the script's own header comment for the full flag list.
 
 ## Production builds (EAS)
 

@@ -4,8 +4,15 @@ import { readAsStringAsync } from 'expo-file-system/legacy';
 import { supabase } from '@/lib/supabase';
 
 import { AiRequestError } from './httpClient';
-import { SpeakingEvaluationSchema, WritingEvaluationSchema, type SpeakingEvaluation, type WritingEvaluation } from './schemas';
-import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, WritingEvalInput } from './types';
+import {
+  SpeakingEvaluationSchema,
+  StudyPlanSuggestionSchema,
+  WritingEvaluationSchema,
+  type SpeakingEvaluation,
+  type StudyPlanSuggestion,
+  type WritingEvaluation,
+} from './schemas';
+import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, StudyPlanSuggestionInput, WritingEvalInput } from './types';
 
 /** The only client-side AI provider left: it holds no secret key at all
  * and never talks to OpenAI/Anthropic directly. Every call goes through a
@@ -67,5 +74,13 @@ export class EdgeFunctionProvider implements AiProvider {
     });
     this.name = data.provider;
     return data.text;
+  }
+
+  async suggestStudyPlanFocus(input: StudyPlanSuggestionInput): Promise<StudyPlanSuggestion> {
+    const data = await this.invoke<{ result: unknown; provider: string }>('study-plan-suggestion', input);
+    const parsed = StudyPlanSuggestionSchema.safeParse(data.result);
+    if (!parsed.success) throw new Error(`Edge Function study plan suggestion failed schema validation: ${parsed.error.message}`);
+    this.name = data.provider;
+    return parsed.data;
   }
 }

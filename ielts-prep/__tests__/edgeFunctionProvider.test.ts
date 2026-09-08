@@ -87,6 +87,29 @@ describe('EdgeFunctionProvider — never touches a real AI provider directly', (
     expect((err as AiRequestError).retryable).toBe(false);
   });
 
+  it('calls the study-plan-suggestion Edge Function and returns the validated result', async () => {
+    mockInvoke.mockResolvedValue({
+      data: { result: { focusSummary: 'Focus on Reading today.', motivationalNote: 'Keep it up.' }, provider: 'openai' },
+      error: null,
+    });
+    const provider = new EdgeFunctionProvider();
+    const result = await provider.suggestStudyPlanFocus({
+      context: {
+        fullName: 'Alex',
+        ieltsType: 'academic',
+        targetBand: 7,
+        currentBand: 6,
+        examDate: null,
+        weakestSkill: 'reading',
+        bandBySkill: { reading: 5.5 },
+        streakDays: 2,
+        dailyStudyMinutes: 30,
+      },
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('study-plan-suggestion', expect.objectContaining({ body: expect.any(Object) }));
+    expect(result.focusSummary).toBe('Focus on Reading today.');
+  });
+
   it('throws when Supabase is not configured, rather than making any network call', async () => {
     jest.resetModules();
     jest.doMock('@/lib/supabase', () => ({ supabase: null }));
