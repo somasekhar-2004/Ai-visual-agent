@@ -5,8 +5,8 @@ import { View } from 'react-native';
 
 import { Badge, Button, Card, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
-import { buildHref } from '@/lib/buildHref';
 import { content } from '@/lib/content';
+import { buildMockFlowSteps, hrefForFlowStep } from '@/lib/mockFlow';
 import { getInProgressMockAttempt, getMockSections, startMockAttempt } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -41,42 +41,9 @@ export default function MockTestIntroScreen() {
       const existing = await getInProgressMockAttempt(userId);
       const attempt = existing ?? (await startMockAttempt(userId, mockTest.id));
 
-      const readingSection = sections.find((s) => s.skill === 'reading');
-      const listeningSection = sections.find((s) => s.skill === 'listening');
-      const writingSection = sections.find((s) => s.skill === 'writing');
-      const speakingSection = sections.find((s) => s.skill === 'speaking');
-      const writingPromptIds = writingSection?.contentRef.writingPromptIds ?? [];
-      const speakingTopicIds = speakingSection?.contentRef.speakingTopicIds ?? [];
-      const speakingGroupId = content.speakingTopics.find((t) => speakingTopicIds.includes(t.id))?.groupId;
-
-      const resultHref = buildHref('/mock-result', { mockAttemptId: attempt.id });
-      const speakingHref = speakingSection
-        ? buildHref('/speaking-session', { part: 'full', mockAttemptId: attempt.id, nextHref: resultHref, groupId: speakingGroupId })
-        : resultHref;
-      const writing2Href = writingPromptIds[1]
-        ? buildHref('/writing-test', { promptId: writingPromptIds[1], mockAttemptId: attempt.id, nextHref: speakingHref })
-        : speakingHref;
-      const writing1Href = writingPromptIds[0]
-        ? buildHref('/writing-test', { promptId: writingPromptIds[0], mockAttemptId: attempt.id, nextHref: writing2Href })
-        : writing2Href;
-      const listeningHref = listeningSection
-        ? buildHref('/listening-test', {
-            trackIds: (listeningSection.contentRef.trackIds ?? []).join(','),
-            mockAttemptId: attempt.id,
-            durationMinutes: String(listeningSection.durationMinutes),
-            nextHref: writing1Href,
-          })
-        : writing1Href;
-      const readingHref = readingSection
-        ? buildHref('/reading-test', {
-            passageIds: (readingSection.contentRef.passageIds ?? []).join(','),
-            mockAttemptId: attempt.id,
-            durationMinutes: String(readingSection.durationMinutes),
-            nextHref: listeningHref,
-          })
-        : listeningHref;
-
-      router.push(readingHref as any);
+      const steps = buildMockFlowSteps(mockTest.id);
+      if (!steps.length) return;
+      router.push(hrefForFlowStep(steps[0], mockTest.id, attempt.id, 0) as any);
     } finally {
       setStarting(false);
     }

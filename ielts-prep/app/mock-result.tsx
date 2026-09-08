@@ -7,6 +7,7 @@ import { SkillBandCard } from '@/components/home/SkillBandCard';
 import { Badge, Button, Card, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { computeOverallBand } from '@/lib/bandScore';
+import { firstParam } from '@/lib/firstParam';
 import {
   checkAndUnlockAchievements,
   completeMockAttempt,
@@ -25,7 +26,7 @@ import type { SkillKey } from '@/types/models';
 export default function MockResultScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { mockAttemptId } = useLocalSearchParams<{ mockAttemptId: string }>();
+  const mockAttemptId = firstParam(useLocalSearchParams<{ mockAttemptId: string }>().mockAttemptId);
   const userId = useAppStore((s) => s.userId);
   const refreshUserData = useAppStore((s) => s.refreshUserData);
   const [finalized, setFinalized] = useState(false);
@@ -56,7 +57,7 @@ export default function MockResultScreen() {
     if (!ready || finalized || !userId || overall === null) return;
     (async () => {
       setFinalized(true);
-      await completeMockAttempt(mockAttemptId, overall);
+      await completeMockAttempt(mockAttemptId!, overall);
       for (const [skill, band] of Object.entries(bands)) {
         if (band !== undefined) await recordBandScore(userId, skill as SkillKey, band, 'mock');
       }

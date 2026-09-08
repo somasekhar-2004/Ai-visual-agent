@@ -11,17 +11,27 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
 import { confirmAsync } from '@/lib/confirm';
+import { firstParam } from '@/lib/firstParam';
+import { nextFlowHref } from '@/lib/mockFlow';
 import { countWords } from '@/lib/textAnalysis';
 import { evaluateWriting, type WritingEvaluation } from '@/services/ai';
 import { saveWritingFeedback, submitWriting } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
-type Params = { promptId?: string; mockAttemptId?: string; nextHref?: string };
+type Params = { promptId?: string; mockAttemptId?: string; mockTestId?: string; stepIndex?: string; nextHref?: string };
 
 export default function WritingTestScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { promptId, mockAttemptId, nextHref } = useLocalSearchParams<Params>();
+  const raw = useLocalSearchParams<Params>();
+  const promptId = firstParam(raw.promptId);
+  const mockAttemptId = firstParam(raw.mockAttemptId);
+  const mockTestId = firstParam(raw.mockTestId);
+  const stepIndex = firstParam(raw.stepIndex);
+  const nextHref =
+    mockTestId && mockAttemptId && stepIndex != null
+      ? nextFlowHref(mockTestId, mockAttemptId, Number(stepIndex))
+      : firstParam(raw.nextHref);
   const userId = useAppStore((s) => s.userId);
   const ieltsType = useAppStore((s) => s.goal?.ieltsType ?? 'academic');
 

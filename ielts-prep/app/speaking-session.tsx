@@ -9,6 +9,8 @@ import { SpeakingFeedbackView } from '@/components/testing/SpeakingFeedbackView'
 import { Badge, Button, Card, IconCircle, ProgressBar, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { firstParam } from '@/lib/firstParam';
+import { nextFlowHref } from '@/lib/mockFlow';
 import { buildSpeakingTurns } from '@/lib/speakingFlow';
 import { evaluateSpeaking, transcribeAudio, type SpeakingEvaluation } from '@/services/ai';
 import {
@@ -21,13 +23,22 @@ import {
 import { useAppStore } from '@/store/useAppStore';
 import type { SpeakingPart } from '@/types/models';
 
-type Params = { part?: SpeakingPart; mockAttemptId?: string; nextHref?: string; groupId?: string };
+type Params = { part?: SpeakingPart; mockAttemptId?: string; mockTestId?: string; stepIndex?: string; nextHref?: string; groupId?: string };
 type Phase = 'intro' | 'prep' | 'recording' | 'transcribing' | 'evaluating' | 'result' | 'permission_denied';
 
 export default function SpeakingSessionScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { part = 'full' as SpeakingPart, nextHref, groupId } = useLocalSearchParams<Params>();
+  const raw = useLocalSearchParams<Params>();
+  const part = (firstParam(raw.part) as SpeakingPart | undefined) ?? 'full';
+  const groupId = firstParam(raw.groupId);
+  const mockAttemptId = firstParam(raw.mockAttemptId);
+  const mockTestId = firstParam(raw.mockTestId);
+  const stepIndex = firstParam(raw.stepIndex);
+  const nextHref =
+    mockTestId && mockAttemptId && stepIndex != null
+      ? nextFlowHref(mockTestId, mockAttemptId, Number(stepIndex))
+      : firstParam(raw.nextHref);
   const userId = useAppStore((s) => s.userId);
   const recorder = useVoiceRecorder();
 

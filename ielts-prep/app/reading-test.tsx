@@ -14,15 +14,35 @@ import { isAnswerCorrect } from '@/lib/answerChecking';
 import { rawScoreToBand } from '@/lib/bandScore';
 import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
+import { firstParam } from '@/lib/firstParam';
+import { nextFlowHref } from '@/lib/mockFlow';
 import { recordDailyActivity, saveReadingAttempt } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
-type Params = { passageIds?: string; passageId?: string; mockAttemptId?: string; nextHref?: string; durationMinutes?: string };
+type Params = {
+  passageIds?: string;
+  passageId?: string;
+  mockAttemptId?: string;
+  mockTestId?: string;
+  stepIndex?: string;
+  nextHref?: string;
+  durationMinutes?: string;
+};
 
 export default function ReadingTestScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { passageIds, passageId, mockAttemptId, nextHref, durationMinutes } = useLocalSearchParams<Params>();
+  const raw = useLocalSearchParams<Params>();
+  const passageIds = firstParam(raw.passageIds);
+  const passageId = firstParam(raw.passageId);
+  const mockAttemptId = firstParam(raw.mockAttemptId);
+  const mockTestId = firstParam(raw.mockTestId);
+  const stepIndex = firstParam(raw.stepIndex);
+  const durationMinutes = firstParam(raw.durationMinutes);
+  const nextHref =
+    mockTestId && mockAttemptId && stepIndex != null
+      ? nextFlowHref(mockTestId, mockAttemptId, Number(stepIndex))
+      : firstParam(raw.nextHref);
   const userId = useAppStore((s) => s.userId);
   const ieltsType = useAppStore((s) => s.goal?.ieltsType ?? 'academic');
 
