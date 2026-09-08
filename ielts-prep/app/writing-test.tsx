@@ -5,6 +5,7 @@ import { ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { WritingFeedbackView } from '@/components/testing/WritingFeedbackView';
+import { WritingChart } from '@/components/writing/WritingChart';
 import { Badge, Button, Card, Text } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
@@ -133,6 +134,11 @@ export default function WritingTestScreen() {
           <Text variant="body" color="secondary" style={{ lineHeight: 22 }}>
             {prompt.promptText}
           </Text>
+          {prompt.chartData ? (
+            <View style={{ marginTop: theme.spacing.md, alignItems: 'center' }}>
+              <WritingChart data={prompt.chartData} />
+            </View>
+          ) : null}
         </Card>
 
         <View style={{ paddingHorizontal: theme.spacing.md }}>

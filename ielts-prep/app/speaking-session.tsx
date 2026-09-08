@@ -21,17 +21,17 @@ import {
 import { useAppStore } from '@/store/useAppStore';
 import type { SpeakingPart } from '@/types/models';
 
-type Params = { part?: SpeakingPart; mockAttemptId?: string; nextHref?: string };
-type Phase = 'intro' | 'prep' | 'recording' | 'transcribing' | 'evaluating' | 'result';
+type Params = { part?: SpeakingPart; mockAttemptId?: string; nextHref?: string; groupId?: string };
+type Phase = 'intro' | 'prep' | 'recording' | 'transcribing' | 'evaluating' | 'result' | 'permission_denied';
 
 export default function SpeakingSessionScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { part = 'full' as SpeakingPart, nextHref } = useLocalSearchParams<Params>();
+  const { part = 'full' as SpeakingPart, nextHref, groupId } = useLocalSearchParams<Params>();
   const userId = useAppStore((s) => s.userId);
   const recorder = useVoiceRecorder();
 
-  const turns = useMemo(() => buildSpeakingTurns(part), [part]);
+  const turns = useMemo(() => buildSpeakingTurns(part, groupId), [part, groupId]);
   const [turnIndex, setTurnIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('intro');
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -86,8 +86,12 @@ export default function SpeakingSessionScreen() {
   }
 
   async function startRecording() {
+    const granted = await recorder.start();
+    if (!granted) {
+      setPhase('permission_denied');
+      return;
+    }
     setPhase('recording');
-    await recorder.start();
     setSecondsLeft(turn.maxSpeakSeconds);
     intervalRef.current = setInterval(() => {
       setSecondsLeft((s) => {
@@ -156,6 +160,27 @@ export default function SpeakingSessionScreen() {
   }
 
   useEffect(() => clearTimer, []);
+
+  if (phase === 'permission_denied') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl, gap: theme.spacing.md }}>
+        <IconCircle name="mic-off" size={72} backgroundColor={theme.colors.errorSoft} color={theme.colors.error} />
+        <Text variant="h3" align="center">
+          Microphone access is required
+        </Text>
+        <Text color="secondary" align="center">
+          The Speaking test records your real voice — enable microphone access for this app in your device settings, then try again.
+        </Text>
+        <Button
+          label="Try again"
+          onPress={async () => {
+            const granted = await recorder.requestPermission();
+            if (granted) startRecording();
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (phase === 'evaluating') {
     return (

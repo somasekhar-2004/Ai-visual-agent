@@ -150,6 +150,8 @@ export type MockTest = {
   id: string;
   title: string;
   ieltsType: IeltsType;
+  testNumber: number;
+  difficulty: Difficulty;
   isFree: boolean;
 };
 
@@ -207,13 +209,28 @@ export type ListeningAttempt = {
   createdAt: string;
 };
 
+export type Task2Category = 'opinion' | 'discussion' | 'advantages_disadvantages' | 'problem_solution' | 'two_part_question';
+
+export type WritingChartSeries = { label: string; points: { x: string; y: number }[] };
+export type WritingChartSegment = { label: string; value: number };
+
+/** Structured chart/diagram data rendered locally by components/writing/WritingChart.tsx
+ * — no external images required. `type` selects which shape the other fields use. */
+export type WritingChartData =
+  | { type: 'bar' | 'line'; unit?: string; series: WritingChartSeries[] }
+  | { type: 'pie'; unit?: string; segments: WritingChartSegment[] }
+  | { type: 'table'; headers: string[]; rows: string[][] }
+  | { type: 'process'; steps: string[] }
+  | { type: 'map'; description: string; features: string[] };
+
 export type WritingPrompt = {
   id: string;
   taskType: WritingTaskType;
   ieltsType: IeltsType;
   title: string;
   promptText: string;
-  chartImageUrl: string | null;
+  category: Task2Category | null;
+  chartData: WritingChartData | null;
   minWords: number;
   timeLimitMinutes: number;
 };
@@ -249,6 +266,10 @@ export type WritingFeedback = {
 export type SpeakingTopic = {
   id: string;
   part: SpeakingPart;
+  /** Groups a Part 1 set, a Part 2 cue card, and a Part 3 set that discuss
+   * the same underlying theme, so a full speaking mock can select one
+   * coherent group instead of three unrelated random topics. */
+  groupId: string;
   topicCategory: string;
   cueCardText: string | null;
   questions: string[];

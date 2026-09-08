@@ -45,6 +45,7 @@
     "@react-native/jest-preset": "^0.86.3",
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "^30.0.0",
+    "@types/node": "^26.5.0",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.10",
     "dotenv": "^17.4.2",
@@ -55,6 +56,7 @@
     "pg": "^8.23.0",
     "prettier": "^3.9.6",
     "ts-jest": "^29.4.12",
+    "tsx": "^4.23.13",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -67,7 +69,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "db:migrate": "node scripts/run-migrations.js",
-    "db:seed": "node scripts/run-seed.js"
+    "db:seed": "node scripts/run-seed.js",
+    "audio:generate": "tsx scripts/generate-audio.ts",
+    "seed:generate": "tsx scripts/generate-seed-sql.ts"
   },
   "private": true
 }

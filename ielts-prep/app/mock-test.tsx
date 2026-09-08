@@ -46,10 +46,12 @@ export default function MockTestIntroScreen() {
       const writingSection = sections.find((s) => s.skill === 'writing');
       const speakingSection = sections.find((s) => s.skill === 'speaking');
       const writingPromptIds = writingSection?.contentRef.writingPromptIds ?? [];
+      const speakingTopicIds = speakingSection?.contentRef.speakingTopicIds ?? [];
+      const speakingGroupId = content.speakingTopics.find((t) => speakingTopicIds.includes(t.id))?.groupId;
 
       const resultHref = buildHref('/mock-result', { mockAttemptId: attempt.id });
       const speakingHref = speakingSection
-        ? buildHref('/speaking-session', { part: 'full', mockAttemptId: attempt.id, nextHref: resultHref })
+        ? buildHref('/speaking-session', { part: 'full', mockAttemptId: attempt.id, nextHref: resultHref, groupId: speakingGroupId })
         : resultHref;
       const writing2Href = writingPromptIds[1]
         ? buildHref('/writing-test', { promptId: writingPromptIds[1], mockAttemptId: attempt.id, nextHref: speakingHref })
@@ -67,7 +69,7 @@ export default function MockTestIntroScreen() {
         : writing1Href;
       const readingHref = readingSection
         ? buildHref('/reading-test', {
-            passageId: readingSection.contentRef.passageIds?.[0],
+            passageIds: (readingSection.contentRef.passageIds ?? []).join(','),
             mockAttemptId: attempt.id,
             durationMinutes: String(readingSection.durationMinutes),
             nextHref: listeningHref,

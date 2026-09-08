@@ -7,7 +7,15 @@ import { useTheme } from '@/hooks/useTheme';
 /** Renders passage text as tappable word "chips" so students can highlight
  * key terms while reading — a lightweight stand-in for text selection, which
  * React Native does not expose an API to intercept. */
-export function HighlightablePassage({ title, body }: { title: string; body: string }) {
+export function HighlightablePassage({
+  title,
+  body,
+  showTitle = true,
+}: {
+  title: string;
+  body: string;
+  showTitle?: boolean;
+}) {
   const theme = useTheme();
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
   const paragraphs = body.split(/\n\n+/);
@@ -23,9 +31,11 @@ export function HighlightablePassage({ title, body }: { title: string; body: str
 
   return (
     <View>
-      <Text variant="h3" style={{ marginBottom: theme.spacing.sm }}>
-        {title}
-      </Text>
+      {showTitle ? (
+        <Text variant="h3" style={{ marginBottom: theme.spacing.sm }}>
+          {title}
+        </Text>
+      ) : null}
       {paragraphs.map((para, pIndex) => (
         <View key={pIndex} style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: theme.spacing.sm }}>
           {para.split(/(\s+)/).map((token, tIndex) => {

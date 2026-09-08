@@ -6,6 +6,7 @@ import { View } from 'react-native';
 
 import { Card, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { content } from '@/lib/content';
 import { getBookmarks, getQuestionAttempts, listQuestions } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 import type { SkillKey } from '@/types/models';
@@ -112,14 +113,14 @@ export default function PracticeHubScreen() {
         Writing practice
       </Text>
       <Card
-        onPress={() => router.push('/writing-test')}
+        onPress={() => router.push('/writing-prompts')}
         style={{ marginBottom: theme.spacing.huge, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
       >
         <IconCircle name="create-outline" color={theme.skillColors.writing} backgroundColor={theme.skillColors.writing + '22'} />
         <View style={{ flex: 1 }}>
-          <Text variant="h3">Timed writing task</Text>
+          <Text variant="h3">Browse writing prompts</Text>
           <Text variant="caption" color="secondary">
-            Task 1 or Task 2 with instant AI feedback
+            {content.writingPrompts.length} Task 1 &amp; Task 2 prompts, searchable by category — instant AI feedback
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />

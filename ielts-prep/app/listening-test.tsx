@@ -26,9 +26,18 @@ export default function ListeningTestScreen() {
   const userId = useAppStore((s) => s.userId);
 
   const tracks = useMemo(() => {
-    if (!trackIds) return content.listeningTracks;
-    const ids = trackIds.split(',');
-    return content.listeningTracks.filter((t) => ids.includes(t.id));
+    if (trackIds) {
+      const ids = trackIds.split(',');
+      return content.listeningTracks.filter((t) => ids.includes(t.id));
+    }
+    // No explicit selection (e.g. the "Listening test" quick-practice entry) —
+    // default to one representative track per section (1-4), taken in content
+    // order, rather than every track from every mock ever added.
+    const bySection = new Map<number, (typeof content.listeningTracks)[number]>();
+    for (const t of content.listeningTracks) {
+      if (!bySection.has(t.sectionNumber)) bySection.set(t.sectionNumber, t);
+    }
+    return [...bySection.values()].sort((a, b) => a.sectionNumber - b.sectionNumber);
   }, [trackIds]);
 
   const questions = useMemo(
@@ -141,7 +150,9 @@ export default function ListeningTestScreen() {
       </View>
 
       <View style={{ padding: theme.spacing.md, borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.colors.border }}>
-        {currentTrack ? <TranscriptAudioPlayer title={currentTrack.title} transcript={currentTrack.transcript} /> : null}
+        {currentTrack ? (
+          <TranscriptAudioPlayer trackId={currentTrack.id} title={currentTrack.title} transcript={currentTrack.transcript} />
+        ) : null}
       </View>
 
       <View style={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.sm }}>

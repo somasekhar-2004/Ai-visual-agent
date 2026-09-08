@@ -1,24 +1,103 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View } from 'react-native';
 
 import { Badge, Card, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
-import { listMockTests } from '@/services/repository';
+import { getMockAttempts, listMockTests } from '@/services/repository';
+import { useAppStore } from '@/store/useAppStore';
+import type { Difficulty, IeltsType, MockAttempt } from '@/types/models';
 
 const SECTION_TESTS: { title: string; description: string; icon: keyof typeof Ionicons.glyphMap; href: string }[] = [
-  { title: 'Reading test', description: '1 passage, timed, examiner-style interface', icon: 'book-outline', href: '/reading-test' },
-  { title: 'Listening test', description: '2 sections, audio playback, note-style answers', icon: 'headset-outline', href: '/listening-test' },
+  { title: 'Reading test', description: '1-3 passages, timed, examiner-style interface', icon: 'book-outline', href: '/reading-test' },
+  { title: 'Listening test', description: 'Multiple sections, real audio playback', icon: 'headset-outline', href: '/listening-test' },
   { title: 'Writing test', description: 'Task 1 or Task 2, timed with AI evaluation', icon: 'create-outline', href: '/writing-test' },
   { title: 'Speaking test', description: 'AI examiner across Parts 1, 2 and 3', icon: 'mic-outline', href: '/speaking-session' },
 ];
 
+const DIFFICULTY_TONE: Record<Difficulty, 'success' | 'warning' | 'error'> = { easy: 'success', medium: 'warning', hard: 'error' };
+const IELTS_TYPE_LABEL: Record<IeltsType, string> = { academic: 'Academic', general: 'General Training' };
+
+function bestBand(attempts: MockAttempt[]): number | null {
+  const completed = attempts.filter((a) => a.status === 'completed' && a.overallBand != null);
+  if (!completed.length) return null;
+  return Math.max(...completed.map((a) => a.overallBand as number));
+}
+
+function lastAttempt(attempts: MockAttempt[]): MockAttempt | null {
+  if (!attempts.length) return null;
+  return [...attempts].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0];
+}
+
 export default function TestsHubScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const userId = useAppStore((s) => s.userId);
+  const isPremium = useAppStore((s) => s.subscription?.plan !== 'free');
   const mockTests = listMockTests();
+
+  const attemptsQuery = useQuery({
+    queryKey: ['mock-attempts', userId],
+    queryFn: () => getMockAttempts(userId!),
+    enabled: Boolean(userId),
+  });
+  const attemptsByTest = useMemo(() => {
+    const map = new Map<string, MockAttempt[]>();
+    for (const attempt of attemptsQuery.data ?? []) {
+      const list = map.get(attempt.mockTestId) ?? [];
+      list.push(attempt);
+      map.set(attempt.mockTestId, list);
+    }
+    return map;
+  }, [attemptsQuery.data]);
+
+  const grouped = useMemo(() => {
+    const byType: Record<IeltsType, typeof mockTests> = { academic: [], general: [] };
+    for (const test of mockTests) byType[test.ieltsType].push(test);
+    byType.academic.sort((a, b) => a.testNumber - b.testNumber);
+    byType.general.sort((a, b) => a.testNumber - b.testNumber);
+    return byType;
+  }, [mockTests]);
+
+  function renderMockTest(test: (typeof mockTests)[number]) {
+    const attempts = attemptsByTest.get(test.id) ?? [];
+    const completed = attempts.some((a) => a.status === 'completed');
+    const best = bestBand(attempts);
+    const last = lastAttempt(attempts);
+    const locked = !test.isFree && !isPremium;
+
+    return (
+      <Card
+        key={test.id}
+        onPress={() => router.push({ pathname: '/mock-test', params: { mockTestId: test.id } })}
+        style={{ marginBottom: theme.spacing.md, gap: theme.spacing.xs }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+          <IconCircle name={completed ? 'checkmark-circle' : 'albums-outline'} color={completed ? theme.colors.success : undefined} />
+          <View style={{ flex: 1 }}>
+            <Text variant="bodyMedium">
+              Test {test.testNumber}: {test.title}
+            </Text>
+            <Text variant="caption" color="secondary" style={{ textTransform: 'capitalize' }}>
+              {content.mockSections.filter((s) => s.mockTestId === test.id).length} sections
+              {last ? ` • Last attempt ${new Date(last.startedAt).toLocaleDateString()}` : ' • Not attempted yet'}
+            </Text>
+          </View>
+          {locked ? <Ionicons name="lock-closed" size={18} color={theme.colors.textTertiary} /> : null}
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs }}>
+          <Badge label={IELTS_TYPE_LABEL[test.ieltsType]} tone="neutral" />
+          <Badge label={test.difficulty} tone={DIFFICULTY_TONE[test.difficulty]} />
+          {test.isFree ? <Badge label="Free" tone="success" /> : <Badge label="Premium" tone="brand" />}
+          {completed ? <Badge label="Completed" tone="success" /> : null}
+          {best != null ? <Badge label={`Best band ${best.toFixed(1)}`} tone="brand" /> : null}
+        </View>
+      </Card>
+    );
+  }
 
   return (
     <Screen scroll>
@@ -30,24 +109,14 @@ export default function TestsHubScreen() {
       </Text>
 
       <Text variant="h3" style={{ marginBottom: theme.spacing.sm }}>
-        Full mock tests
+        Academic full mock tests
       </Text>
-      {mockTests.map((test) => (
-        <Card
-          key={test.id}
-          onPress={() => router.push({ pathname: '/mock-test', params: { mockTestId: test.id } })}
-          style={{ marginBottom: theme.spacing.md, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
-        >
-          <IconCircle name="albums-outline" />
-          <View style={{ flex: 1 }}>
-            <Text variant="bodyMedium">{test.title}</Text>
-            <Text variant="caption" color="secondary" style={{ textTransform: 'capitalize' }}>
-              {test.ieltsType} • {content.mockSections.filter((s) => s.mockTestId === test.id).length} sections
-            </Text>
-          </View>
-          {test.isFree ? <Badge label="Free" tone="success" /> : <Badge label="Premium" tone="brand" />}
-        </Card>
-      ))}
+      {grouped.academic.map(renderMockTest)}
+
+      <Text variant="h3" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.sm }}>
+        General Training full mock tests
+      </Text>
+      {grouped.general.map(renderMockTest)}
 
       <Text variant="h3" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.sm }}>
         Section-specific tests

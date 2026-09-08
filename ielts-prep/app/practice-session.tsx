@@ -3,9 +3,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
+import { CollapsiblePanel } from '@/components/practice/CollapsiblePanel';
 import { QuestionCard } from '@/components/practice/QuestionCard';
+import { HighlightablePassage } from '@/components/testing/HighlightablePassage';
+import { TranscriptAudioPlayer } from '@/components/testing/TranscriptAudioPlayer';
 import { Button, Chip, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { content } from '@/lib/content';
+import { groupQuestions } from '@/lib/practiceGrouping';
 import {
   getBookmarks,
   getQuestionAttempts,
@@ -55,6 +60,19 @@ export default function PracticeSessionScreen() {
 
   const current = questions[index];
   const bookmarkedIds = new Set(bookmarksQuery.data?.map((b) => b.questionId));
+
+  const groupByQuestionId = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof groupQuestions>[number]>();
+    for (const group of groupQuestions(questions)) {
+      for (const q of group.questions) map.set(q.id, group);
+    }
+    return map;
+  }, [questions]);
+
+  const currentGroup = current ? groupByQuestionId.get(current.id) : undefined;
+  const passage = currentGroup?.passageId ? content.readingPassages.find((p) => p.id === currentGroup.passageId) : undefined;
+  const track = currentGroup?.listeningTrackId ? content.listeningTracks.find((t) => t.id === currentGroup.listeningTrackId) : undefined;
+  const positionInGroup = currentGroup ? currentGroup.questions.findIndex((q) => q.id === current.id) + 1 : 0;
 
   async function handleAnswered(_answer: string | null, isCorrect: boolean) {
     if (!userId || !current) return;
@@ -127,6 +145,27 @@ export default function PracticeSessionScreen() {
             <Chip key={d} label={d} selected={difficulty === d} onPress={() => { setDifficulty(d); setIndex(0); setResults([]); }} />
           ))}
         </View>
+      ) : null}
+
+      {passage ? (
+        <CollapsiblePanel
+          title={passage.title}
+          subtitle={`Question ${positionInGroup} of ${currentGroup!.questions.length} for this passage`}
+          icon="book-outline"
+        >
+          <HighlightablePassage title={passage.title} body={passage.body} showTitle={false} />
+        </CollapsiblePanel>
+      ) : null}
+
+      {track ? (
+        <CollapsiblePanel
+          title={track.title}
+          subtitle={`Question ${positionInGroup} of ${currentGroup!.questions.length} for this section`}
+          icon="headset-outline"
+          maxHeight={140}
+        >
+          <TranscriptAudioPlayer trackId={track.id} title={track.title} transcript={track.transcript} showTitle={false} />
+        </CollapsiblePanel>
       ) : null}
 
       <QuestionCard

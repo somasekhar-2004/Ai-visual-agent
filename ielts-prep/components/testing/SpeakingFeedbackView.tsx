@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, ProgressBar, Screen, Text } from '@/components/ui';
+import { Badge, Button, Card, DemoAiBadge, ProgressBar, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import type { SpeakingEvaluation } from '@/services/ai';
 
@@ -50,6 +50,7 @@ export function SpeakingFeedbackView({
           AI Evaluation — Estimated Speaking Band
         </Text>
         <Text variant="display">{evaluation.overallBand.toFixed(1)}</Text>
+        <DemoAiBadge />
         <Badge label={`${evaluation.fillerWordCount} filler words detected`} tone={evaluation.fillerWordCount > 5 ? 'warning' : 'success'} />
       </View>
 

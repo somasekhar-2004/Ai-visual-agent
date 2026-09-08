@@ -92,7 +92,16 @@ scripts/               DB migration/seed runner scripts (Node + pg)
 __tests__/             Jest unit tests
 ```
 
-**Content model:** all lessons, questions, passages, listening tracks, writing prompts, speaking topics, vocabulary, and grammar lessons live in `lib/content/*.ts` (mirrored 1:1 by `supabase/seed/*.sql`). When Supabase is configured, `services/repository/*.ts` reads/writes the database instead; when it isn't, the same functions read the bundled content and read/write `lib/demoStore.ts`. Every screen calls through `services/repository`, so switching between Demo Mode and a real backend requires no screen changes.
+**Content model:** all lessons, questions, passages, listening tracks, writing prompts, speaking topics, vocabulary, and grammar lessons live in `lib/content/*.ts` — the single source of truth. When Supabase is configured, `services/repository/*.ts` reads/writes the database instead; when it isn't, the same functions read the bundled content and read/write `lib/demoStore.ts`. Every screen calls through `services/repository`, so switching between Demo Mode and a real backend requires no screen changes.
+
+`supabase/seed/0002_generated_content.sql` is auto-generated from `lib/content/*.ts` by `scripts/generate-seed-sql.ts` — it is never hand-edited. After adding or changing any content file, run:
+
+```
+npm run seed:generate   # regenerates supabase/seed/0002_generated_content.sql
+npm run db:seed          # applies it (requires DATABASE_URL)
+```
+
+This keeps the TypeScript content and the SQL seed data from drifting as the library grows — adding a new reading passage, mock test, or speaking topic group only ever means editing `lib/content/*.ts`.
 
 ## Environment variables
 
@@ -139,7 +148,18 @@ The schema (`supabase/migrations/0001_init.sql`) covers every table in the produ
 - **`openai`** — set `EXPO_PUBLIC_OPENAI_API_KEY` (and optionally `EXPO_PUBLIC_OPENAI_MODEL`, default `gpt-4o-mini`). Also enables real audio transcription (Whisper) for the Speaking Examiner.
 - **`anthropic`** — set `EXPO_PUBLIC_ANTHROPIC_API_KEY` (and optionally `EXPO_PUBLIC_ANTHROPIC_MODEL`, default `claude-sonnet-5`). Anthropic has no audio transcription API, so Speaking transcription falls back to OpenAI (if configured) or the mock simulated transcript.
 
-All real-provider outputs are validated against Zod schemas (`services/ai/schemas.ts`) before use; a malformed or failed response falls back to the mock provider's output rather than crashing or showing garbage.
+All real-provider outputs are validated against Zod schemas (`services/ai/schemas.ts`) before use; a malformed or failed response falls back to the mock provider's output rather than crashing or showing garbage. Every screen that shows an AI-generated score (Writing feedback, Speaking feedback, AI Coach) displays a small "Demo AI" badge whenever the mock provider produced it, so a mocked score is never presented as if it came from a real model.
+
+## Listening audio generation
+
+Every listening track plays out of the box via real, audible on-device text-to-speech (`expo-speech`) — no listening button is ever a no-op. For higher-quality, pre-rendered audio instead:
+
+```bash
+echo "EXPO_PUBLIC_OPENAI_API_KEY=sk-..." >> .env   # or OPENAI_API_KEY, server-side only
+npm run audio:generate
+```
+
+`scripts/generate-audio.ts` reads every transcript in `lib/content/listening.ts`, synthesizes it with OpenAI's TTS API (`OPENAI_TTS_MODEL`, default `tts-1`; a different voice per section number so multi-speaker sections don't all sound the same), saves the MP3s under `assets/audio/<trackId>.mp3`, and regenerates `lib/content/audioRegistry.ts` to `require()` exactly the files that exist. `TranscriptAudioPlayer` checks that registry first and only falls back to text-to-speech for tracks it doesn't cover — so partially generating audio (e.g. only Section 1 of each mock) is fine. Re-running the script skips tracks that already have a file.
 
 ## RevenueCat setup
 
@@ -238,4 +258,4 @@ In Demo Mode, "Delete account" just resets the local on-device database — no f
 - **Demo listening audio** is synthesized on-device via text-to-speech (no bundled audio files) — attach real `audio_url`s to `listening_tracks` for production-quality listening audio.
 - **Pronunciation scoring** (both mock and real AI providers) is estimated from transcript/speech patterns, not full acoustic phoneme analysis — labeled as an estimate everywhere it's shown.
 - **`react-native-purchases`** requires a custom dev client / real build, not Expo Go.
-- Content (lessons, questions, vocabulary, mock tests) is a representative starter set, not exhaustive — add more via `lib/content/*.ts` and the matching `supabase/seed/*.sql` files, which are designed to stay in sync.
+- Content (lessons, questions, vocabulary, mock tests) grows by editing `lib/content/*.ts` only, then running `npm run seed:generate` to regenerate the matching SQL — see "Content model" above.

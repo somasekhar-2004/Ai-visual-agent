@@ -17,20 +17,36 @@ import { content } from '@/lib/content';
 import { recordDailyActivity, saveReadingAttempt } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
-type Params = { passageId?: string; mockAttemptId?: string; nextHref?: string; durationMinutes?: string };
+type Params = { passageIds?: string; passageId?: string; mockAttemptId?: string; nextHref?: string; durationMinutes?: string };
 
 export default function ReadingTestScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { passageId, mockAttemptId, nextHref, durationMinutes } = useLocalSearchParams<Params>();
+  const { passageIds, passageId, mockAttemptId, nextHref, durationMinutes } = useLocalSearchParams<Params>();
   const userId = useAppStore((s) => s.userId);
   const ieltsType = useAppStore((s) => s.goal?.ieltsType ?? 'academic');
 
-  const passage = useMemo(
-    () => content.readingPassages.find((p) => p.id === passageId) ?? content.readingPassages.find((p) => p.ieltsType === ieltsType) ?? content.readingPassages[0],
-    [passageId, ieltsType]
+  const passages = useMemo(() => {
+    const ids = passageIds ? passageIds.split(',') : passageId ? [passageId] : [];
+    const explicit = ids.map((id) => content.readingPassages.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
+    if (explicit.length) return explicit;
+    // No explicit selection (e.g. the "Reading test" quick-practice entry) —
+    // default to one representative passage per section (1-3) of the
+    // matching IELTS type, rather than every passage from every mock ever added.
+    const byType = content.readingPassages.filter((p) => p.ieltsType === ieltsType);
+    const bySection = new Map<number, (typeof byType)[number]>();
+    for (const p of byType) {
+      if (!bySection.has(p.sectionNumber)) bySection.set(p.sectionNumber, p);
+    }
+    const deduped = [...bySection.values()].sort((a, b) => a.sectionNumber - b.sectionNumber);
+    return deduped.length ? deduped : [content.readingPassages[0]];
+  }, [passageIds, passageId, ieltsType]);
+
+  const passageIdSet = useMemo(() => new Set(passages.map((p) => p.id)), [passages]);
+  const questions = useMemo(
+    () => content.readingQuestions.filter((q) => q.passageId && passageIdSet.has(q.passageId)),
+    [passageIdSet]
   );
-  const questions = useMemo(() => content.readingQuestions.filter((q) => q.passageId === passage.id), [passage]);
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Set<number>>(new Set());
@@ -38,11 +54,13 @@ export default function ReadingTestScreen() {
   const [notes, setNotes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [startTime] = useState(Date.now());
+  const [startTime] = useState(() => Date.now());
 
   const { label: timerLabel } = useCountdown(Number(durationMinutes ?? 20) * 60, () => !submitted && handleSubmit(true));
 
   const current = questions[index];
+  const currentPassage = passages.find((p) => p.id === current?.passageId) ?? passages[0];
+  const passagePosition = passages.findIndex((p) => p.id === currentPassage?.id) + 1;
   const answeredIndices = new Set(questions.map((q, i) => (answers[q.id] ? i : -1)).filter((i) => i >= 0));
 
   function toggleFlag() {
@@ -77,7 +95,7 @@ export default function ReadingTestScreen() {
     await saveReadingAttempt(userId, {
       mockAttemptId,
       ieltsType,
-      passageIds: [passage.id],
+      passageIds: passages.map((p) => p.id),
       rawScore,
       totalQuestions: questions.length,
       band,
@@ -116,6 +134,16 @@ export default function ReadingTestScreen() {
               <Text variant="caption" color={correct ? 'success' : 'error'}>
                 Your answer: {answers[q.id] ?? '(none)'} {correct ? '✓' : `— correct: ${Array.isArray(q.correctAnswer) ? q.correctAnswer[0] : q.correctAnswer}`}
               </Text>
+              {!correct && q.explanation ? (
+                <Text variant="caption" color="secondary" style={{ marginTop: 2 }}>
+                  {q.explanation}
+                </Text>
+              ) : null}
+              {!correct && q.strategyNote ? (
+                <Text variant="caption" color="tertiary" style={{ marginTop: 2 }}>
+                  Strategy: {q.strategyNote}
+                </Text>
+              ) : null}
             </Card>
           );
         })}
@@ -135,12 +163,13 @@ export default function ReadingTestScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.md }}>
         <Text variant="bodyMedium">{timerLabel}</Text>
+        {passages.length > 1 ? <Badge label={`Passage ${passagePosition} of ${passages.length}`} tone="brand" /> : null}
         <Button label="Submit" size="sm" onPress={() => handleSubmit(false)} />
       </View>
 
       <View style={{ height: 260, borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.colors.border }}>
         <ScrollView contentContainerStyle={{ padding: theme.spacing.md }}>
-          <HighlightablePassage title={passage.title} body={passage.body} />
+          {currentPassage ? <HighlightablePassage title={currentPassage.title} body={currentPassage.body} /> : null}
         </ScrollView>
       </View>
 

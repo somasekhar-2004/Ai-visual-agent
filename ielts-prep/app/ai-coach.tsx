@@ -6,7 +6,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
-import { Chip, IconCircle, ScreenHeader, Text, TextField } from '@/components/ui';
+import { Chip, DemoAiBadge, IconCircle, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { chatWithCoach, type CoachContext } from '@/services/ai';
 import { addMessage, createConversation, getMessages, listConversations } from '@/services/repository';
@@ -113,6 +113,9 @@ export default function AiCoachScreen() {
             </Pressable>
           }
         />
+        <View style={{ alignItems: 'flex-start', marginBottom: theme.spacing.xs }}>
+          <DemoAiBadge />
+        </View>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>

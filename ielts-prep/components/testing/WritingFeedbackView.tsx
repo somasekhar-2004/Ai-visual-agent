@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, ProgressBar, Screen, Text } from '@/components/ui';
+import { Button, Card, DemoAiBadge, ProgressBar, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import type { WritingEvaluation } from '@/services/ai';
 
@@ -43,6 +43,7 @@ export function WritingFeedbackView({ evaluation, onDone }: { evaluation: Writin
           AI Evaluation — Estimated Band
         </Text>
         <Text variant="display">{evaluation.overallBand.toFixed(1)}</Text>
+        <DemoAiBadge />
       </View>
 
       <Card style={{ marginBottom: theme.spacing.lg, gap: theme.spacing.sm }}>
