@@ -1,13 +1,27 @@
 // Generates real, multi-speaker listening-test audio entirely offline and
-// for free, using macOS's built-in `say` command.
+// for free, using Piper TTS (a local neural text-to-speech engine) and one
+// specific voice model whose licence was verified for commercial
+// redistribution — see the header comment on PIPER_VOICE below and the
+// Listening overhaul report for the full audit.
 //
 //   npm run audio:generate
 //
-// Zero cost, zero API key, zero network call, zero recurring bill: this
-// script never talks to any TTS provider (OpenAI, ElevenLabs, Azure,
-// Google, or otherwise). It only shells out to two things already free on
-// a Mac: `say` (speech synthesis, built into macOS) and `ffmpeg` (audio
-// mixing — a one-time `brew install ffmpeg`, itself free and open source).
+// Zero cost, zero API key, zero network call at generation time, zero
+// recurring bill: this script never talks to any TTS provider (OpenAI,
+// ElevenLabs, Azure, Google, or otherwise), and — unlike an earlier version
+// of this pipeline — it does NOT use macOS's built-in `say` voices either.
+// Apple's macOS Software License Agreement permits System Voices for
+// "personal, non-commercial use" only and explicitly bars "recording,
+// publishing or redistribution... in a profit, non-profit, public sharing
+// or commercial context," so they can never be used for this app's shipped
+// content regardless of cost. Piper is used instead: an MIT-licensed local
+// TTS engine, with a voice model whose own licence was checked separately
+// (see below) and explicitly permits commercial use.
+//
+// Prerequisites (all free, one-time, documented in README.md):
+//   pip install piper-tts
+//   python3 -m piper.download_voices --data-dir .piper-voices en_GB-vctk-medium
+//
 // Only tracks that have been migrated to structured `turns` (see
 // types/models.ts's ListeningTrack.turns) and whose audioSource.kind is
 // 'local_tts' are synthesized here — a track without `turns`, or one
@@ -18,39 +32,44 @@
 // track with no registered audio file.
 //
 // How a multi-speaker track is built:
-//   1. Each turn is synthesized as its own `say` call, using only that
+//   1. Each turn is synthesized as its own Piper call, using only that
 //      turn's spoken words — never a "Speaker:" label (turns.speaker is
 //      structural metadata, not something that gets read aloud).
-//   2. This machine's actually-installed English voices are discovered at
-//      run time via `say -v ?` (exact voice names vary by macOS version and
-//      which ones you've downloaded, so nothing here is hardcoded). Each
-//      unique speaker in a track gets a distinct one, assigned
-//      deterministically (lib/content/audioVoiceAssignment.ts) so re-runs
-//      are stable. Voices tagged "(Premium)"/"(Enhanced)" by macOS are
-//      preferred — they're the more natural-sounding neural voices Apple
-//      ships, vs. the older compact ones.
-//   3. Speech rate (`say -r <wpm>`) and the silence gap between turns both
+//   2. en_GB-vctk-medium is a multi-speaker model (~109 speaker ids, one
+//      .onnx file) trained on the VCTK Corpus, which deliberately spans
+//      many different British/Irish English accents and both genders — so
+//      distinct speaker ids sound genuinely different. This script reads
+//      the model's own config (.onnx.json) to find how many speakers it
+//      has, then picks an evenly-spread subset and assigns one to each
+//      unique speaker in a track deterministically
+//      (lib/content/audioVoiceAssignment.ts), so re-runs are stable.
+//   3. Pace (Piper's --length_scale) and the silence gap between turns both
 //      come from lib/content/listeningPace.ts, keyed by sectionNumber —
 //      Section 1 is slower with longer pauses, Section 4 is denser and more
-//      continuous, matching real IELTS difficulty progression. `say` has no
+//      continuous, matching real IELTS difficulty progression. Piper has no
 //      equivalent of a natural-language style/emotion parameter, so pace is
 //      the one lever this pipeline controls (see the Listening overhaul
 //      report for the honest quality trade-off this implies).
-//   4. The per-turn clips are decoded and concatenated with that silence gap
-//      in a single ffmpeg pass (an audio filter graph, not the concat
-//      demuxer, so mismatched sample rates/formats between segments are
-//      never an issue) and mixed down to one mp3. ffmpeg is a hard
-//      requirement for this script (install with `brew install ffmpeg`) —
-//      `say`'s AIFF output can't be naively byte-concatenated the way MP3
-//      frames sometimes can, so there is no ffmpeg-less fallback path here.
+//   4. The per-turn WAV clips are decoded and concatenated with that
+//      silence gap in a single ffmpeg filter-graph pass (not the concat
+//      demuxer, so mismatched sample rates/formats are never an issue) and
+//      mixed down to one mp3. ffmpeg is a hard requirement (`brew install
+//      ffmpeg`).
 //
-// This only runs on macOS (`say` is a macOS-only command). See README.md's
-// "Listening audio generation" section for what to use instead on other
-// platforms (e.g. Piper TTS, also free and open source, not wired up here).
-//
-// Re-running this script never re-synthesizes a track that already has an
-// assets/audio/<id>.mp3 file — delete that file first if you want to
-// regenerate it (e.g. after editing its `turns`).
+// PIPER_VOICE (env-configurable, default en_GB-vctk-medium) — licence audit:
+//   - Piper engine software: MIT (rhasspy/piper / piper-tts on PyPI).
+//   - This voice model file: MIT, per its own MODEL_CARD on
+//     https://huggingface.co/rhasspy/piper-voices — commercial use and
+//     redistribution of generated audio both explicitly permitted.
+//   - Underlying training data: the VCTK Corpus (University of Edinburgh,
+//     CSTR), licensed CC BY 4.0 — also permits commercial use, but requires
+//     attribution, which is why this app's content carries an explicit
+//     `attribution` string wherever this voice is used (see
+//     lib/content/listening.ts/listening2.ts's audioSource fields and
+//     lib/content/audioLicense.ts, which validates it's actually present).
+// Swap PIPER_VOICE for a different model only after repeating this same
+// two-layer check (engine AND voice-model AND underlying-data licence) —
+// never assume a voice is commercial-safe just because Piper itself is.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -67,7 +86,11 @@ const ROOT = path.join(__dirname, '..');
 const ASSETS_DIR = path.join(ROOT, 'assets', 'audio');
 const REGISTRY_PATH = path.join(ROOT, 'lib', 'content', 'audioRegistry.ts');
 const TMP_DIR = path.join(os.tmpdir(), 'ielts-prep-audio-gen');
-const SAMPLE_RATE = 24000;
+const SAMPLE_RATE = 22050; // piper-voices/en_GB/vctk's native rate
+
+const PIPER_VOICE = process.env.PIPER_VOICE || 'en_GB-vctk-medium';
+const PIPER_VOICE_DIR = process.env.PIPER_VOICE_DIR || path.join(ROOT, '.piper-voices');
+const MAX_SPEAKERS_TO_USE = 12; // an evenly-spread subset of the model's full speaker range
 
 function hasFfmpeg(): boolean {
   try {
@@ -78,33 +101,45 @@ function hasFfmpeg(): boolean {
   }
 }
 
-/** Parses `say -v ?` output — one voice per line, formatted roughly as
- * "Name (Quality)   locale    # sample text". Returns only English
- * voices (our content is English), ranked so macOS's higher-quality
- * "(Premium)"/"(Enhanced)" voices are picked first. */
-function discoverEnglishVoices(): string[] {
-  const out = execFileSync('say', ['-v', '?'], { encoding: 'utf8' });
-  const voices: { name: string; locale: string }[] = [];
-  for (const line of out.split('\n')) {
-    const m = line.match(/^(.+?)\s{2,}([a-zA-Z]{2}[_-][a-zA-Z]{2})\s+#/);
-    if (m) voices.push({ name: m[1].trim(), locale: m[2] });
+function hasPiper(): boolean {
+  try {
+    execFileSync('piper', ['--help'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
   }
-  const english = voices.filter((v) => /^en[_-]/i.test(v.locale));
-  const rank = (name: string) => (/\(premium\)/i.test(name) ? 0 : /\(enhanced\)/i.test(name) ? 1 : 2);
-  return [...english].sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name)).map((v) => v.name);
 }
 
-function synthesizeSay(text: string, voice: string, rateWpm: number, outPath: string): void {
-  execFileSync('say', ['-v', voice, '-r', String(rateWpm), '-o', outPath, text], { stdio: 'ignore' });
+/** Reads the voice model's own config to find how many speakers it has,
+ * rather than hardcoding a number that could silently go stale if the
+ * model file is swapped. Returns a small, evenly-spread subset of speaker
+ * ids as strings (e.g. ['0','9','18',...]) — we can't listen to samples
+ * from this script, so rather than guess which ones "sound best," this
+ * spreads picks across the full range, and VCTK's own deliberate accent/
+ * gender diversity does the rest. */
+function loadSpeakerPool(configPath: string): string[] {
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  const numSpeakers: number = config.num_speakers ?? (config.speaker_id_map ? Object.keys(config.speaker_id_map).length : 1);
+  if (numSpeakers <= 1) return ['0'];
+  const count = Math.min(numSpeakers, MAX_SPEAKERS_TO_USE);
+  const step = numSpeakers / count;
+  return Array.from({ length: count }, (_, i) => String(Math.floor(i * step)));
+}
+
+function synthesizePiper(text: string, modelPath: string, speakerId: string, lengthScale: number, outPath: string): void {
+  // -s is always passed, even for a single-speaker model (id '0') — Piper
+  // accepts it as a no-op there, and it keeps this call site uniform.
+  const args = ['-m', modelPath, '-s', speakerId, '--length_scale', String(lengthScale), '-f', outPath];
+  execFileSync('piper', args, { input: text, stdio: ['pipe', 'ignore', 'ignore'] });
 }
 
 /** Decodes every segment (and a shared silence clip between each) in one
  * ffmpeg filter-graph pass and mixes down to a single mp3. Each input is
  * independently reformatted to a common sample rate/channel layout before
- * concatenation, so it doesn't matter that `say`'s AIFF output and the
+ * concatenation, so it doesn't matter that Piper's WAV output and the
  * generated silence clip aren't byte-identical in format. */
 function concatWithFfmpeg(segmentPaths: string[], outPath: string, gapSeconds: number): void {
-  const silencePath = path.join(TMP_DIR, `silence-${gapSeconds}.aiff`);
+  const silencePath = path.join(TMP_DIR, `silence-${gapSeconds}.wav`);
   if (!fs.existsSync(silencePath)) {
     execFileSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', `anullsrc=r=${SAMPLE_RATE}:cl=mono`, '-t', String(gapSeconds), silencePath], { stdio: 'ignore' });
   }
@@ -120,17 +155,17 @@ function concatWithFfmpeg(segmentPaths: string[], outPath: string, gapSeconds: n
   execFileSync('ffmpeg', ['-y', ...inputArgs, '-filter_complex', filter, '-map', '[out]', '-c:a', 'libmp3lame', '-b:a', '64k', outPath], { stdio: 'ignore' });
 }
 
-function generateTrack(track: ListeningTrack, voicePool: string[]): void {
+function generateTrack(track: ListeningTrack, modelPath: string, speakerPool: string[]): void {
   const turns = track.turns!;
-  const voices = assignVoices(track, voicePool);
+  const speakers = assignVoices(track, speakerPool);
   const pace = paceForSection(track.sectionNumber);
   fs.mkdirSync(TMP_DIR, { recursive: true });
   const segmentPaths: string[] = [];
   try {
     turns.forEach((turn, i) => {
-      const voice = voices[turn.speaker];
-      const segPath = path.join(TMP_DIR, `${track.id}__${i}.aiff`);
-      synthesizeSay(turn.text, voice, pace.sayRateWpm, segPath);
+      const speakerId = speakers[turn.speaker];
+      const segPath = path.join(TMP_DIR, `${track.id}__${i}.wav`);
+      synthesizePiper(turn.text, modelPath, speakerId, pace.piperLengthScale, segPath);
       segmentPaths.push(segPath);
     });
     const outPath = path.join(ASSETS_DIR, `${track.id}.mp3`);
@@ -167,24 +202,28 @@ ${lines.join('\n')}
 }
 
 function main() {
-  if (process.platform !== 'darwin') {
-    console.log("This script only supports macOS — it uses the built-in `say` command for zero-cost local speech synthesis.");
-    console.log('See README.md "Listening audio generation" for cross-platform alternatives (e.g. Piper TTS, not wired up here).');
-    return;
-  }
   if (!hasFfmpeg()) {
     console.log('ffmpeg is required (used to add pauses between turns and mix down to mp3).');
     console.log('Install it with `brew install ffmpeg` and re-run.');
     return;
   }
-
-  const voicePool = discoverEnglishVoices();
-  if (voicePool.length === 0) {
-    console.log('No English voices found via `say -v ?`.');
-    console.log('Add one in System Settings > Accessibility > Spoken Content > System Voice, then re-run.');
+  if (!hasPiper()) {
+    console.log('The `piper` command was not found. Install it with:');
+    console.log('  pip install piper-tts');
+    console.log('(or `pipx install piper-tts` for an isolated install), then re-run.');
     return;
   }
-  console.log(`Found ${voicePool.length} English voice(s) installed: ${voicePool.join(', ')}`);
+
+  const modelPath = path.join(PIPER_VOICE_DIR, `${PIPER_VOICE}.onnx`);
+  const configPath = path.join(PIPER_VOICE_DIR, `${PIPER_VOICE}.onnx.json`);
+  if (!fs.existsSync(modelPath) || !fs.existsSync(configPath)) {
+    console.log(`Voice model not found at ${path.relative(ROOT, modelPath)}.`);
+    console.log(`Download it with:\n  python3 -m piper.download_voices --data-dir ${path.relative(ROOT, PIPER_VOICE_DIR)} ${PIPER_VOICE}`);
+    return;
+  }
+
+  const speakerPool = loadSpeakerPool(configPath);
+  console.log(`Using voice "${PIPER_VOICE}" with ${speakerPool.length} speaker id(s): ${speakerPool.join(', ')}`);
 
   fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
@@ -205,16 +244,16 @@ function main() {
       console.log(`Already generated: ${track.title}`);
       continue;
     }
-    const speakers = Array.from(new Set(track.turns!.map((t) => t.speaker)));
-    if (speakers.length > voicePool.length) {
+    const speakerNames = Array.from(new Set(track.turns!.map((t) => t.speaker)));
+    if (speakerNames.length > speakerPool.length) {
       failed++;
-      console.error(`  Failed "${track.title}": needs ${speakers.length} distinct voices but only ${voicePool.length} English voice(s) are installed.`);
+      console.error(`  Failed "${track.title}": needs ${speakerNames.length} distinct voices but only ${speakerPool.length} are configured (MAX_SPEAKERS_TO_USE).`);
       continue;
     }
-    const voices = assignVoices(track, voicePool);
-    console.log(`Generating "${track.title}" (${track.turns!.length} turns) — ${speakers.map((s) => `${s}: ${voices[s]}`).join(', ')}`);
+    const speakers = assignVoices(track, speakerPool);
+    console.log(`Generating "${track.title}" (${track.turns!.length} turns) — ${speakerNames.map((s) => `${s}: speaker ${speakers[s]}`).join(', ')}`);
     try {
-      generateTrack(track, voicePool);
+      generateTrack(track, modelPath, speakerPool);
       generated++;
       console.log(`  Saved ${path.relative(ROOT, outPath)}`);
     } catch (err) {

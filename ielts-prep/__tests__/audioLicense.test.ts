@@ -1,14 +1,39 @@
 import { COMMERCIAL_REDISTRIBUTION_ALLOWED, LICENSES_REQUIRING_ATTRIBUTION, validateAudioSource } from '@/lib/content/audioLicense';
 
-// These exercise the licence-validation rule with synthetic fixtures, since
-// no real content currently uses the human_corpus audio path (Phase 1's
-// research found no open corpus that matches IELTS-style dialogue/monologue
-// content closely enough to use safely yet — see the Listening overhaul
-// report). The rule itself still needs to be correct and tested now, so
-// it's ready the moment a real human_corpus track is added.
+// These exercise the licence-validation rule with synthetic fixtures. Real
+// content does use the local_tts path now (the 4 proof-of-concept tracks,
+// Piper's en_GB-vctk-medium voice model) with a real CC-BY-4.0 licence +
+// attribution declared — see contentIntegrity.test.ts's "audio source &
+// licence metadata" tests for that. No real content uses human_corpus yet
+// (Phase 1's research found no open corpus that matches IELTS-style
+// dialogue/monologue content closely enough to use safely yet — see the
+// Listening overhaul report), but the rule is still tested and ready.
 describe('validateAudioSource', () => {
-  it('accepts a local_tts source with no licence fields at all', () => {
-    expect(validateAudioSource({ kind: 'local_tts', provider: 'macos-say' })).toEqual([]);
+  it('accepts a local_tts source with no licence fields at all (e.g. a voice model with no separate data-licence obligation)', () => {
+    expect(validateAudioSource({ kind: 'local_tts', provider: 'piper-tts (en_US-ljspeech)' })).toEqual([]);
+  });
+
+  it('validates a local_tts source\'s licence the same way as human_corpus whenever one is declared (e.g. a voice model trained on licensed speech data)', () => {
+    const withoutAttribution = validateAudioSource({
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+    });
+    expect(withoutAttribution).toEqual(expect.arrayContaining([expect.stringContaining('requires attribution')]));
+
+    const withAttribution = validateAudioSource({
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution: 'VCTK Corpus, University of Edinburgh (CSTR), CC BY 4.0',
+    });
+    expect(withAttribution).toEqual([]);
+  });
+
+  it('a local_tts source is never required to declare sourceUrl the way human_corpus is (no licence obligation implies nothing to point back to)', () => {
+    expect(validateAudioSource({ kind: 'local_tts', provider: 'piper-tts (en_US-ljspeech)' })).not.toEqual(expect.arrayContaining([expect.stringContaining('sourceUrl')]));
   });
 
   it('accepts a CC0-1.0 human_corpus source with no attribution', () => {

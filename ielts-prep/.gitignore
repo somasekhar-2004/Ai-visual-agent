@@ -35,6 +35,11 @@ yarn-error.*
 .env
 .env*.local
 
+# Piper TTS voice models (large binary files, downloaded locally by
+# `python3 -m piper.download_voices` for scripts/generate-audio.ts — never
+# bundled into the app, so never committed).
+.piper-voices/
+
 # typescript
 *.tsbuildinfo
 

@@ -5,7 +5,14 @@ export const listeningTracksSet2: ListeningTrack[] = [
   {
     id: '31000000-0000-0000-0000-000000000001',
     title: 'Orientation Tour of Fernwood Leisure Centre',
-    audioSource: { kind: 'local_tts', provider: 'macos-say' },
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
     speakerPersonas: {
       Guide: 'a friendly, energetic leisure-centre staff member in his 20s with a neutral British accent, welcoming and upbeat but clear tone',
     },
@@ -65,7 +72,14 @@ That brings us to the end of the tour. Does anyone have any questions before we 
   {
     id: '31000000-0000-0000-0000-000000000002',
     title: 'Planning a Group Research Project',
-    audioSource: { kind: 'local_tts', provider: 'macos-say' },
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
     speakerPersonas: {
       Tutor: 'an experienced academic tutor in her 40s with a neutral British accent, calm, encouraging, and authoritative tone, measured pace',
       Liam: 'a young male university student in his early 20s with a neutral British accent, casual natural conversational tone, slightly quicker pace',

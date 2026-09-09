@@ -82,11 +82,18 @@ export type ListeningSpeakerTurn = {
 };
 
 /** 'local_tts' = synthesized entirely offline on the developer's own
- * machine (currently macOS's built-in `say`), zero cost, zero API key,
- * never a paid service. 'human_corpus' = a reused real recording from an
- * outside source, which is why it's the one kind that carries licence
- * obligations below. There is deliberately no "paid cloud TTS" option in
- * this type — see the Listening overhaul report for why. */
+ * machine, zero cost, zero API key, never a paid service. IMPORTANT: this
+ * does NOT mean "no licence to check" — a local_tts *voice model* can
+ * still be trained on licensed speech data (see `license` below); it just
+ * means no money changes hands and no network call happens at generation
+ * time. macOS's built-in `say` voices were considered and explicitly
+ * rejected for this: Apple's macOS Software License Agreement permits
+ * System Voices for "personal, non-commercial use" only and explicitly
+ * bars "recording, publishing or redistribution... in a profit, non-
+ * profit, public sharing or commercial context" — so they can never
+ * appear here regardless of cost. 'human_corpus' = a reused real
+ * recording from an outside source. There is deliberately no "paid cloud
+ * TTS" option in this type — see the Listening overhaul report for why. */
 export type ListeningAudioSourceKind = 'local_tts' | 'human_corpus';
 
 /** Where a track's real (non-fallback) audio came from — kept as data, not
@@ -94,20 +101,25 @@ export type ListeningAudioSourceKind = 'local_tts' | 'human_corpus';
  * instead of relying on someone remembering. See lib/content/audioLicense.ts
  * for which licences are accepted and why (must permit commercial
  * redistribution; No-Derivatives/non-commercial-only licences are rejected
- * outright — e.g. TED talks' CC BY-NC-ND). */
+ * outright — e.g. TED talks' CC BY-NC-ND, Coqui XTTS-v2's CPML). */
 export type ListeningAudioSource = {
   kind: ListeningAudioSourceKind;
-  /** e.g. "macos-say" for locally synthesized audio, or "LibriVox" for a
-   * reused human recording. */
+  /** e.g. "piper-tts (en_GB-vctk-medium)" for locally synthesized audio,
+   * or "LibriVox" for a reused human recording. */
   provider: string;
-  /** Required when kind === 'human_corpus'. One of the licences
-   * lib/content/audioLicense.ts's COMMERCIAL_REDISTRIBUTION_ALLOWED lists. */
-  license?: 'CC0-1.0' | 'Public-Domain' | 'CC-BY-4.0';
-  /** Required when kind === 'human_corpus' — the exact recording/dataset
-   * entry this clip came from, so it can be re-verified later. */
+  /** Required when kind === 'human_corpus'. Also set on a local_tts source
+   * when its voice *model* was trained on licensed speech data (the model
+   * software/weights file can carry its own separate licence — e.g. MIT —
+   * from the underlying recordings it was trained on, and both need to be
+   * clear). One of the licences lib/content/audioLicense.ts's
+   * COMMERCIAL_REDISTRIBUTION_ALLOWED lists. */
+  license?: 'CC0-1.0' | 'Public-Domain' | 'CC-BY-4.0' | 'MIT';
+  /** Required when kind === 'human_corpus', or whenever `license` is set —
+   * the exact recording/dataset/model entry this came from, so it can be
+   * re-verified later. */
   sourceUrl?: string;
   /** Required when `license` needs attribution (currently just
-   * CC-BY-4.0); null/omitted is fine for CC0/Public-Domain. */
+   * CC-BY-4.0); null/omitted is fine for CC0/Public-Domain/MIT. */
   attribution?: string | null;
 };
 
@@ -131,7 +143,7 @@ export type ListeningTrack = {
    * exact `speaker` name used in `turns`. Documents each speaker's intended
    * character for content authors and for a future higher-steerability
    * provider (e.g. a paid cloud TTS with natural-language style control, if
-   * ever reconsidered). The current zero-cost pipeline (macOS `say`, see
+   * ever reconsidered). The current zero-cost pipeline (Piper TTS, see
    * scripts/generate-audio.ts) has no equivalent style-steering parameter,
    * so this is descriptive metadata only right now — it does not
    * automatically pick or shape a voice, but every speaker on a `local_tts`

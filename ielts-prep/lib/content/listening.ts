@@ -4,7 +4,14 @@ export const listeningTracks: ListeningTrack[] = [
   {
     id: '30000000-0000-0000-0000-000000000001',
     title: 'Booking a Self-Storage Unit',
-    audioSource: { kind: 'local_tts', provider: 'macos-say' },
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
     speakerPersonas: {
       Receptionist: 'a warm, professional receptionist in her 30s with a neutral British accent, clear diction, patient and helpful tone',
       Caller: 'a polite adult customer with a neutral British accent, natural relaxed conversational tone',
@@ -51,7 +58,14 @@ RECEPTIONIST: You're welcome, have a great day.`,
   {
     id: '30000000-0000-0000-0000-000000000002',
     title: 'The History and Ecology of Peat Bogs',
-    audioSource: { kind: 'local_tts', provider: 'macos-say' },
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
     speakerPersonas: {
       Lecturer: 'an articulate university lecturer in his 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery',
     },
