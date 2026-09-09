@@ -13,7 +13,11 @@ const ONBOARDING_KEY = 'ielts-prep/auth/onboarding-complete';
 // URLs allowlist — see app/confirm.tsx, which is what this resolves to).
 export const EMAIL_CONFIRMATION_REDIRECT_URL = Linking.createURL('confirm');
 
-export type AuthResult = { userId: string } | { error: string; retryAfterSeconds?: number } | { pendingConfirmation: true; email: string };
+export type AuthResult =
+  | { userId: string }
+  | { error: string; retryAfterSeconds?: number }
+  | { pendingConfirmation: true; email: string; alreadyRegistered?: boolean }
+  | { existingConfirmedAccount: true; email: string };
 
 /** Supabase's over_email_send_rate_limit message includes the exact wait
  * time (e.g. "For security purposes, you can only request this after 58
@@ -39,14 +43,38 @@ function friendlyAuthErrorMessage(error: { code?: string; message: string }): { 
         retryAfterSeconds,
       };
     }
-    case 'user_already_exists':
-    case 'email_exists':
-      return { message: 'An account with this email already exists and is confirmed. Please sign in instead.' };
-    case 'email_not_confirmed':
-      return { message: 'This account has not confirmed its email yet. Check your inbox, or use "Resend confirmation email".' };
     default:
       return { message: error.message };
   }
+}
+
+/**
+ * The only reliable way to tell a CONFIRMED existing account apart from an
+ * UNCONFIRMED one when signUp() reports "this email is already taken"
+ * (whether via an explicit user_already_exists/email_exists error, or —
+ * with anti-enumeration protection on — a bare success with an empty
+ * `identities` array): actually attempt the resend a returning, still-
+ * unconfirmed user would need anyway, via auth.resend(), and read what
+ * really happens. This is deliberately NOT inferred from the identities
+ * array alone — Supabase returns that same ambiguous shape for both a
+ * confirmed and an unconfirmed existing account (community-confirmed by a
+ * Supabase maintainer: the old identities-length-only heuristic "has
+ * changed since" it was first documented), so treating it as "confirmed"
+ * on its own produces exactly the false "already exists and is confirmed"
+ * message for a genuinely unconfirmed account that this function fixes.
+ *
+ * - Resend succeeds → a fresh confirmation link really was just sent, so
+ *   the account was unconfirmed.
+ * - Resend fails because of the rate limit → genuinely can't tell right
+ *   now; surface that plainly rather than guessing either way.
+ * - Resend fails for any other reason → there was no pending confirmation
+ *   left to resend, which only happens for an already-confirmed account.
+ */
+async function disambiguateExistingAccount(email: string): Promise<AuthResult> {
+  const resend = await resendConfirmationEmail(email);
+  if (resend.ok) return { pendingConfirmation: true, email, alreadyRegistered: true };
+  if (resend.retryAfterSeconds) return { error: resend.error ?? 'Please try again shortly.', retryAfterSeconds: resend.retryAfterSeconds };
+  return { existingConfirmedAccount: true, email };
 }
 
 /** Returns the signed-in user's id, or null if nobody is signed in. Works transparently across demo mode and real Supabase auth. */
@@ -80,16 +108,20 @@ export async function signUpWithEmail(email: string, password: string, fullName:
     password,
     options: { data: { full_name: fullName }, emailRedirectTo: EMAIL_CONFIRMATION_REDIRECT_URL },
   });
+  // Some Supabase configurations report a duplicate email as an explicit
+  // error instead of the ambiguous "success with empty identities" case
+  // below — either way, whether it's confirmed is verified the same way,
+  // never assumed from the error code alone.
+  if (error && (error.code === 'user_already_exists' || error.code === 'email_exists')) {
+    return disambiguateExistingAccount(email);
+  }
   if (error) {
     const { message, retryAfterSeconds } = friendlyAuthErrorMessage(error);
     return { error: message, retryAfterSeconds };
   }
   if (!data.user) return { error: 'Sign up did not return a user. Check your email to confirm your account.' };
-  // Anti-enumeration: when the email already belongs to a CONFIRMED account,
-  // Supabase returns success with an empty `identities` array instead of an
-  // error, so a confirmed duplicate must be detected explicitly here.
   if (data.user.identities && data.user.identities.length === 0) {
-    return { error: 'An account with this email already exists and is confirmed. Please sign in instead.' };
+    return disambiguateExistingAccount(email);
   }
   if (!data.session) {
     // This Supabase project requires email confirmation: signUp() creates

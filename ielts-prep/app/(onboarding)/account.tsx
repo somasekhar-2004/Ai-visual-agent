@@ -4,12 +4,17 @@ import { View } from 'react-native';
 
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
 import { OnboardingScaffold } from '@/components/onboarding/OnboardingScaffold';
-import { Text, TextField } from '@/components/ui';
+import { Button, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { isDemoMode } from '@/lib/env';
 import { signUpWithEmail } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
+
+type FlowState =
+  | { kind: 'idle' }
+  | { kind: 'pendingConfirmation'; email: string; alreadyRegistered?: boolean }
+  | { kind: 'existingConfirmed'; email: string };
 
 export default function AccountScreen() {
   const theme = useTheme();
@@ -23,7 +28,7 @@ export default function AccountScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [flow, setFlow] = useState<FlowState>({ kind: 'idle' });
 
   async function finishOnboarding() {
     await completeOnboarding({
@@ -55,12 +60,16 @@ export default function AccountScreen() {
     setLoading(true);
     try {
       const result = await signUpWithEmail(email, password, fullName);
-      if ('error' in result) {
-        setError(result.error);
+      if ('existingConfirmedAccount' in result) {
+        setFlow({ kind: 'existingConfirmed', email: result.email });
         return;
       }
       if ('pendingConfirmation' in result) {
-        setPendingEmail(result.email);
+        setFlow({ kind: 'pendingConfirmation', email: result.email, alreadyRegistered: result.alreadyRegistered });
+        return;
+      }
+      if ('error' in result) {
+        setError(result.error);
         return;
       }
       await finishOnboarding();
@@ -68,6 +77,8 @@ export default function AccountScreen() {
       setLoading(false);
     }
   }
+
+  const goToSignIn = () => router.replace('/(auth)/sign-in');
 
   if (mode === 'choice') {
     return (
@@ -82,26 +93,44 @@ export default function AccountScreen() {
         onSecondary={handleDemo}
         loading={loading}
       >
-        <View />
+        <View style={{ alignItems: 'center' }}>
+          <Button label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} />
+        </View>
       </OnboardingScaffold>
     );
   }
 
-  if (pendingEmail) {
+  if (flow.kind === 'existingConfirmed') {
+    return (
+      <OnboardingScaffold
+        step={8}
+        totalSteps={9}
+        title="Account already exists"
+        onPrimary={goToSignIn}
+        primaryLabel="Sign in"
+        secondaryLabel="Use a different email"
+        onSecondary={() => setFlow({ kind: 'idle' })}
+      >
+        <Text color="secondary">An account with {flow.email} already exists. Sign in to continue.</Text>
+      </OnboardingScaffold>
+    );
+  }
+
+  if (flow.kind === 'pendingConfirmation') {
     return (
       <OnboardingScaffold
         step={8}
         totalSteps={9}
         title="Create your account"
-        onPrimary={() => setPendingEmail(null)}
+        onPrimary={() => setFlow({ kind: 'idle' })}
         primaryLabel="Use a different email"
         secondaryLabel="Back"
         onSecondary={() => {
-          setPendingEmail(null);
+          setFlow({ kind: 'idle' });
           setMode('choice');
         }}
       >
-        <ResendConfirmationNotice email={pendingEmail} />
+        <ResendConfirmationNotice email={flow.email} alreadyRegistered={flow.alreadyRegistered} justResent={flow.alreadyRegistered} />
       </OnboardingScaffold>
     );
   }
@@ -134,6 +163,9 @@ export default function AccountScreen() {
             No Supabase project configured yet — account creation will continue in Demo Mode instead.
           </Text>
         ) : null}
+        <View style={{ alignItems: 'center' }}>
+          <Button label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} />
+        </View>
       </View>
     </OnboardingScaffold>
   );

@@ -64,7 +64,7 @@ export default function SignInScreen() {
           <IconCircle name="log-in-outline" size={64} />
           <Text variant="h1">Welcome back</Text>
         </View>
-        <ResendConfirmationNotice email={pendingEmail} />
+        <ResendConfirmationNotice email={pendingEmail} alreadyRegistered />
         <View style={{ marginTop: theme.spacing.xl }}>
           <Button label="Back to sign in" variant="ghost" onPress={() => setPendingEmail(null)} fullWidth />
         </View>

@@ -7,6 +7,11 @@ import { Button, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { signUpWithEmail } from '@/services/auth';
 
+type FlowState =
+  | { kind: 'idle' }
+  | { kind: 'pendingConfirmation'; email: string; alreadyRegistered?: boolean }
+  | { kind: 'existingConfirmed'; email: string };
+
 export default function SignUpScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -16,7 +21,7 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [flow, setFlow] = useState<FlowState>({ kind: 'idle' });
 
   async function handleSignUp() {
     setError(null);
@@ -27,12 +32,16 @@ export default function SignUpScreen() {
     setLoading(true);
     try {
       const result = await signUpWithEmail(email, password, fullName);
-      if ('error' in result) {
-        setError(result.error);
+      if ('existingConfirmedAccount' in result) {
+        setFlow({ kind: 'existingConfirmed', email: result.email });
         return;
       }
       if ('pendingConfirmation' in result) {
-        setPendingEmail(result.email);
+        setFlow({ kind: 'pendingConfirmation', email: result.email, alreadyRegistered: result.alreadyRegistered });
+        return;
+      }
+      if ('error' in result) {
+        setError(result.error);
         return;
       }
       // A brand new account has no goals yet — route through onboarding to collect them.
@@ -42,13 +51,28 @@ export default function SignUpScreen() {
     }
   }
 
-  if (pendingEmail) {
+  const goToSignIn = () => router.replace('/(auth)/sign-in');
+
+  if (flow.kind === 'existingConfirmed') {
+    return (
+      <Screen scroll>
+        <ScreenHeader title="Account already exists" showBack />
+        <Text color="secondary">An account with {flow.email} already exists.</Text>
+        <View style={{ marginTop: theme.spacing.xl, gap: theme.spacing.sm }}>
+          <Button label="Sign in" onPress={goToSignIn} fullWidth />
+          <Button label="Use a different email" variant="ghost" onPress={() => setFlow({ kind: 'idle' })} fullWidth />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (flow.kind === 'pendingConfirmation') {
     return (
       <Screen scroll>
         <ScreenHeader title="Create account" showBack />
-        <ResendConfirmationNotice email={pendingEmail} />
+        <ResendConfirmationNotice email={flow.email} alreadyRegistered={flow.alreadyRegistered} justResent={flow.alreadyRegistered} />
         <View style={{ marginTop: theme.spacing.xl }}>
-          <Button label="Use a different email" variant="ghost" onPress={() => setPendingEmail(null)} fullWidth />
+          <Button label="Use a different email" variant="ghost" onPress={() => setFlow({ kind: 'idle' })} fullWidth />
         </View>
       </Screen>
     );
@@ -63,8 +87,9 @@ export default function SignUpScreen() {
         <TextField label="Password" value={password} onChangeText={setPassword} secureTextEntry hint="At least 8 characters" />
         {error ? <Text color="error">{error}</Text> : null}
       </View>
-      <View style={{ marginTop: theme.spacing.xl }}>
+      <View style={{ marginTop: theme.spacing.xl, gap: theme.spacing.sm }}>
         <Button label="Create account" onPress={handleSignUp} loading={loading} fullWidth />
+        <Button label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} fullWidth />
       </View>
     </Screen>
   );

@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
@@ -17,18 +18,45 @@ const DEFAULT_RESEND_COOLDOWN_SECONDS = 60;
 /** Shown after signUpWithEmail/signInWithEmail return `pendingConfirmation`
  * — the account exists but has no confirmed session yet. Offers the
  * purpose-built resend path instead of leaving the user to guess whether a
- * second signup attempt will do anything. */
-export function ResendConfirmationNotice({ email }: { email: string }) {
+ * second signup attempt will do anything, plus a direct way to sign in once
+ * they're actually confirmed.
+ *
+ * - `alreadyRegistered`: this is a returning user with an existing-but-
+ *   unconfirmed account (from an attempted sign-up or sign-in that turned
+ *   out to be a duplicate), not a brand-new signup — only affects copy
+ *   ("Email not confirmed yet" vs "Check your email to confirm your
+ *   account").
+ * - `justResent`: a confirmation email was already sent as a side effect of
+ *   getting here (services/auth.ts's disambiguateExistingAccount resends
+ *   automatically to tell an unconfirmed duplicate apart from a confirmed
+ *   one) — shows the "sent" state and starts the cooldown immediately,
+ *   rather than a resend genuinely fired from a sign-in rejection, which
+ *   sent nothing on its own.
+ */
+export function ResendConfirmationNotice({
+  email,
+  alreadyRegistered,
+  justResent,
+}: {
+  email: string;
+  alreadyRegistered?: boolean;
+  justResent?: boolean;
+}) {
   const theme = useTheme();
-  const [status, setStatus] = useState<Status>('idle');
-  const [message, setMessage] = useState<string | null>(null);
+  const router = useRouter();
+  const [status, setStatus] = useState<Status>(justResent ? 'sent' : 'idle');
+  const [message, setMessage] = useState<string | null>(
+    justResent ? 'We just sent a fresh confirmation link — check your inbox and spam folder.' : null
+  );
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    if (justResent) startCooldown(DEFAULT_RESEND_COOLDOWN_SECONDS);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function startCooldown(seconds: number) {
@@ -65,12 +93,13 @@ export function ResendConfirmationNotice({ email }: { email: string }) {
 
   return (
     <Card style={{ gap: theme.spacing.sm }}>
-      <Text variant="bodyMedium">Check your email to confirm your account</Text>
+      <Text variant="bodyMedium">{alreadyRegistered ? 'Email not confirmed yet' : 'Check your email to confirm your account'}</Text>
       <Text variant="body" color="secondary">
         We sent a confirmation link to {email}. Once you confirm it, come back and sign in.
       </Text>
-      <View style={{ marginTop: theme.spacing.xs }}>
+      <View style={{ marginTop: theme.spacing.xs, gap: theme.spacing.sm }}>
         <Button label={buttonLabel} variant="outline" onPress={handleResend} loading={status === 'sending'} disabled={onCooldown} fullWidth />
+        <Button label="Sign in" variant="ghost" onPress={() => router.replace('/(auth)/sign-in')} fullWidth />
       </View>
       {message ? <Text color={status === 'error' ? 'error' : 'secondary'}>{message}</Text> : null}
     </Card>

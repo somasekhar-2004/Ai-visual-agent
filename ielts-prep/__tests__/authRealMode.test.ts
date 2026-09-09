@@ -50,19 +50,6 @@ describe('signUpWithEmail — real backend', () => {
     expect(result).toEqual({ pendingConfirmation: true, email: 'a@b.com' });
   });
 
-  it('treats an empty identities array (anti-enumeration signal) as an already-confirmed duplicate, not pendingConfirmation', async () => {
-    // Supabase returns this shape (success, no error) when signUp() is called
-    // with an email that already belongs to a CONFIRMED account, to avoid
-    // leaking which emails are registered. Regression test: this must not be
-    // read as "new pending signup" and silently resend nothing useful.
-    auth.signUp.mockResolvedValue({
-      data: { user: { id: 'user-1', identities: [] }, session: null },
-      error: null,
-    });
-    const result = await signUpWithEmail('a@b.com', 'password123', 'Alex');
-    expect('error' in result && result.error).toMatch(/already exists/i);
-  });
-
   it('still surfaces the Supabase auth error message when sign-up itself fails for an unmapped reason', async () => {
     auth.signUp.mockResolvedValue({ data: { user: null, session: null }, error: { message: 'Password should be at least 6 characters.' } });
     const result = await signUpWithEmail('a@b.com', 'password123', 'Alex');
@@ -78,13 +65,47 @@ describe('signUpWithEmail — real backend', () => {
     expect('error' in result && result.error).toMatch(/too many emails/i);
   });
 
-  it('maps the user_already_exists error code to a sign-in prompt', async () => {
-    auth.signUp.mockResolvedValue({
-      data: { user: null, session: null },
-      error: { code: 'user_already_exists', message: 'User already registered' },
+  describe('an email that already has an account (identities: [], or an explicit already-exists error)', () => {
+    // Regression coverage for the reported bug: signUp() returns this same
+    // ambiguous "success, empty identities" shape (per a Supabase maintainer,
+    // the old identities-length-only heuristic "has changed since" it was
+    // first documented) for BOTH a confirmed AND an unconfirmed existing
+    // account — so confirmed must never be inferred from that shape alone.
+    // The fix disambiguates via a real auth.resend() call.
+
+    it('identities: [] + resend succeeds → pendingConfirmation (the account was actually UNCONFIRMED)', async () => {
+      auth.signUp.mockResolvedValue({ data: { user: { id: 'user-1', identities: [] }, session: null }, error: null });
+      auth.resend.mockResolvedValue({ error: null });
+      const result = await signUpWithEmail('a@b.com', 'password123', 'Alex');
+      expect(result).toEqual({ pendingConfirmation: true, email: 'a@b.com', alreadyRegistered: true });
+      expect(auth.resend).toHaveBeenCalledWith(expect.objectContaining({ type: 'signup', email: 'a@b.com' }));
     });
-    const result = await signUpWithEmail('a@b.com', 'password123', 'Alex');
-    expect('error' in result && result.error).toMatch(/sign in instead/i);
+
+    it('identities: [] + resend fails (not rate-limited) → existingConfirmedAccount (nothing left to resend)', async () => {
+      auth.signUp.mockResolvedValue({ data: { user: { id: 'user-1', identities: [] }, session: null }, error: null });
+      auth.resend.mockResolvedValue({ error: { code: 'validation_failed', message: 'Email already confirmed' } });
+      const result = await signUpWithEmail('a@b.com', 'password123', 'Alex');
+      expect(result).toEqual({ existingConfirmedAccount: true, email: 'a@b.com' });
+    });
+
+    it('identities: [] + resend is rate-limited → a plain rate-limit error, not a confirmed/unconfirmed guess', async () => {
+      auth.signUp.mockResolvedValue({ data: { user: { id: 'user-1', identities: [] }, session: null }, error: null });
+      auth.resend.mockResolvedValue({ error: { code: 'over_email_send_rate_limit', message: 'you can only request this after 30 seconds' } });
+      const result = await signUpWithEmail('a@b.com', 'password123', 'Alex');
+      expect('retryAfterSeconds' in result && result.retryAfterSeconds).toBe(30);
+      expect('existingConfirmedAccount' in result).toBe(false);
+      expect('pendingConfirmation' in result).toBe(false);
+    });
+
+    it('an explicit user_already_exists signUp error is disambiguated the same way (resend succeeds → pendingConfirmation)', async () => {
+      auth.signUp.mockResolvedValue({
+        data: { user: null, session: null },
+        error: { code: 'user_already_exists', message: 'User already registered' },
+      });
+      auth.resend.mockResolvedValue({ error: null });
+      const result = await signUpWithEmail('a@b.com', 'password123', 'Alex');
+      expect(result).toEqual({ pendingConfirmation: true, email: 'a@b.com', alreadyRegistered: true });
+    });
   });
 });
 
