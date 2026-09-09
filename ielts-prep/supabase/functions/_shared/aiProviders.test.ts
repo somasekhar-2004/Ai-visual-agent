@@ -13,7 +13,7 @@ import { strict as assert } from 'node:assert';
 import { WritingEvaluationSchema } from './schemas.ts';
 
 function clearAiEnv() {
-  for (const key of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'AI_PROVIDER']) {
+  for (const key of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'AI_PROVIDER', 'GEMINI_MODEL', 'GEMINI_TRANSCRIBE_MODEL']) {
     Deno.env.delete(key);
   }
 }
@@ -44,11 +44,129 @@ Deno.test('getConfiguredTextProvider — returns null when nothing is configured
   assert.equal(mod.getConfiguredTextProvider(), null);
 });
 
-Deno.test('getConfiguredTranscriptionProvider — never returns gemini (not wired for audio)', async () => {
+Deno.test('getConfiguredTranscriptionProvider — returns gemini when only GEMINI_API_KEY is set', async () => {
   clearAiEnv();
   Deno.env.set('GEMINI_API_KEY', 'test-key');
   const mod = await freshImport();
+  assert.equal(mod.getConfiguredTranscriptionProvider(), 'gemini');
+});
+
+Deno.test('getConfiguredTranscriptionProvider — prefers openai over gemini by default when both are set (backwards compatible)', async () => {
+  clearAiEnv();
+  Deno.env.set('OPENAI_API_KEY', 'test-openai-key');
+  Deno.env.set('GEMINI_API_KEY', 'test-gemini-key');
+  const mod = await freshImport();
+  assert.equal(mod.getConfiguredTranscriptionProvider(), 'openai');
+});
+
+Deno.test('getConfiguredTranscriptionProvider — honors AI_PROVIDER=gemini even when an OpenAI key is also set', async () => {
+  clearAiEnv();
+  Deno.env.set('OPENAI_API_KEY', 'test-openai-key');
+  Deno.env.set('GEMINI_API_KEY', 'test-gemini-key');
+  Deno.env.set('AI_PROVIDER', 'gemini');
+  const mod = await freshImport();
+  assert.equal(mod.getConfiguredTranscriptionProvider(), 'gemini');
+});
+
+Deno.test('getConfiguredTranscriptionProvider — returns null when nothing is configured', async () => {
+  clearAiEnv();
+  const mod = await freshImport();
   assert.equal(mod.getConfiguredTranscriptionProvider(), null);
+});
+
+Deno.test('transcribeWithGemini — sends inline base64 audio + a verbatim-transcription instruction, and returns the transcript', async () => {
+  clearAiEnv();
+  Deno.env.set('GEMINI_API_KEY', 'test-key');
+  const mod = await freshImport();
+
+  let capturedUrl = '';
+  let capturedBody: Record<string, unknown> | null = null;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL, init?: RequestInit) => {
+    capturedUrl = String(url);
+    capturedBody = JSON.parse(init!.body as string);
+    return Promise.resolve(
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'um, I think that, like, it depends' }] }, finishReason: 'STOP' }] }), { status: 200 })
+    );
+  }) as typeof fetch;
+
+  try {
+    const text = await mod.transcribeWithGemini('ZmFrZS1hdWRpby1ieXRlcw==', 'audio/m4a');
+    assert.equal(text, 'um, I think that, like, it depends');
+    assert.ok(capturedUrl.includes('generativelanguage.googleapis.com'), 'expected the Gemini API host');
+    assert.ok(capturedUrl.includes(':generateContent'), 'expected the generateContent endpoint, not a different transcription API');
+
+    assert.ok(capturedBody, 'expected fetch to have been called');
+    const body = capturedBody as Record<string, unknown>;
+    const contents = body.contents as { role: string; parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] }[];
+    assert.equal(contents.length, 1);
+    assert.equal(contents[0].role, 'user');
+    const audioPart = contents[0].parts.find((p) => p.inlineData);
+    assert.ok(audioPart?.inlineData, 'expected an inlineData part carrying the audio');
+    assert.equal(audioPart!.inlineData!.mimeType, 'audio/m4a');
+    assert.equal(audioPart!.inlineData!.data, 'ZmFrZS1hdWRpby1ieXRlcw==');
+    const textPart = contents[0].parts.find((p) => p.text);
+    assert.ok(textPart?.text?.toLowerCase().includes('verbatim'), 'expected the prompt to instruct verbatim transcription (filler words must survive for fluency scoring)');
+
+    const generationConfig = body.generationConfig as Record<string, unknown>;
+    assert.equal(generationConfig.temperature, 0, 'transcription should use temperature 0 for determinism, not the 0.4 default used for eval prompts');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('transcribeWithGemini — strips surrounding quotes the model sometimes wraps the transcript in', async () => {
+  clearAiEnv();
+  Deno.env.set('GEMINI_API_KEY', 'test-key');
+  const mod = await freshImport();
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (() =>
+    Promise.resolve(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '"Hello, my hometown is quite small."' }] } }] }), { status: 200 }))) as typeof fetch;
+
+  try {
+    const text = await mod.transcribeWithGemini('ZmFrZQ==', 'audio/wav');
+    assert.equal(text, 'Hello, my hometown is quite small.');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('transcribeWithGemini — throws a descriptive error when the response was safety-blocked (no content)', async () => {
+  clearAiEnv();
+  Deno.env.set('GEMINI_API_KEY', 'test-key');
+  const mod = await freshImport();
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response(JSON.stringify({ candidates: [{ finishReason: 'SAFETY' }] }), { status: 200 }))) as typeof fetch;
+
+  try {
+    await assert.rejects(() => mod.transcribeWithGemini('ZmFrZQ==', 'audio/wav'), /SAFETY/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test('transcribeWithGemini — uses GEMINI_TRANSCRIBE_MODEL override independently of GEMINI_MODEL', async () => {
+  clearAiEnv();
+  Deno.env.set('GEMINI_API_KEY', 'test-key');
+  Deno.env.set('GEMINI_MODEL', 'gemini-eval-model');
+  Deno.env.set('GEMINI_TRANSCRIBE_MODEL', 'gemini-transcribe-model');
+  const mod = await freshImport();
+
+  let capturedUrl = '';
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL) => {
+    capturedUrl = String(url);
+    return Promise.resolve(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }), { status: 200 }));
+  }) as typeof fetch;
+
+  try {
+    await mod.transcribeWithGemini('ZmFrZQ==', 'audio/wav');
+    assert.ok(capturedUrl.includes('gemini-transcribe-model'), `expected the transcribe-specific model in the URL, got: ${capturedUrl}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 Deno.test('runJsonPrompt(gemini) — extracts the JSON text from a real-shaped Gemini API response', async () => {

@@ -150,7 +150,7 @@ export default function DevHealthCheckScreen() {
 
       const transcribePing = pingResults.find((r) => r.name === 'transcribe-audio');
       if (transcribePing?.ok) {
-        update('transcription-provider', transcribePing.provider ? 'pass' : 'info', transcribePing.provider ? `Configured: ${transcribePing.provider}.` : 'No OPENAI_API_KEY set — falls back to the mock simulated transcript.');
+        update('transcription-provider', transcribePing.provider ? 'pass' : 'info', transcribePing.provider ? `Configured: ${transcribePing.provider}.` : 'No OPENAI_API_KEY/GEMINI_API_KEY set — falls back to the mock simulated transcript.');
       } else {
         update('transcription-provider', 'info', 'Could not determine — transcribe-audio was unreachable (see above).');
       }

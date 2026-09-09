@@ -1,10 +1,11 @@
 // Transcribes a recorded speaking-test answer. The mobile client reads the
 // local recording as base64 (expo-file-system/legacy) and sends it as JSON
-// — see services/ai/edgeFunctionProvider.ts. Only OpenAI (Whisper) is wired
-// for this; if only an Anthropic key is configured server-side, this
-// returns ai_not_configured so the client falls back to its own simulated
-// transcript, exactly like a missing key does for the other operations.
-import { getConfiguredTranscriptionProvider, transcribeWithOpenAi } from '../_shared/aiProviders.ts';
+// — see services/ai/edgeFunctionProvider.ts. OpenAI (Whisper) and Gemini
+// (general multimodal generateContent) are wired for this; if only an
+// Anthropic key is configured server-side, this returns ai_not_configured so
+// the client falls back to its own simulated transcript, exactly like a
+// missing key does for the other operations.
+import { getConfiguredTranscriptionProvider, transcribeWithGemini, transcribeWithOpenAi } from '../_shared/aiProviders.ts';
 import { handleCorsPreflight } from '../_shared/cors.ts';
 import { healthCheckResponse, isHealthCheckPing } from '../_shared/healthCheck.ts';
 import { friendlyAiErrorMessage } from '../_shared/httpClient.ts';
@@ -56,8 +57,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const bytes = decodeBase64(parsedInput.data.audioBase64);
-    const text = await transcribeWithOpenAi(bytes, parsedInput.data.mimeType);
+    const text =
+      provider === 'gemini'
+        ? await transcribeWithGemini(parsedInput.data.audioBase64, parsedInput.data.mimeType)
+        : await transcribeWithOpenAi(decodeBase64(parsedInput.data.audioBase64), parsedInput.data.mimeType);
     await recordUsage(supabase, user, 'transcription', provider, true);
     return jsonResponse({ text, provider });
   } catch (err) {

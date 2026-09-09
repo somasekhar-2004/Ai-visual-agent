@@ -4,7 +4,7 @@
 // they exist only in the Edge Function runtime and are never bundled into
 // the mobile app or sent to a client in any response.
 import { fetchWithRetry } from './httpClient.ts';
-import { buildCoachSystemPrompt, buildSpeakingEvalPrompt, buildStudyPlanSuggestionPrompt, buildWritingEvalPrompt } from './prompts.ts';
+import { buildCoachSystemPrompt, buildSpeakingEvalPrompt, buildStudyPlanSuggestionPrompt, buildTranscriptionPromptText, buildWritingEvalPrompt } from './prompts.ts';
 import type { CoachContext, SpeakingEvalRequest, WritingEvalRequest } from './schemas.ts';
 
 export type ProviderName = 'openai' | 'anthropic' | 'gemini';
@@ -20,8 +20,20 @@ const ANTHROPIC_MODEL = Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-5';
 // free-tier model list before relying on this default in production, and
 // override with GEMINI_MODEL if it has changed.
 const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-2.0-flash';
+// Transcription reuses GEMINI_MODEL by default (Gemini's flash-tier models
+// are natively multimodal — text, audio, image, video in one generateContent
+// call — and this exact model is already confirmed working live for
+// evaluate-writing/evaluate-speaking/ai-coach/study-plan-suggestion). A
+// dedicated "gemini-3.5-transcribe" model exists for higher-accuracy
+// transcription with diarization/word timestamps, but it ships on a
+// different API surface (the Interactions API, not generateContent) and is
+// not on the free tier — not used here; override GEMINI_TRANSCRIBE_MODEL
+// independently if you want to point transcription at it or another model
+// later without changing the eval/chat model.
+const GEMINI_TRANSCRIBE_MODEL = Deno.env.get('GEMINI_TRANSCRIBE_MODEL') || GEMINI_MODEL;
 // Which provider to prefer when multiple keys happen to be set. Defaults to
-// openai since it's also the only one that supports transcription.
+// openai for backwards compatibility, but transcription now also works with
+// AI_PROVIDER=gemini — see getConfiguredTranscriptionProvider below.
 const PREFERRED_PROVIDER = (Deno.env.get('AI_PROVIDER') as ProviderName | undefined) || 'openai';
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
@@ -43,10 +55,18 @@ export function getConfiguredTextProvider(): ProviderName | null {
   return null;
 }
 
-/** Only OpenAI (Whisper) is wired for transcription — Anthropic has no
- * audio API. */
-export function getConfiguredTranscriptionProvider(): 'openai' | null {
-  return OPENAI_API_KEY ? 'openai' : null;
+export type TranscriptionProviderName = 'openai' | 'gemini';
+
+/** OpenAI (Whisper) and Gemini (general multimodal generateContent) are
+ * wired for transcription — Anthropic has no audio API. Mirrors
+ * getConfiguredTextProvider's preference logic: explicit AI_PROVIDER=gemini
+ * is honored even when an OpenAI key also happens to be set, otherwise
+ * OpenAI is preferred for backwards compatibility with existing deployments. */
+export function getConfiguredTranscriptionProvider(): TranscriptionProviderName | null {
+  if (PREFERRED_PROVIDER === 'gemini' && GEMINI_API_KEY) return 'gemini';
+  if (OPENAI_API_KEY) return 'openai';
+  if (GEMINI_API_KEY) return 'gemini';
+  return null;
 }
 
 function extractJson(text: string): string {
@@ -88,20 +108,31 @@ async function anthropicMessages(userContent: string, systemContent: string | un
   return text;
 }
 
-type GeminiPart = { text?: string };
+type GeminiPart = { text?: string; inlineData?: { mimeType: string; data: string } };
 type GeminiContent = { role: 'user' | 'model'; parts: GeminiPart[] };
 
-async function geminiGenerateContent(contents: GeminiContent[], systemContent: string | undefined, jsonMode: boolean, temperature = 0.4): Promise<string> {
+async function geminiGenerateContent(
+  contents: GeminiContent[],
+  systemContent: string | undefined,
+  jsonMode: boolean,
+  temperature = 0.4,
+  model = GEMINI_MODEL,
+  timeoutMs?: number
+): Promise<string> {
   const body: Record<string, unknown> = {
     contents,
     generationConfig: { temperature, ...(jsonMode ? { responseMimeType: 'application/json' } : {}) },
     ...(systemContent ? { systemInstruction: { parts: [{ text: systemContent }] } } : {}),
   };
-  const res = await fetchWithRetry(`${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-    body: JSON.stringify(body),
-  });
+  const res = await fetchWithRetry(
+    `${GEMINI_BASE}/models/${model}:generateContent`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+      body: JSON.stringify(body),
+    },
+    timeoutMs ? { timeoutMs } : undefined
+  );
   const data = await res.json();
   const candidate = data.candidates?.[0];
   const text: string | undefined = candidate?.content?.parts?.map((p: GeminiPart) => p.text ?? '').join('');
@@ -189,4 +220,23 @@ export async function transcribeWithOpenAi(audioBytes: Uint8Array, mimeType: str
   const data = await res.json();
   if (!data.text) throw new Error('OpenAI transcription response missing text');
   return data.text as string;
+}
+
+/** Transcribes via a general-purpose multimodal Gemini model's generateContent
+ * endpoint (inline base64 audio + a verbatim-transcription instruction) —
+ * the same endpoint and model already used for every other Gemini operation
+ * here, rather than the separate, non-free-tier "gemini-3.5-transcribe"
+ * model (which also ships on a different API, the Interactions API, not
+ * generateContent). `audioBase64` is passed straight through from the
+ * client's own base64 payload — no decode/re-encode round trip needed,
+ * since Gemini's inlineData wants base64 too (unlike OpenAI's multipart
+ * upload, which needs raw bytes). */
+export async function transcribeWithGemini(audioBase64: string, mimeType: string): Promise<string> {
+  const contents: GeminiContent[] = [
+    { role: 'user', parts: [{ text: buildTranscriptionPromptText() }, { inlineData: { mimeType, data: audioBase64 } }] },
+  ];
+  const text = await geminiGenerateContent(contents, undefined, false, 0, GEMINI_TRANSCRIBE_MODEL, 60_000);
+  const trimmed = text.trim().replace(/^["']|["']$/g, '');
+  if (!trimmed) throw new Error('Gemini transcription response was empty');
+  return trimmed;
 }

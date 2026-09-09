@@ -106,3 +106,12 @@ Respond with ONLY a single valid JSON object matching exactly this shape (no mar
   "motivationalNote": string (one short, warm, specific sentence of encouragement — not generic)
 }`;
 }
+
+/** Instructs a general-purpose multimodal Gemini model to transcribe speech
+ * verbatim rather than "clean it up" the way a model might by default —
+ * critical here because SpeakingEvaluationSchema's fillerWordCount and the
+ * fluency scoring both depend on filler words, false starts, and repetition
+ * surviving in the transcript, not being smoothed away. */
+export function buildTranscriptionPromptText(): string {
+  return 'Transcribe the spoken words in this audio file verbatim, exactly as spoken. Keep every filler word (um, uh, like), false start, repetition, and self-correction — do not clean up, summarize, paraphrase, or correct the grammar of what was said. Output ONLY the transcript text itself: no preamble, no quotation marks around it, no speaker labels, no timestamps, no commentary. If the audio contains no discernible speech, output exactly: [no speech detected]';
+}
