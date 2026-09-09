@@ -130,6 +130,22 @@ export default function HelpScreen() {
         </Text>
       </Card>
 
+      <Card style={{ marginBottom: theme.spacing.lg, gap: theme.spacing.sm }}>
+        <Text variant="bodyMedium">Acknowledgements</Text>
+        <Text variant="caption" color="secondary">
+          Some Listening section audio is synthesized locally using the en_GB-vctk-medium voice model for Piper TTS, trained on the VCTK
+          Corpus &#40;&copy; University of Edinburgh, Centre for Speech Technology Research&#41;, licensed under{' '}
+          <Text
+            variant="caption"
+            color="brand"
+            onPress={() => Linking.openURL('https://creativecommons.org/licenses/by/4.0/')}
+          >
+            CC BY 4.0
+          </Text>
+          . No audio, text, or other content from IDP, the British Council, or Cambridge Assessment English is used anywhere in this app.
+        </Text>
+      </Card>
+
       <View style={{ marginBottom: theme.spacing.huge }}>
         <Button label="Delete account" variant="danger" onPress={confirmDelete} loading={deleting} fullWidth />
       </View>

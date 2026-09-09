@@ -267,6 +267,19 @@ describe('listening — audio source & licence metadata', () => {
     }
     expect(problems).toEqual([]);
   });
+
+  it('the app itself surfaces the CC BY 4.0 attribution required for the VCTK-trained voice (not just source comments)', () => {
+    // A CC BY licence's attribution obligation isn't satisfied by a code
+    // comment nobody using the app will ever see — this guards against the
+    // Help screen's Acknowledgements section (app/help.tsx) being removed
+    // or edited to drop the required credit.
+    const usesVctkVoice = content.listeningTracks.some((t) => t.audioSource?.provider?.includes('vctk'));
+    expect(usesVctkVoice).toBe(true);
+    const helpScreenSource = fs.readFileSync(path.join(__dirname, '..', 'app', 'help.tsx'), 'utf8');
+    expect(helpScreenSource).toMatch(/VCTK/);
+    expect(helpScreenSource).toMatch(/CC BY 4\.0/);
+    expect(helpScreenSource).toMatch(/University of Edinburgh/);
+  });
 });
 
 describe('listening — production audio coverage (no silent regressions to device-TTS fallback)', () => {
