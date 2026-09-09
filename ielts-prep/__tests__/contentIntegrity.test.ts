@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { allListeningTracks, allSpeakingTopics, content } from '@/lib/content';
+import { validateAudioSource } from '@/lib/content/audioLicense';
 import { audioRegistry } from '@/lib/content/audioRegistry';
+import { PACE_BY_SECTION } from '@/lib/content/listeningPace';
 
 function duplicateIds(items: { id: string }[]): string[] {
   const seen = new Set<string>();
@@ -200,6 +202,144 @@ describe('listening — structured turns (multi-speaker audio pipeline)', () => 
       }
     }
     expect(problems).toEqual([]);
+  });
+
+  it('every question referencing a turns-based track has a non-empty explanation (a floor bar for "questions authored from the final transcript")', () => {
+    const trackIds = new Set(withTurns.map((t) => t.id));
+    const problems: string[] = [];
+    for (const q of content.allQuestions) {
+      if (q.skill === 'listening' && q.listeningTrackId && trackIds.has(q.listeningTrackId) && !q.explanation?.trim()) {
+        problems.push(q.id);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+});
+
+describe('listening — audio source & licence metadata', () => {
+  const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
+
+  it('every track migrated to structured turns declares an audioSource', () => {
+    const missing = withTurns.filter((t) => !t.audioSource);
+    expect(missing.map((t) => t.id)).toEqual([]);
+  });
+
+  it('every declared audioSource passes licence validation (commercial redistribution allowed, source/licence/attribution present as required)', () => {
+    const problems: string[] = [];
+    for (const t of withTurns) {
+      if (!t.audioSource) continue;
+      for (const problem of validateAudioSource(t.audioSource)) problems.push(`${t.id}: ${problem}`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('PACE_BY_SECTION covers every IELTS section number used by real content (1-4)', () => {
+    const sectionNumbers = new Set(content.listeningTracks.map((t) => t.sectionNumber));
+    for (const n of sectionNumbers) {
+      if (n >= 1 && n <= 4) expect(PACE_BY_SECTION[n]).toBeDefined();
+    }
+  });
+
+  it('pace gets stricter (denser/shorter gaps) from Section 1 to Section 4, matching real IELTS difficulty progression', () => {
+    expect(PACE_BY_SECTION[1].gapSeconds).toBeGreaterThan(PACE_BY_SECTION[4].gapSeconds);
+    expect(PACE_BY_SECTION[1].ttsSpeed).toBeLessThanOrEqual(PACE_BY_SECTION[4].ttsSpeed);
+  });
+});
+
+describe('listening — production audio coverage (no silent regressions to device-TTS fallback)', () => {
+  // Tracks that are correctly migrated to `turns` but don't have real
+  // generated audio *yet* — synthesizing it requires OPENAI_API_KEY, which
+  // is a dev-machine-only secret unavailable in CI. This list must only
+  // ever shrink: remove an id the moment you've run `npm run
+  // audio:generate` locally and committed its .mp3. If it's ever wrong in
+  // the other direction (a track here already has audio, or a track NOT
+  // here is missing audio), a test below fails on purpose.
+  const PENDING_AUDIO_GENERATION = new Set([
+    '30000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000002',
+    '31000000-0000-0000-0000-000000000001',
+    '31000000-0000-0000-0000-000000000002',
+  ]);
+
+  const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
+
+  it('every turns-based track not on the pending-generation list has real generated/sourced audio (never silently falls back to device TTS)', () => {
+    const missing = withTurns.filter((t) => !PENDING_AUDIO_GENERATION.has(t.id) && !audioRegistry[t.id]);
+    expect(missing.map((t) => t.id)).toEqual([]);
+  });
+
+  it('the pending-generation list only contains tracks that genuinely still lack audio (fails as a reminder once you generate one and forget to remove its id here)', () => {
+    const alreadyGenerated = Array.from(PENDING_AUDIO_GENERATION).filter((id) => audioRegistry[id]);
+    expect(alreadyGenerated).toEqual([]);
+  });
+
+  it('the pending-generation list only references real turns-based tracks (catches stale ids after a rename/removal)', () => {
+    const turnsIds = new Set(withTurns.map((t) => t.id));
+    const stale = Array.from(PENDING_AUDIO_GENERATION).filter((id) => !turnsIds.has(id));
+    expect(stale).toEqual([]);
+  });
+});
+
+describe('listening — exactly one playback pipeline app-wide (no hidden device-TTS path)', () => {
+  const APP_ROOT = path.join(__dirname, '..');
+  const SCAN_DIRS = ['app', 'components'];
+  // speaking-session.tsx uses expo-speech for a different feature entirely
+  // (the AI Speaking Examiner reading its own prompt aloud) — not Listening
+  // test audio, so it's an intentional, audited exception.
+  const ALLOWED_SPEECH_FILES = new Set([path.join('components', 'testing', 'TranscriptAudioPlayer.tsx'), path.join('app', 'speaking-session.tsx')]);
+  const ALLOWED_AUDIO_PLAYER_FILES = new Set([
+    path.join('components', 'testing', 'TranscriptAudioPlayer.tsx'),
+    // Reads the registry only to report a count — it never plays audio.
+    path.join('app', 'dev-health-check.tsx'),
+  ]);
+
+  function listSourceFiles(): string[] {
+    const files: string[] = [];
+    for (const dir of SCAN_DIRS) {
+      const abs = path.join(APP_ROOT, dir);
+      const walk = (d: string) => {
+        for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+          const full = path.join(d, entry.name);
+          if (entry.isDirectory()) walk(full);
+          else if (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts')) files.push(full);
+        }
+      };
+      walk(abs);
+    }
+    return files;
+  }
+
+  it('Speech.speak/expo-speech is only used in the shared TranscriptAudioPlayer fallback and the (unrelated) Speaking examiner screen', () => {
+    const offenders: string[] = [];
+    for (const file of listSourceFiles()) {
+      const rel = path.relative(APP_ROOT, file);
+      if (ALLOWED_SPEECH_FILES.has(rel)) continue;
+      const text = fs.readFileSync(file, 'utf8');
+      if (/expo-speech/.test(text) || /Speech\.speak\(/.test(text)) offenders.push(rel);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('no screen builds its own audio player for a ListeningTrack outside the shared TranscriptAudioPlayer component', () => {
+    const offenders: string[] = [];
+    for (const file of listSourceFiles()) {
+      const rel = path.relative(APP_ROOT, file);
+      if (ALLOWED_AUDIO_PLAYER_FILES.has(rel)) continue;
+      const text = fs.readFileSync(file, 'utf8');
+      if (/from ['"]@\/lib\/content\/audioRegistry['"]/.test(text)) offenders.push(rel);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('every screen that renders listening content does so through TranscriptAudioPlayer (the only two real entry points: the exam-style test screen and free practice)', () => {
+    const expected = [path.join('app', 'listening-test.tsx'), path.join('app', 'practice-session.tsx')].sort();
+    const actual: string[] = [];
+    for (const file of listSourceFiles()) {
+      const rel = path.relative(APP_ROOT, file);
+      const text = fs.readFileSync(file, 'utf8');
+      if (/<TranscriptAudioPlayer\b/.test(text)) actual.push(rel);
+    }
+    expect(actual.sort()).toEqual(expected);
   });
 });
 

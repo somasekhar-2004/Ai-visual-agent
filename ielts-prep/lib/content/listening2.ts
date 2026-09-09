@@ -5,6 +5,7 @@ export const listeningTracksSet2: ListeningTrack[] = [
   {
     id: '31000000-0000-0000-0000-000000000001',
     title: 'Orientation Tour of Fernwood Leisure Centre',
+    audioSource: { kind: 'generated_tts', provider: 'openai-tts-1' },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `GUIDE: Right, if everyone can gather round, welcome to Fernwood Leisure Centre — I'm Danny, and I'll be showing you round today before you start your membership. It'll take about fifteen minutes, so do stop me if you have questions.
@@ -61,6 +62,7 @@ That brings us to the end of the tour. Does anyone have any questions before we 
   {
     id: '31000000-0000-0000-0000-000000000002',
     title: 'Planning a Group Research Project',
+    audioSource: { kind: 'generated_tts', provider: 'openai-tts-1' },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `TUTOR: Come in, come in — so this is our first meeting about the group project. It's just the two of you doing it together, is that right?

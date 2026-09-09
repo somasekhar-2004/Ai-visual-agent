@@ -81,6 +81,30 @@ export type ListeningSpeakerTurn = {
   text: string;
 };
 
+export type ListeningAudioSourceKind = 'generated_tts' | 'human_corpus';
+
+/** Where a track's real (non-fallback) audio came from — kept as data, not
+ * inferred, so licence/attribution obligations are checked structurally
+ * instead of relying on someone remembering. See lib/content/audioLicense.ts
+ * for which licences are accepted and why (must permit commercial
+ * redistribution; No-Derivatives/non-commercial-only licences are rejected
+ * outright — e.g. TED talks' CC BY-NC-ND). */
+export type ListeningAudioSource = {
+  kind: ListeningAudioSourceKind;
+  /** e.g. "openai-tts-1" for generated audio, or "LibriVox" for a reused
+   * human recording. */
+  provider: string;
+  /** Required when kind === 'human_corpus'. One of the licences
+   * lib/content/audioLicense.ts's COMMERCIAL_REDISTRIBUTION_ALLOWED lists. */
+  license?: 'CC0-1.0' | 'Public-Domain' | 'CC-BY-4.0';
+  /** Required when kind === 'human_corpus' — the exact recording/dataset
+   * entry this clip came from, so it can be re-verified later. */
+  sourceUrl?: string;
+  /** Required when `license` needs attribution (currently just
+   * CC-BY-4.0); null/omitted is fine for CC0/Public-Domain. */
+  attribution?: string | null;
+};
+
 export type ListeningTrack = {
   id: string;
   title: string;
@@ -93,6 +117,10 @@ export type ListeningTrack = {
    * without `turns` still works — it just keeps using the legacy
    * single-voice/on-device-TTS path until it's migrated. */
   turns?: ListeningSpeakerTurn[];
+  /** Where this track's real audio comes from. Set once the track is
+   * migrated to `turns` and has (or is meant to get) real generated/sourced
+   * audio — see lib/content/audioLicense.ts's validateAudioSource. */
+  audioSource?: ListeningAudioSource;
   audioUrl: string | null;
   sectionNumber: number;
 };

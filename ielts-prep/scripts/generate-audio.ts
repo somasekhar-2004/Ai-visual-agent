@@ -24,12 +24,20 @@
 //      structural metadata, not something that gets read aloud).
 //   2. Each unique speaker in a track gets a distinct OpenAI voice, assigned
 //      deterministically from VOICE_POOL so re-runs are stable.
-//   3. The per-turn clips are concatenated with a short silence gap between
-//      them (via ffmpeg, if installed) for natural pacing between speaker
-//      turns and paragraph breaks. Install it once with `brew install
-//      ffmpeg` on macOS. Without ffmpeg, clips are still concatenated (raw
-//      MPEG frame concatenation) but with no gap — the script prints a
-//      warning so this is never silently degraded.
+//   3. Speech rate and the silence gap between turns both come from
+//      lib/content/listeningPace.ts, keyed by sectionNumber — Section 1 is
+//      slightly slower with longer pauses, Section 4 is denser and more
+//      continuous, matching real IELTS difficulty progression.
+//   4. The per-turn clips are concatenated with that gap (via ffmpeg, if
+//      installed). Install it once with `brew install ffmpeg` on macOS.
+//      Without ffmpeg, clips are still concatenated (raw MPEG frame
+//      concatenation) but with no gap — the script prints a warning so
+//      this is never silently degraded.
+//
+// A track whose audioSource.kind is 'human_corpus' is skipped here on
+// purpose — that's a reused real recording, not something this script
+// synthesizes; its .mp3 is placed manually (with verified licence/source
+// metadata) rather than generated.
 //
 // Re-running this script never re-synthesizes a track that already has an
 // assets/audio/<id>.mp3 file — delete that file first if you want to
@@ -44,6 +52,7 @@ import dotenv from 'dotenv';
 
 import { content } from '../lib/content';
 import { assignVoices } from '../lib/content/audioVoiceAssignment';
+import { paceForSection } from '../lib/content/listeningPace';
 import type { ListeningTrack } from '../types/models';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -56,7 +65,6 @@ dotenv.config({ path: path.join(ROOT, '.env') });
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1';
-const GAP_SECONDS = 0.55;
 const TTS_SAMPLE_RATE = 24000;
 
 function hasFfmpeg(): boolean {
@@ -68,11 +76,11 @@ function hasFfmpeg(): boolean {
   }
 }
 
-async function synthesizeOpenAI(text: string, voice: string): Promise<Buffer> {
+async function synthesizeOpenAI(text: string, voice: string, speed: number): Promise<Buffer> {
   const res = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice, input: text, response_format: 'mp3' }),
+    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice, input: text, response_format: 'mp3', speed }),
   });
   if (!res.ok) throw new Error(`OpenAI TTS request failed: ${res.status} ${await res.text()}`);
   return Buffer.from(await res.arrayBuffer());
@@ -85,13 +93,14 @@ function shellQuote(p: string): string {
 /** Concatenates per-turn clips with a silence gap between each, via
  * ffmpeg's concat demuxer. Re-encodes (rather than stream-copying) so the
  * shared, separately-generated silence clip never has to match the TTS
- * output's exact frame parameters. */
-function concatWithFfmpeg(segmentPaths: string[], outPath: string): void {
-  const silencePath = path.join(TMP_DIR, 'silence.mp3');
+ * output's exact frame parameters. `gapSeconds` comes from
+ * lib/content/listeningPace.ts for this track's section. */
+function concatWithFfmpeg(segmentPaths: string[], outPath: string, gapSeconds: number): void {
+  const silencePath = path.join(TMP_DIR, `silence-${gapSeconds}.mp3`);
   if (!fs.existsSync(silencePath)) {
     execFileSync(
       'ffmpeg',
-      ['-y', '-f', 'lavfi', '-i', `anullsrc=r=${TTS_SAMPLE_RATE}:cl=mono`, '-t', String(GAP_SECONDS), '-c:a', 'libmp3lame', '-q:a', '6', silencePath],
+      ['-y', '-f', 'lavfi', '-i', `anullsrc=r=${TTS_SAMPLE_RATE}:cl=mono`, '-t', String(gapSeconds), '-c:a', 'libmp3lame', '-q:a', '6', silencePath],
       { stdio: 'ignore' },
     );
   }
@@ -130,6 +139,7 @@ function concatRaw(segmentPaths: string[], outPath: string): void {
 async function generateTrack(track: ListeningTrack, ffmpegAvailable: boolean): Promise<void> {
   const turns = track.turns!;
   const voices = assignVoices(track);
+  const pace = paceForSection(track.sectionNumber);
   fs.mkdirSync(TMP_DIR, { recursive: true });
   const segmentPaths: string[] = [];
   try {
@@ -137,12 +147,12 @@ async function generateTrack(track: ListeningTrack, ffmpegAvailable: boolean): P
       const turn = turns[i];
       const voice = voices[turn.speaker];
       const segPath = path.join(TMP_DIR, `${track.id}__${i}.mp3`);
-      const audio = await synthesizeOpenAI(turn.text, voice);
+      const audio = await synthesizeOpenAI(turn.text, voice, pace.ttsSpeed);
       fs.writeFileSync(segPath, audio);
       segmentPaths.push(segPath);
     }
     const outPath = path.join(ASSETS_DIR, `${track.id}.mp3`);
-    if (ffmpegAvailable) concatWithFfmpeg(segmentPaths, outPath);
+    if (ffmpegAvailable) concatWithFfmpeg(segmentPaths, outPath, pace.gapSeconds);
     else concatRaw(segmentPaths, outPath);
   } finally {
     for (const p of segmentPaths) fs.rmSync(p, { force: true });
@@ -191,10 +201,16 @@ async function main() {
 
   fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
-  const migrated = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
-  const legacyCount = content.listeningTracks.length - migrated.length;
+  const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
+  const humanCorpus = withTurns.filter((t) => t.audioSource?.kind === 'human_corpus');
+  const migrated = withTurns.filter((t) => t.audioSource?.kind !== 'human_corpus');
+  const legacyCount = content.listeningTracks.length - withTurns.length;
   let generated = 0;
   let failed = 0;
+
+  if (humanCorpus.length > 0) {
+    console.log(`${humanCorpus.length} track(s) are marked audioSource.kind: 'human_corpus' — skipped here, their .mp3 must be placed manually.`);
+  }
 
   for (const track of migrated) {
     const outPath = path.join(ASSETS_DIR, `${track.id}.mp3`);

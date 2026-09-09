@@ -4,6 +4,7 @@ export const listeningTracks: ListeningTrack[] = [
   {
     id: '30000000-0000-0000-0000-000000000001',
     title: 'Booking a Self-Storage Unit',
+    audioSource: { kind: 'generated_tts', provider: 'openai-tts-1' },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `RECEPTIONIST: Good morning, Citywide Storage, how can I help you?
@@ -46,6 +47,7 @@ RECEPTIONIST: You're welcome, have a great day.`,
   {
     id: '30000000-0000-0000-0000-000000000002',
     title: 'The History and Ecology of Peat Bogs',
+    audioSource: { kind: 'generated_tts', provider: 'openai-tts-1' },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good afternoon, everyone. Today I want to talk about a habitat that rarely gets the attention it deserves: peat bogs. Peat bogs form in waterlogged conditions where dead plant material, mostly a moss called sphagnum, doesn't fully decompose because there isn't enough oxygen in the soggy ground. Over thousands of years, this partially decomposed material builds up into a thick layer called peat, sometimes several metres deep.
