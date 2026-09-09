@@ -78,8 +78,11 @@ export async function saveOnboardingGoal(userId: string, input: OnboardingInput)
       return db.goal;
     });
   }
-  await supabase!.from('user_goals').update({ is_active: false }).eq('user_id', userId);
-  const { data } = await supabase!
+  const { error: deactivateError } = await supabase!.from('user_goals').update({ is_active: false }).eq('user_id', userId);
+  if (deactivateError) {
+    throw new Error(`Could not deactivate previous goals before saving onboarding: ${deactivateError.message}`);
+  }
+  const { data, error } = await supabase!
     .from('user_goals')
     .insert({
       user_id: userId,
@@ -93,6 +96,17 @@ export async function saveOnboardingGoal(userId: string, input: OnboardingInput)
     })
     .select('*')
     .single();
+  // A failed insert (RLS rejection, missing/expired auth session, constraint
+  // violation, network error) surfaces here as `error` set and `data` null.
+  // Never pass that straight to mapGoalRow — it doesn't defend against a null
+  // row, by design, so a real failure is never silently reshaped into a fake
+  // "empty" goal.
+  if (error || !data) {
+    throw new Error(
+      `Failed to save onboarding goal: ${error?.message ?? 'the database returned no row for the new goal.'}` +
+        (error?.code ? ` (code: ${error.code})` : '')
+    );
+  }
   return mapGoalRow(data);
 }
 

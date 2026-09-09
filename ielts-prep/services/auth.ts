@@ -42,6 +42,15 @@ export async function signUpWithEmail(email: string, password: string, fullName:
   });
   if (error) return { error: error.message };
   if (!data.user) return { error: 'Sign up did not return a user. Check your email to confirm your account.' };
+  if (!data.session) {
+    // This Supabase project requires email confirmation: signUp() creates
+    // the user row but starts no session, so the client has no auth.uid()
+    // yet. Proceeding to onboarding writes here would hit RLS-protected
+    // tables (e.g. user_goals) with no authenticated user and fail. Surface
+    // this instead of returning a userId the caller would wrongly treat as
+    // signed in.
+    return { error: 'Account created. Check your email to confirm it, then sign in to continue.' };
+  }
   return { userId: data.user.id };
 }
 

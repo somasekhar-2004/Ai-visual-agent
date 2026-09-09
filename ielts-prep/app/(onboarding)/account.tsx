@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { OnboardingScaffold } from '@/components/onboarding/OnboardingScaffold';
 import { Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { isDemoMode } from '@/lib/env';
 import { signUpWithEmail } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
@@ -103,9 +104,11 @@ export default function AccountScreen() {
         />
         <TextField label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="At least 8 characters" />
         {error ? <Text color="error">{error}</Text> : null}
-        <Text variant="caption" color="tertiary">
-          No Supabase project configured yet? Account creation will automatically continue in Demo Mode instead.
-        </Text>
+        {isDemoMode ? (
+          <Text variant="caption" color="tertiary">
+            No Supabase project configured yet — account creation will continue in Demo Mode instead.
+          </Text>
+        ) : null}
       </View>
     </OnboardingScaffold>
   );
