@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { BandGrid } from '@/components/onboarding/BandGrid';
@@ -49,6 +49,8 @@ export default function ProfileEditScreen() {
       });
       await refreshUserData(userId);
       router.back();
+    } catch (err) {
+      Alert.alert('Could not save changes', (err as Error).message);
     } finally {
       setSaving(false);
     }

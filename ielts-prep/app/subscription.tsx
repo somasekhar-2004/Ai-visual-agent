@@ -45,6 +45,8 @@ export default function SubscriptionScreen() {
       } else {
         setError(result.error ?? 'No purchase to restore.');
       }
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setRestoring(false);
     }

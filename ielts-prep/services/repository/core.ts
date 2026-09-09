@@ -3,6 +3,7 @@ import { DEMO_USER_ID, getDb, mutateDb } from '@/lib/demoStore';
 import { isDemoMode } from '@/lib/env';
 import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
+import { throwIfSupabaseError } from '@/lib/supabaseErrors';
 import { getPurchasesProvider, isPurchasesMocked } from '@/services/purchases';
 import type {
   IeltsType,
@@ -19,7 +20,11 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     const db = await getDb();
     return db.profile.id === userId || userId === DEMO_USER_ID ? db.profile : null;
   }
-  const { data } = await supabase!.from('profiles').select('*').eq('id', userId).maybeSingle();
+  const { data, error } = await supabase!.from('profiles').select('*').eq('id', userId).maybeSingle();
+  // maybeSingle() returns { data: null, error: null } for a genuine "no row"
+  // — only a non-null error means the query itself failed (RLS/permission
+  // denial, network error, ...), which must never be read as "no profile".
+  throwIfSupabaseError(error, 'Failed to load profile');
   if (!data) return null;
   return { id: data.id, fullName: data.full_name, avatarUrl: data.avatar_url, createdAt: data.created_at };
 }
@@ -31,7 +36,8 @@ export async function updateProfileName(userId: string, fullName: string): Promi
     });
     return;
   }
-  await supabase!.from('profiles').update({ full_name: fullName }).eq('id', userId);
+  const { error } = await supabase!.from('profiles').update({ full_name: fullName }).eq('id', userId);
+  throwIfSupabaseError(error, 'Failed to update profile');
 }
 
 export async function getActiveGoal(userId: string): Promise<UserGoal | null> {
@@ -39,7 +45,7 @@ export async function getActiveGoal(userId: string): Promise<UserGoal | null> {
     const db = await getDb();
     return db.goal ?? null;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('user_goals')
     .select('*')
     .eq('user_id', userId)
@@ -47,6 +53,7 @@ export async function getActiveGoal(userId: string): Promise<UserGoal | null> {
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  throwIfSupabaseError(error, 'Failed to load your study goal');
   if (!data) return null;
   return mapGoalRow(data);
 }
@@ -136,11 +143,12 @@ export async function getLatestBandScores(userId: string): Promise<SkillBandMap>
     }
     return map;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('band_scores')
     .select('*')
     .eq('user_id', userId)
     .order('recorded_at', { ascending: true });
+  throwIfSupabaseError(error, 'Failed to load band scores');
   const map: SkillBandMap = {};
   for (const row of data ?? []) map[row.skill as SkillOrOverall] = Number(row.band);
   return map;
@@ -151,11 +159,12 @@ export async function getBandScoreHistory(userId: string): Promise<import('@/typ
     const db = await getDb();
     return [...db.bandScores].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('band_scores')
     .select('*')
     .eq('user_id', userId)
     .order('recorded_at', { ascending: true });
+  throwIfSupabaseError(error, 'Failed to load band score history');
   return (data ?? []).map((row: any) => ({
     id: row.id,
     userId: row.user_id,
@@ -178,7 +187,8 @@ export async function recordBandScore(
     });
     return;
   }
-  await supabase!.from('band_scores').insert({ user_id: userId, skill, band, source });
+  const { error } = await supabase!.from('band_scores').insert({ user_id: userId, skill, band, source });
+  throwIfSupabaseError(error, 'Failed to record band score');
 }
 
 /** Recomputes and stores the overall band from the four skill bands, using the official IELTS rounding rule. */
@@ -199,7 +209,8 @@ export async function getSubscription(userId: string): Promise<Subscription | nu
     const db = await getDb();
     return db.subscription;
   }
-  const { data } = await supabase!.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+  const { data, error } = await supabase!.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
+  throwIfSupabaseError(error, 'Failed to load subscription');
   if (!data) return null;
   return {
     id: data.id,
@@ -223,10 +234,11 @@ export async function setSubscription(
     });
     return;
   }
-  await supabase!
+  const { error } = await supabase!
     .from('subscriptions')
     .update({ plan, status, ...(currentPeriodEnd !== undefined ? { current_period_end: currentPeriodEnd } : {}) })
     .eq('user_id', userId);
+  throwIfSupabaseError(error, 'Failed to update subscription');
 }
 
 /** Re-checks the store's own entitlement record (RevenueCat when

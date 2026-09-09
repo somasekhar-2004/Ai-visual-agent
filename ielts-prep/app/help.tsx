@@ -30,6 +30,8 @@ export default function HelpScreen() {
       }
       await signOut();
       router.replace('/(auth)/sign-in');
+    } catch (err) {
+      Alert.alert('Could not delete account', (err as Error).message);
     } finally {
       setDeleting(false);
     }

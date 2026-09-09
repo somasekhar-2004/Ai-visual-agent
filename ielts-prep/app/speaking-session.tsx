@@ -30,7 +30,7 @@ import { useAppStore } from '@/store/useAppStore';
 import type { SpeakingPart } from '@/types/models';
 
 type Params = { part?: SpeakingPart; mockAttemptId?: string; mockTestId?: string; stepIndex?: string; nextHref?: string; groupId?: string };
-type Phase = 'intro' | 'prep' | 'recording' | 'transcribing' | 'evaluating' | 'result' | 'permission_denied';
+type Phase = 'intro' | 'prep' | 'recording' | 'transcribing' | 'evaluating' | 'result' | 'permission_denied' | 'error';
 
 export default function SpeakingSessionScreen() {
   const theme = useTheme();
@@ -66,6 +66,7 @@ export default function SpeakingSessionScreen() {
   const [transcripts, setTranscripts] = useState<string[]>([]);
   const [totalDuration, setTotalDuration] = useState(0);
   const [evaluation, setEvaluation] = useState<SpeakingEvaluationResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Guards against stopRecording firing twice for the same turn — it's
@@ -78,9 +79,20 @@ export default function SpeakingSessionScreen() {
 
   useEffect(() => {
     if (!userId || blockedByLimit) return;
-    createSpeakingSession(userId, part, turn?.topicId ?? null).then((s) => {
-      sessionIdRef.current = s.id;
-    });
+    createSpeakingSession(userId, part, turn?.topicId ?? null)
+      .then((s) => {
+        sessionIdRef.current = s.id;
+      })
+      .catch((err) => {
+        // A failed insert here (RLS/permission denial, network error) used
+        // to throw from an unguarded `.then()` with no `.catch()` — an
+        // unhandled promise rejection surfacing as an uncaught TypeError.
+        // sessionIdRef.current simply stays null on failure: every write
+        // below already checks `if (sessionIdRef.current)` before saving,
+        // so the test can still be attempted and evaluated even though
+        // nothing will persist to Supabase for it.
+        console.warn('[speaking] failed to create speaking session:', err.message);
+      });
     // Intentionally runs once on mount to open a single session for the whole flow.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blockedByLimit]);
@@ -128,9 +140,19 @@ export default function SpeakingSessionScreen() {
   }
 
   async function startRecording() {
-    const granted = await recorder.start();
-    if (!granted) {
-      setPhase('permission_denied');
+    try {
+      const granted = await recorder.start();
+      if (!granted) {
+        setPhase('permission_denied');
+        return;
+      }
+    } catch (err) {
+      // A native recorder failure here (rare, but real on some devices) used
+      // to throw uncaught from setInterval's fire-and-forget call in
+      // startPrep/stopRecording — never leave the screen on whatever phase
+      // it was in when that happened.
+      setErrorMessage((err as Error).message);
+      setPhase('error');
       return;
     }
     stoppingRef.current = false;
@@ -153,55 +175,70 @@ export default function SpeakingSessionScreen() {
     stoppingRef.current = true;
     clearTimer();
     setPhase('transcribing');
-    const { uri, durationSeconds } = await recorder.stop();
-    const transcript = uri ? await transcribeAudio(uri) : '';
-    setTranscripts((t) => [...t, transcript]);
-    setTotalDuration((d) => d + durationSeconds);
+    try {
+      const { uri, durationSeconds } = await recorder.stop();
+      const transcript = uri ? await transcribeAudio(uri) : '';
+      setTranscripts((t) => [...t, transcript]);
+      setTotalDuration((d) => d + durationSeconds);
 
-    if (sessionIdRef.current) {
-      await addSpeakingResponse(sessionIdRef.current, {
-        questionText: turn.questionText,
-        audioUrl: uri,
-        transcript,
-        durationSeconds,
-        orderIndex: turnIndex,
-      });
-    }
+      if (sessionIdRef.current) {
+        await addSpeakingResponse(sessionIdRef.current, {
+          questionText: turn.questionText,
+          audioUrl: uri,
+          transcript,
+          durationSeconds,
+          orderIndex: turnIndex,
+        });
+      }
 
-    if (turnIndex + 1 < turns.length) {
-      setTurnIndex((i) => i + 1);
-      setPhase('intro');
-    } else {
-      finishSession([...transcripts, transcript].join(' '), totalDuration + durationSeconds);
+      if (turnIndex + 1 < turns.length) {
+        setTurnIndex((i) => i + 1);
+        setPhase('intro');
+      } else {
+        await finishSession([...transcripts, transcript].join(' '), totalDuration + durationSeconds);
+      }
+    } catch (err) {
+      // The screen must never get stuck on "Transcribing your answer..."
+      // forever — a failure anywhere in stop/transcribe/save now surfaces
+      // as a recoverable error state instead of an unhandled rejection.
+      setErrorMessage((err as Error).message);
+      setPhase('error');
+    } finally {
+      stoppingRef.current = false;
     }
   }
 
   async function finishSession(fullTranscript: string, durationSeconds: number) {
     setPhase('evaluating');
-    if (sessionIdRef.current) await completeSpeakingSession(sessionIdRef.current);
-    const result = await evaluateSpeaking({
-      part,
-      topicCategory: turn.part,
-      transcript: fullTranscript,
-      questionCount: turns.length,
-      totalDurationSeconds: durationSeconds,
-    });
-    setEvaluation(result);
-    if (userId && sessionIdRef.current) {
-      await saveSpeakingFeedback(sessionIdRef.current, userId, {
-        overallBand: result.overallBand,
-        fluencyCoherence: result.fluencyCoherence,
-        lexicalResource: result.lexicalResource,
-        grammaticalRange: result.grammaticalRange,
-        pronunciation: result.pronunciation,
-        fillerWordCount: result.fillerWordCount,
-        strengths: result.strengths,
-        weaknesses: result.weaknesses,
-        suggestedExercises: result.suggestedExercises,
+    try {
+      if (sessionIdRef.current) await completeSpeakingSession(sessionIdRef.current);
+      const result = await evaluateSpeaking({
+        part,
+        topicCategory: turn.part,
+        transcript: fullTranscript,
+        questionCount: turns.length,
+        totalDurationSeconds: durationSeconds,
       });
-      await recordDailyActivity(userId, 20);
+      setEvaluation(result);
+      if (userId && sessionIdRef.current) {
+        await saveSpeakingFeedback(sessionIdRef.current, userId, {
+          overallBand: result.overallBand,
+          fluencyCoherence: result.fluencyCoherence,
+          lexicalResource: result.lexicalResource,
+          grammaticalRange: result.grammaticalRange,
+          pronunciation: result.pronunciation,
+          fillerWordCount: result.fillerWordCount,
+          strengths: result.strengths,
+          weaknesses: result.weaknesses,
+          suggestedExercises: result.suggestedExercises,
+        });
+        await recordDailyActivity(userId, 20);
+      }
+      setPhase('result');
+    } catch (err) {
+      setErrorMessage((err as Error).message);
+      setPhase('error');
     }
-    setPhase('result');
   }
 
   useEffect(() => clearTimer, []);
@@ -231,6 +268,28 @@ export default function SpeakingSessionScreen() {
             if (granted) startRecording();
           }}
         />
+      </SafeAreaView>
+    );
+  }
+
+  if (phase === 'error') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl, gap: theme.spacing.md }}>
+        <IconCircle name="alert-circle-outline" size={72} backgroundColor={theme.colors.errorSoft} color={theme.colors.error} />
+        <Text variant="h3" align="center">
+          Something went wrong
+        </Text>
+        <Text color="secondary" align="center">
+          {errorMessage ?? 'We could not process your recording. Check your connection and try again.'}
+        </Text>
+        <Button
+          label="Try this question again"
+          onPress={() => {
+            setErrorMessage(null);
+            setPhase('intro');
+          }}
+        />
+        <Button label="Exit test" variant="ghost" onPress={handleExit} />
       </SafeAreaView>
     );
   }

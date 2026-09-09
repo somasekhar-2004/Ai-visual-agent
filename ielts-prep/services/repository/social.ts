@@ -3,6 +3,7 @@ import { getDb, mutateDb } from '@/lib/demoStore';
 import { isDemoMode } from '@/lib/env';
 import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
+import { throwIfSupabaseError } from '@/lib/supabaseErrors';
 import type { Achievement, AiConversation, AiMessage, UserAchievement } from '@/types/models';
 
 export function listAchievements(): Achievement[] {
@@ -14,7 +15,8 @@ export async function getUserAchievements(userId: string): Promise<UserAchieveme
     const db = await getDb();
     return db.userAchievements;
   }
-  const { data } = await supabase!.from('user_achievements').select('*').eq('user_id', userId);
+  const { data, error } = await supabase!.from('user_achievements').select('*').eq('user_id', userId);
+  throwIfSupabaseError(error, 'Failed to load your achievements');
   return (data ?? []).map((row: any) => ({
     id: row.id,
     userId: row.user_id,
@@ -85,11 +87,12 @@ export async function listConversations(userId: string): Promise<AiConversation[
     const db = await getDb();
     return db.conversations;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('ai_conversations')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
+  throwIfSupabaseError(error, 'Failed to load your conversations');
   return (data ?? []).map((row: any) => ({ id: row.id, userId: row.user_id, title: row.title, createdAt: row.created_at }));
 }
 
@@ -102,7 +105,9 @@ export async function createConversation(userId: string, title = 'New conversati
     });
     return conversation;
   }
-  const { data } = await supabase!.from('ai_conversations').insert({ user_id: userId, title }).select('*').single();
+  const { data, error } = await supabase!.from('ai_conversations').insert({ user_id: userId, title }).select('*').single();
+  throwIfSupabaseError(error, 'Failed to start a new conversation');
+  if (!data) throw new Error('Failed to start a new conversation: the database returned no row.');
   return { id: data.id, userId: data.user_id, title: data.title, createdAt: data.created_at };
 }
 
@@ -111,11 +116,12 @@ export async function getMessages(conversationId: string): Promise<AiMessage[]> 
     const db = await getDb();
     return db.messages[conversationId] ?? [];
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('ai_messages')
     .select('*')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true });
+  throwIfSupabaseError(error, 'Failed to load conversation messages');
   return (data ?? []).map((row: any) => ({
     id: row.id,
     conversationId: row.conversation_id,
@@ -134,6 +140,7 @@ export async function addMessage(conversationId: string, role: AiMessage['role']
     });
     return message;
   }
-  await supabase!.from('ai_messages').insert({ conversation_id: conversationId, role, content });
+  const { error } = await supabase!.from('ai_messages').insert({ conversation_id: conversationId, role, content });
+  throwIfSupabaseError(error, 'Failed to save the message');
   return message;
 }

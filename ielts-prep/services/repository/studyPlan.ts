@@ -3,6 +3,7 @@ import { getDb, mutateDb } from '@/lib/demoStore';
 import { isDemoMode } from '@/lib/env';
 import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
+import { throwIfSupabaseError } from '@/lib/supabaseErrors';
 import { suggestStudyPlanFocus, type CoachContext, type StudyPlanSuggestionResult } from '@/services/ai';
 import type { GrammarQuestionAttempt, QuestionAttempt, SkillKey, StudyPlan, StudyPlanItem, TestHistoryEntry, UserGoal } from '@/types/models';
 
@@ -184,12 +185,13 @@ export async function getStudyPlanForDate(userId: string, date: string): Promise
     const db = await getDb();
     return db.studyPlans.find((p) => p.date === date) ?? null;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('study_plans')
     .select('*, study_plan_items(*)')
     .eq('user_id', userId)
     .eq('date', date)
     .maybeSingle();
+  throwIfSupabaseError(error, "Failed to load today's study plan");
   if (!data) return null;
   return mapPlanRow(data);
 }
@@ -227,12 +229,14 @@ export async function generateStudyPlan(
     });
   }
 
-  const { data: planRow } = await supabase!
+  const { data: planRow, error: planError } = await supabase!
     .from('study_plans')
     .insert({ user_id: userId, date })
     .select('*')
     .single();
-  const { data: itemRows } = await supabase!
+  throwIfSupabaseError(planError, 'Failed to generate a study plan');
+  if (!planRow) throw new Error('Failed to generate a study plan: the database returned no row for the new plan.');
+  const { data: itemRows, error: itemsError } = await supabase!
     .from('study_plan_items')
     .insert(
       items.map((item) => ({
@@ -246,6 +250,7 @@ export async function generateStudyPlan(
       }))
     )
     .select('*');
+  throwIfSupabaseError(itemsError, "Failed to save today's study plan items");
   return mapPlanRow({ ...planRow, study_plan_items: itemRows });
 }
 
@@ -282,10 +287,13 @@ export async function completeStudyPlanItem(planId: string, itemId: string): Pro
     });
     return;
   }
-  await supabase!.from('study_plan_items').update({ is_completed: true }).eq('id', itemId);
-  const { data: items } = await supabase!.from('study_plan_items').select('is_completed').eq('study_plan_id', planId);
+  const { error: updateError } = await supabase!.from('study_plan_items').update({ is_completed: true }).eq('id', itemId);
+  throwIfSupabaseError(updateError, 'Failed to mark this study plan item complete');
+  const { data: items, error: readError } = await supabase!.from('study_plan_items').select('is_completed').eq('study_plan_id', planId);
+  throwIfSupabaseError(readError, 'Failed to check study plan completion');
   if (items?.every((i: any) => i.is_completed)) {
-    await supabase!.from('study_plans').update({ is_completed: true }).eq('id', planId);
+    const { error } = await supabase!.from('study_plans').update({ is_completed: true }).eq('id', planId);
+    throwIfSupabaseError(error, 'Failed to mark the study plan complete');
   }
 }
 

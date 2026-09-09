@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 
 import { Badge, Button, Card, Screen, ScreenHeader, Text } from '@/components/ui';
@@ -15,6 +15,8 @@ export default function LessonDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = useAppStore((s) => s.userId);
   const queryClient = useQueryClient();
+  const [completing, setCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
 
   const lesson = getLessonById(id);
 
@@ -37,9 +39,21 @@ export default function LessonDetailScreen() {
 
   async function handleComplete() {
     if (!userId) return;
-    await markLessonComplete(userId, lesson!.id);
-    await recordDailyActivity(userId, 15);
-    queryClient.invalidateQueries({ queryKey: ['lesson-progress', userId] });
+    setCompleting(true);
+    setCompleteError(null);
+    try {
+      await markLessonComplete(userId, lesson!.id);
+      await recordDailyActivity(userId, 15);
+      // Wait for the refetch so `completed` (and the button label) only
+      // flips once the database really has the new row — a failed upsert
+      // now throws instead of silently no-op'ing, but without awaiting this
+      // the button could still flash "Completed" for a stale cache tick.
+      await queryClient.invalidateQueries({ queryKey: ['lesson-progress', userId] });
+    } catch (err) {
+      setCompleteError((err as Error).message);
+    } finally {
+      setCompleting(false);
+    }
   }
 
   return (
@@ -70,10 +84,18 @@ export default function LessonDetailScreen() {
         label={completed ? 'Completed' : 'Mark as complete'}
         onPress={handleComplete}
         disabled={completed}
+        loading={completing}
         variant={completed ? 'secondary' : 'primary'}
         fullWidth
-        style={{ marginTop: theme.spacing.xl, marginBottom: theme.spacing.huge }}
+        style={{ marginTop: theme.spacing.xl }}
       />
+      {completeError ? (
+        <Text color="error" style={{ marginTop: theme.spacing.sm, marginBottom: theme.spacing.huge }}>
+          {completeError}
+        </Text>
+      ) : (
+        <View style={{ marginBottom: theme.spacing.huge }} />
+      )}
     </Screen>
   );
 }

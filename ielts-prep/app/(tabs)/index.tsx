@@ -35,14 +35,17 @@ export default function HomeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { userId, profile, goal, bandScores, streak, xp } = useAppStore(useShallow((s) => ({
+  const { userId, profile, goal, bandScores, streak, xp, homeError, refreshUserData } = useAppStore(useShallow((s) => ({
     userId: s.userId,
     profile: s.profile,
     goal: s.goal,
     bandScores: s.bandScores,
     streak: s.streak,
     xp: s.xp,
+    homeError: s.homeError,
+    refreshUserData: s.refreshUserData,
   })));
+  const [retrying, setRetrying] = React.useState(false);
 
   const planQuery = useQuery({
     queryKey: ['study-plan', userId, today()],
@@ -75,7 +78,50 @@ export default function HomeScreen() {
     enabled: Boolean(userId && goal),
   });
 
-  if (!goal) return null;
+  async function handleRetry() {
+    if (!userId) return;
+    setRetrying(true);
+    try {
+      await refreshUserData(userId);
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  // Home must always render real content, a meaningful empty state, or a
+  // recoverable error — never a blank screen. `!goal` alone doesn't say
+  // which of those two very different situations this is (a genuine
+  // Supabase/RLS failure looks identical to "no goal yet" from the data
+  // alone), so it's `homeError` — set by refreshUserData only when a query
+  // actually failed — that decides which one to show.
+  if (!goal) {
+    if (homeError) {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.xl, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
+          <IconCircle name="alert-circle-outline" size={64} backgroundColor={theme.colors.errorSoft} color={theme.colors.error} />
+          <Text variant="h3" align="center">
+            Couldn&apos;t load your data
+          </Text>
+          <Text color="secondary" align="center">
+            {homeError}
+          </Text>
+          <Button label="Retry" onPress={handleRetry} loading={retrying} />
+        </SafeAreaView>
+      );
+    }
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.xl, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
+        <IconCircle name="flag-outline" size={64} />
+        <Text variant="h3" align="center">
+          Let&apos;s set up your study goal
+        </Text>
+        <Text color="secondary" align="center">
+          We need your target band and IELTS type to build your home dashboard.
+        </Text>
+        <Button label="Set up my goal" onPress={() => router.push('/(onboarding)/ielts-type')} />
+      </SafeAreaView>
+    );
+  }
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';

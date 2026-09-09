@@ -3,6 +3,7 @@ import { getDb, mutateDb } from '@/lib/demoStore';
 import { isDemoMode } from '@/lib/env';
 import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
+import { throwIfSupabaseError } from '@/lib/supabaseErrors';
 import type {
   ActivityType,
   IeltsType,
@@ -46,11 +47,17 @@ export async function startMockAttempt(userId: string, mockTestId: string): Prom
     });
     return attempt;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('mock_attempts')
     .insert({ user_id: userId, mock_test_id: mockTestId, status: 'in_progress' })
     .select('*')
     .single();
+  // A failed insert (RLS/permission denial, network error, ...) surfaces as
+  // `error` set and `data` null — never hand that to mapMockAttempt, which
+  // doesn't defend against a null row, so a real failure can't silently
+  // crash with "Cannot read property 'id' of null" instead of a clear cause.
+  throwIfSupabaseError(error, 'Failed to start the mock test');
+  if (!data) throw new Error('Failed to start the mock test: the database returned no row for the new attempt.');
   return mapMockAttempt(data);
 }
 
@@ -62,7 +69,8 @@ export async function saveMockAttemptState(attemptId: string, state: Record<stri
     });
     return;
   }
-  await supabase!.from('mock_attempts').update({ state }).eq('id', attemptId);
+  const { error } = await supabase!.from('mock_attempts').update({ state }).eq('id', attemptId);
+  throwIfSupabaseError(error, 'Failed to save your mock test progress');
 }
 
 export async function completeMockAttempt(attemptId: string, overallBand: number): Promise<void> {
@@ -77,10 +85,11 @@ export async function completeMockAttempt(attemptId: string, overallBand: number
     });
     return;
   }
-  await supabase!
+  const { error } = await supabase!
     .from('mock_attempts')
     .update({ status: 'completed', completed_at: new Date().toISOString(), overall_band: overallBand })
     .eq('id', attemptId);
+  throwIfSupabaseError(error, 'Failed to complete the mock test');
 }
 
 export async function getMockAttempts(userId: string): Promise<MockAttempt[]> {
@@ -88,11 +97,12 @@ export async function getMockAttempts(userId: string): Promise<MockAttempt[]> {
     const db = await getDb();
     return db.mockAttempts;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('mock_attempts')
     .select('*')
     .eq('user_id', userId)
     .order('started_at', { ascending: false });
+  throwIfSupabaseError(error, 'Failed to load your mock test attempts');
   return (data ?? []).map(mapMockAttempt);
 }
 
@@ -124,7 +134,8 @@ export async function getReadingAttempts(userId: string): Promise<ReadingAttempt
     const db = await getDb();
     return db.readingAttempts;
   }
-  const { data } = await supabase!.from('reading_attempts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  const { data, error } = await supabase!.from('reading_attempts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  throwIfSupabaseError(error, 'Failed to load your reading attempts');
   return (data ?? []).map((row: any) => ({
     id: row.id,
     userId: row.user_id,
@@ -145,7 +156,8 @@ export async function getListeningAttempts(userId: string): Promise<ListeningAtt
     const db = await getDb();
     return db.listeningAttempts;
   }
-  const { data } = await supabase!.from('listening_attempts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  const { data, error } = await supabase!.from('listening_attempts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  throwIfSupabaseError(error, 'Failed to load your listening attempts');
   return (data ?? []).map((row: any) => ({
     id: row.id,
     userId: row.user_id,
@@ -190,7 +202,7 @@ export async function saveReadingAttempt(
       db.readingAttempts.unshift(attempt);
     });
   } else {
-    await supabase!.from('reading_attempts').insert({
+    const { error } = await supabase!.from('reading_attempts').insert({
       user_id: userId,
       mock_attempt_id: input.mockAttemptId,
       ielts_type: input.ieltsType,
@@ -201,6 +213,7 @@ export async function saveReadingAttempt(
       time_spent_seconds: input.timeSpentSeconds,
       answers: input.answers,
     });
+    throwIfSupabaseError(error, 'Failed to save your reading result');
   }
   await addTestHistory(userId, 'reading', attempt.id, input.band, {
     rawScore: input.rawScore,
@@ -237,7 +250,7 @@ export async function saveListeningAttempt(
       db.listeningAttempts.unshift(attempt);
     });
   } else {
-    await supabase!.from('listening_attempts').insert({
+    const { error } = await supabase!.from('listening_attempts').insert({
       user_id: userId,
       mock_attempt_id: input.mockAttemptId,
       track_ids: input.trackIds,
@@ -246,6 +259,7 @@ export async function saveListeningAttempt(
       band: input.band,
       answers: input.answers,
     });
+    throwIfSupabaseError(error, 'Failed to save your listening result');
   }
   await addTestHistory(userId, 'listening', attempt.id, input.band, { rawScore: input.rawScore, totalQuestions: input.totalQuestions });
   return attempt;
@@ -279,7 +293,7 @@ export async function submitWriting(
     });
     return submission;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('writing_submissions')
     .insert({
       user_id: userId,
@@ -292,6 +306,8 @@ export async function submitWriting(
     })
     .select('*')
     .single();
+  throwIfSupabaseError(error, 'Failed to submit your essay');
+  if (!data) throw new Error('Failed to submit your essay: the database returned no row for the new submission.');
   return {
     id: data.id,
     userId: data.user_id,
@@ -316,7 +332,7 @@ export async function saveWritingFeedback(
       db.writingFeedback.unshift(full);
     });
   } else {
-    await supabase!.from('writing_feedback').insert({
+    const { error } = await supabase!.from('writing_feedback').insert({
       submission_id: submissionId,
       overall_band: feedback.overallBand,
       task_achievement: feedback.taskAchievement,
@@ -329,6 +345,7 @@ export async function saveWritingFeedback(
       improved_example: feedback.improvedExample,
       ai_model: feedback.aiModel,
     });
+    throwIfSupabaseError(error, 'Failed to save your writing feedback');
   }
   await addTestHistory(userId, 'writing', submissionId, feedback.overallBand, {
     taskAchievement: feedback.taskAchievement,
@@ -347,11 +364,12 @@ export async function getWritingHistory(userId: string): Promise<{ submission: W
       feedback: db.writingFeedback.find((f) => f.submissionId === submission.id) ?? null,
     }));
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('writing_submissions')
     .select('*, writing_feedback(*)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
+  throwIfSupabaseError(error, 'Failed to load your writing history');
   return (data ?? []).map((row: any) => ({
     submission: {
       id: row.id,
@@ -384,11 +402,18 @@ export async function createSpeakingSession(userId: string, part: SpeakingPart, 
     });
     return session;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('speaking_sessions')
     .insert({ user_id: userId, part, topic_id: topicId })
     .select('*')
     .single();
+  // A failed insert here (RLS/permission denial, network error) used to
+  // reach `data.id` on a null row from an unguarded `.then()` in
+  // app/speaking-session.tsx's mount effect — an unhandled promise
+  // rejection surfacing as an uncaught TypeError, regardless of which turn
+  // the user happened to be on when it fired.
+  throwIfSupabaseError(error, 'Failed to start the speaking session');
+  if (!data) throw new Error('Failed to start the speaking session: the database returned no row for the new session.');
   return {
     id: data.id,
     userId: data.user_id,
@@ -410,7 +435,7 @@ export async function addSpeakingResponse(
     });
     return;
   }
-  await supabase!.from('speaking_responses').insert({
+  const { error } = await supabase!.from('speaking_responses').insert({
     session_id: sessionId,
     question_text: input.questionText,
     audio_url: input.audioUrl,
@@ -418,6 +443,7 @@ export async function addSpeakingResponse(
     duration_seconds: input.durationSeconds,
     order_index: input.orderIndex,
   });
+  throwIfSupabaseError(error, 'Failed to save your speaking response');
 }
 
 export async function completeSpeakingSession(sessionId: string): Promise<void> {
@@ -428,7 +454,8 @@ export async function completeSpeakingSession(sessionId: string): Promise<void> 
     });
     return;
   }
-  await supabase!.from('speaking_sessions').update({ completed_at: new Date().toISOString() }).eq('id', sessionId);
+  const { error } = await supabase!.from('speaking_sessions').update({ completed_at: new Date().toISOString() }).eq('id', sessionId);
+  throwIfSupabaseError(error, 'Failed to complete the speaking session');
 }
 
 export async function saveSpeakingFeedback(
@@ -442,7 +469,7 @@ export async function saveSpeakingFeedback(
       db.speakingFeedback.unshift(full);
     });
   } else {
-    await supabase!.from('speaking_feedback').insert({
+    const { error } = await supabase!.from('speaking_feedback').insert({
       session_id: sessionId,
       overall_band: feedback.overallBand,
       fluency_coherence: feedback.fluencyCoherence,
@@ -454,6 +481,7 @@ export async function saveSpeakingFeedback(
       weaknesses: feedback.weaknesses,
       suggested_exercises: feedback.suggestedExercises,
     });
+    throwIfSupabaseError(error, 'Failed to save your speaking feedback');
   }
   await addTestHistory(userId, 'speaking', sessionId, feedback.overallBand, {
     fillerWordCount: feedback.fillerWordCount,
@@ -476,11 +504,12 @@ export async function getSpeakingHistory(
       feedback: db.speakingFeedback.find((f) => f.sessionId === session.id) ?? null,
     }));
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('speaking_sessions')
     .select('*, speaking_responses(*), speaking_feedback(*)')
     .eq('user_id', userId)
     .order('started_at', { ascending: false });
+  throwIfSupabaseError(error, 'Failed to load your speaking history');
   return (data ?? []).map((row: any) => ({
     session: {
       id: row.id,
@@ -518,13 +547,14 @@ export async function addTestHistory(
     });
     return;
   }
-  await supabase!.from('test_history').insert({
+  const { error } = await supabase!.from('test_history').insert({
     user_id: userId,
     activity_type: activityType,
     ref_id: refId,
     band,
     summary,
   });
+  throwIfSupabaseError(error, 'Failed to record test history');
 }
 
 export async function getTestHistory(userId: string): Promise<TestHistoryEntry[]> {
@@ -532,11 +562,12 @@ export async function getTestHistory(userId: string): Promise<TestHistoryEntry[]
     const db = await getDb();
     return db.testHistory;
   }
-  const { data } = await supabase!
+  const { data, error } = await supabase!
     .from('test_history')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
+  throwIfSupabaseError(error, 'Failed to load your test history');
   return (data ?? []).map((row: any) => ({
     id: row.id,
     userId: row.user_id,

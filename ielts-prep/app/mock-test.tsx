@@ -29,6 +29,7 @@ export default function MockTestIntroScreen() {
   const mockTest = content.mockTests.find((t) => t.id === mockTestId);
   const sections = useMemo(() => getMockSections(mockTestId), [mockTestId]);
   const totalMinutes = sections.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const [startError, setStartError] = useState<string | null>(null);
 
   async function handleStart() {
     if (!userId || !mockTest) return;
@@ -37,6 +38,7 @@ export default function MockTestIntroScreen() {
       return;
     }
     setStarting(true);
+    setStartError(null);
     try {
       const existing = await getInProgressMockAttempt(userId, mockTest.id);
       const attempt = existing ?? (await startMockAttempt(userId, mockTest.id));
@@ -44,6 +46,8 @@ export default function MockTestIntroScreen() {
       const steps = buildMockFlowSteps(mockTest.id);
       if (!steps.length) return;
       router.push(hrefForFlowStep(steps[0], mockTest.id, attempt.id, 0) as any);
+    } catch (err) {
+      setStartError((err as Error).message);
     } finally {
       setStarting(false);
     }
@@ -79,6 +83,11 @@ export default function MockTestIntroScreen() {
         </Card>
       ))}
 
+      {startError ? (
+        <Text color="error" style={{ marginTop: theme.spacing.md }}>
+          {startError}
+        </Text>
+      ) : null}
       <Button label="Start full test" onPress={handleStart} loading={starting} fullWidth style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.huge }} />
     </Screen>
   );

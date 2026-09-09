@@ -45,8 +45,11 @@ export default function AccountScreen() {
 
   async function handleDemo() {
     setLoading(true);
+    setError(null);
     try {
       await finishOnboarding();
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -74,6 +77,8 @@ export default function AccountScreen() {
         return;
       }
       await finishOnboarding();
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -96,7 +101,8 @@ export default function AccountScreen() {
         onSecondary={handleDemo}
         loading={loading}
       >
-        <View style={{ alignItems: 'center' }}>
+        <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+          {error ? <Text color="error">{error}</Text> : null}
           <Button label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} />
         </View>
       </OnboardingScaffold>

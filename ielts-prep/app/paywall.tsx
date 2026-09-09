@@ -47,6 +47,8 @@ export default function PaywallScreen() {
       await setSubscription(userId, result.plan, 'active');
       await refreshUserData(userId);
       router.back();
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -64,6 +66,8 @@ export default function PaywallScreen() {
       } else {
         setError(result.error ?? 'No purchase to restore.');
       }
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
