@@ -1,54 +1,52 @@
-// Generates real, multi-speaker listening-test audio from OpenAI's TTS API.
+// Generates real, multi-speaker listening-test audio entirely offline and
+// for free, using macOS's built-in `say` command.
 //
 //   npm run audio:generate
 //
-// Requires OPENAI_API_KEY in .env (a plain dev-machine secret — this is a
-// one-off local script, not part of the app bundle or the server-side Edge
-// Functions, so it does not use the EXPO_PUBLIC_ prefix or the Supabase
-// secrets store; see supabase/functions/.env.example for the *runtime* key
-// the Edge Functions use). Without it, this prints instructions and exits
-// without changing anything.
-//
+// Zero cost, zero API key, zero network call, zero recurring bill: this
+// script never talks to any TTS provider (OpenAI, ElevenLabs, Azure,
+// Google, or otherwise). It only shells out to two things already free on
+// a Mac: `say` (speech synthesis, built into macOS) and `ffmpeg` (audio
+// mixing — a one-time `brew install ffmpeg`, itself free and open source).
 // Only tracks that have been migrated to structured `turns` (see
-// types/models.ts's ListeningTrack.turns) are synthesized — a track without
-// `turns` is skipped outright, on purpose, so this never blindly regenerates
-// every listening section at once. Every listening track already works
-// without pre-generated audio: the app falls back to real, audible
-// on-device text-to-speech (components/testing/TranscriptAudioPlayer.tsx)
-// for any track with no registered audio file. Running this script upgrades
-// migrated tracks to pre-rendered, natural, multi-voice audio.
+// types/models.ts's ListeningTrack.turns) and whose audioSource.kind is
+// 'local_tts' are synthesized here — a track without `turns`, or one
+// marked 'human_corpus' (a reused real recording placed manually), is
+// skipped outright. Every listening track already works without
+// pre-generated audio: the app falls back to real, audible on-device
+// text-to-speech (components/testing/TranscriptAudioPlayer.tsx) for any
+// track with no registered audio file.
 //
 // How a multi-speaker track is built:
-//   1. Each turn is synthesized as its own TTS request, using only that
+//   1. Each turn is synthesized as its own `say` call, using only that
 //      turn's spoken words — never a "Speaker:" label (turns.speaker is
 //      structural metadata, not something that gets read aloud).
-//   2. Each unique speaker in a track gets a distinct OpenAI voice, assigned
-//      deterministically from VOICE_POOL so re-runs are stable.
-//   3. Delivery is steered with gpt-4o-mini-tts's `instructions` parameter
-//      (lib/content/audioInstructions.ts): this section's style
-//      (lib/content/listeningPace.ts — Section 1 clear/slower, Section 4
-//      dense/continuous, matching real IELTS difficulty progression) plus
-//      this speaker's persona (track.speakerPersonas — accent/age/tone),
-//      plus a standing instruction to never speak a label or metadata.
-//      The numeric `speed` parameter is also sent as a secondary lever, but
-//      OpenAI's developer forum has reports of gpt-4o-mini-tts ignoring it —
-//      `instructions` is the primary, reliable pace control for this model.
-//   4. The per-turn clips are concatenated with a silence gap (from the same
-//      pace profile) via ffmpeg, if installed. Install it once with `brew
-//      install ffmpeg` on macOS. Without ffmpeg, clips are still
-//      concatenated (raw MPEG frame concatenation) but with no gap — the
-//      script prints a warning so this is never silently degraded.
+//   2. This machine's actually-installed English voices are discovered at
+//      run time via `say -v ?` (exact voice names vary by macOS version and
+//      which ones you've downloaded, so nothing here is hardcoded). Each
+//      unique speaker in a track gets a distinct one, assigned
+//      deterministically (lib/content/audioVoiceAssignment.ts) so re-runs
+//      are stable. Voices tagged "(Premium)"/"(Enhanced)" by macOS are
+//      preferred — they're the more natural-sounding neural voices Apple
+//      ships, vs. the older compact ones.
+//   3. Speech rate (`say -r <wpm>`) and the silence gap between turns both
+//      come from lib/content/listeningPace.ts, keyed by sectionNumber —
+//      Section 1 is slower with longer pauses, Section 4 is denser and more
+//      continuous, matching real IELTS difficulty progression. `say` has no
+//      equivalent of a natural-language style/emotion parameter, so pace is
+//      the one lever this pipeline controls (see the Listening overhaul
+//      report for the honest quality trade-off this implies).
+//   4. The per-turn clips are decoded and concatenated with that silence gap
+//      in a single ffmpeg pass (an audio filter graph, not the concat
+//      demuxer, so mismatched sample rates/formats between segments are
+//      never an issue) and mixed down to one mp3. ffmpeg is a hard
+//      requirement for this script (install with `brew install ffmpeg`) —
+//      `say`'s AIFF output can't be naively byte-concatenated the way MP3
+//      frames sometimes can, so there is no ffmpeg-less fallback path here.
 //
-// Model: OPENAI_TTS_MODEL env var, default 'gpt-4o-mini-tts' (OpenAI's
-// current documented TTS model; supports the `instructions` steering above,
-// unlike the older 'tts-1'/'tts-1-hd'). Override it in .env if OpenAI ships
-// a newer model and you want to try it — nothing else in this script is
-// model-specific except this one default.
-//
-// A track whose audioSource.kind is 'human_corpus' is skipped here on
-// purpose — that's a reused real recording, not something this script
-// synthesizes; its .mp3 is placed manually (with verified licence/source
-// metadata) rather than generated.
+// This only runs on macOS (`say` is a macOS-only command). See README.md's
+// "Listening audio generation" section for what to use instead on other
+// platforms (e.g. Piper TTS, also free and open source, not wired up here).
 //
 // Re-running this script never re-synthesizes a track that already has an
 // assets/audio/<id>.mp3 file — delete that file first if you want to
@@ -59,10 +57,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import dotenv from 'dotenv';
-
 import { content } from '../lib/content';
-import { buildTurnInstructions } from '../lib/content/audioInstructions';
 import { assignVoices } from '../lib/content/audioVoiceAssignment';
 import { paceForSection } from '../lib/content/listeningPace';
 import type { ListeningTrack } from '../types/models';
@@ -72,12 +67,7 @@ const ROOT = path.join(__dirname, '..');
 const ASSETS_DIR = path.join(ROOT, 'assets', 'audio');
 const REGISTRY_PATH = path.join(ROOT, 'lib', 'content', 'audioRegistry.ts');
 const TMP_DIR = path.join(os.tmpdir(), 'ielts-prep-audio-gen');
-
-dotenv.config({ path: path.join(ROOT, '.env') });
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
-const TTS_SAMPLE_RATE = 24000;
+const SAMPLE_RATE = 24000;
 
 function hasFfmpeg(): boolean {
   try {
@@ -88,86 +78,63 @@ function hasFfmpeg(): boolean {
   }
 }
 
-async function synthesizeOpenAI(text: string, voice: string, speed: number, instructions: string): Promise<Buffer> {
-  const res = await fetch('https://api.openai.com/v1/audio/speech', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice, input: text, response_format: 'mp3', speed, instructions }),
-  });
-  if (!res.ok) throw new Error(`OpenAI TTS request failed: ${res.status} ${await res.text()}`);
-  return Buffer.from(await res.arrayBuffer());
+/** Parses `say -v ?` output — one voice per line, formatted roughly as
+ * "Name (Quality)   locale    # sample text". Returns only English
+ * voices (our content is English), ranked so macOS's higher-quality
+ * "(Premium)"/"(Enhanced)" voices are picked first. */
+function discoverEnglishVoices(): string[] {
+  const out = execFileSync('say', ['-v', '?'], { encoding: 'utf8' });
+  const voices: { name: string; locale: string }[] = [];
+  for (const line of out.split('\n')) {
+    const m = line.match(/^(.+?)\s{2,}([a-zA-Z]{2}[_-][a-zA-Z]{2})\s+#/);
+    if (m) voices.push({ name: m[1].trim(), locale: m[2] });
+  }
+  const english = voices.filter((v) => /^en[_-]/i.test(v.locale));
+  const rank = (name: string) => (/\(premium\)/i.test(name) ? 0 : /\(enhanced\)/i.test(name) ? 1 : 2);
+  return [...english].sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name)).map((v) => v.name);
 }
 
-function shellQuote(p: string): string {
-  return `'${p.replace(/'/g, "'\\''")}'`;
+function synthesizeSay(text: string, voice: string, rateWpm: number, outPath: string): void {
+  execFileSync('say', ['-v', voice, '-r', String(rateWpm), '-o', outPath, text], { stdio: 'ignore' });
 }
 
-/** Concatenates per-turn clips with a silence gap between each, via
- * ffmpeg's concat demuxer. Re-encodes (rather than stream-copying) so the
- * shared, separately-generated silence clip never has to match the TTS
- * output's exact frame parameters. `gapSeconds` comes from
- * lib/content/listeningPace.ts for this track's section. */
+/** Decodes every segment (and a shared silence clip between each) in one
+ * ffmpeg filter-graph pass and mixes down to a single mp3. Each input is
+ * independently reformatted to a common sample rate/channel layout before
+ * concatenation, so it doesn't matter that `say`'s AIFF output and the
+ * generated silence clip aren't byte-identical in format. */
 function concatWithFfmpeg(segmentPaths: string[], outPath: string, gapSeconds: number): void {
-  const silencePath = path.join(TMP_DIR, `silence-${gapSeconds}.mp3`);
+  const silencePath = path.join(TMP_DIR, `silence-${gapSeconds}.aiff`);
   if (!fs.existsSync(silencePath)) {
-    execFileSync(
-      'ffmpeg',
-      ['-y', '-f', 'lavfi', '-i', `anullsrc=r=${TTS_SAMPLE_RATE}:cl=mono`, '-t', String(gapSeconds), '-c:a', 'libmp3lame', '-q:a', '6', silencePath],
-      { stdio: 'ignore' },
-    );
+    execFileSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', `anullsrc=r=${SAMPLE_RATE}:cl=mono`, '-t', String(gapSeconds), silencePath], { stdio: 'ignore' });
   }
-  const listPath = path.join(TMP_DIR, `concat-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
-  const lines: string[] = [];
+  const files: string[] = [];
   segmentPaths.forEach((p, i) => {
-    lines.push(`file ${shellQuote(p)}`);
-    if (i < segmentPaths.length - 1) lines.push(`file ${shellQuote(silencePath)}`);
+    files.push(p);
+    if (i < segmentPaths.length - 1) files.push(silencePath);
   });
-  fs.writeFileSync(listPath, lines.join('\n'));
-  execFileSync('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-ar', String(TTS_SAMPLE_RATE), '-ac', '1', '-c:a', 'libmp3lame', '-b:a', '64k', outPath], {
-    stdio: 'ignore',
-  });
-  fs.rmSync(listPath, { force: true });
+  const inputArgs = files.flatMap((f) => ['-i', f]);
+  const formatChains = files.map((_, i) => `[${i}:a]aformat=sample_rates=${SAMPLE_RATE}:channel_layouts=mono[a${i}]`);
+  const concatInputs = files.map((_, i) => `[a${i}]`).join('');
+  const filter = `${formatChains.join(';')};${concatInputs}concat=n=${files.length}:v=0:a=1[out]`;
+  execFileSync('ffmpeg', ['-y', ...inputArgs, '-filter_complex', filter, '-map', '[out]', '-c:a', 'libmp3lame', '-b:a', '64k', outPath], { stdio: 'ignore' });
 }
 
-/** ID3v2 header is 10 bytes; the size field (bytes 6-9) is a 4-byte
- * "synchsafe" integer (7 usable bits per byte). */
-function stripId3(buf: Buffer): Buffer {
-  if (buf.length > 10 && buf.subarray(0, 3).toString('latin1') === 'ID3') {
-    const size = ((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) | ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f);
-    return buf.subarray(10 + size);
-  }
-  return buf;
-}
-
-/** No-ffmpeg fallback: raw concatenation of MPEG frames with no silence
- * gap between turns. MP3 decoders play back-to-back frames fine, but pacing
- * is worse than the ffmpeg path (no pause at all between speaker turns) —
- * callers must warn the user this happened. */
-function concatRaw(segmentPaths: string[], outPath: string): void {
-  const buffers = segmentPaths.map((p, i) => (i === 0 ? fs.readFileSync(p) : stripId3(fs.readFileSync(p))));
-  fs.writeFileSync(outPath, Buffer.concat(buffers));
-}
-
-async function generateTrack(track: ListeningTrack, ffmpegAvailable: boolean): Promise<void> {
+function generateTrack(track: ListeningTrack, voicePool: string[]): void {
   const turns = track.turns!;
-  const voices = assignVoices(track);
+  const voices = assignVoices(track, voicePool);
   const pace = paceForSection(track.sectionNumber);
   fs.mkdirSync(TMP_DIR, { recursive: true });
   const segmentPaths: string[] = [];
   try {
-    for (let i = 0; i < turns.length; i++) {
-      const turn = turns[i];
+    turns.forEach((turn, i) => {
       const voice = voices[turn.speaker];
-      const persona = track.speakerPersonas?.[turn.speaker];
-      const instructions = buildTurnInstructions(pace, persona);
-      const segPath = path.join(TMP_DIR, `${track.id}__${i}.mp3`);
-      const audio = await synthesizeOpenAI(turn.text, voice, pace.ttsSpeed, instructions);
-      fs.writeFileSync(segPath, audio);
+      const segPath = path.join(TMP_DIR, `${track.id}__${i}.aiff`);
+      synthesizeSay(turn.text, voice, pace.sayRateWpm, segPath);
       segmentPaths.push(segPath);
-    }
+    });
     const outPath = path.join(ASSETS_DIR, `${track.id}.mp3`);
-    if (ffmpegAvailable) concatWithFfmpeg(segmentPaths, outPath, pace.gapSeconds);
-    else concatRaw(segmentPaths, outPath);
+    concatWithFfmpeg(segmentPaths, outPath, pace.gapSeconds);
   } finally {
     for (const p of segmentPaths) fs.rmSync(p, { force: true });
   }
@@ -199,25 +166,31 @@ ${lines.join('\n')}
   return ids.length;
 }
 
-async function main() {
-  if (!OPENAI_API_KEY) {
-    console.log('No OPENAI_API_KEY set — nothing to generate.');
-    console.log('Add it to .env with a real OpenAI API key and re-run: npm run audio:generate');
-    console.log('Every listening track already plays via on-device text-to-speech without this.');
+function main() {
+  if (process.platform !== 'darwin') {
+    console.log("This script only supports macOS — it uses the built-in `say` command for zero-cost local speech synthesis.");
+    console.log('See README.md "Listening audio generation" for cross-platform alternatives (e.g. Piper TTS, not wired up here).');
+    return;
+  }
+  if (!hasFfmpeg()) {
+    console.log('ffmpeg is required (used to add pauses between turns and mix down to mp3).');
+    console.log('Install it with `brew install ffmpeg` and re-run.');
     return;
   }
 
-  const ffmpegAvailable = hasFfmpeg();
-  if (!ffmpegAvailable) {
-    console.warn('ffmpeg not found on PATH — install it with `brew install ffmpeg` for natural pauses');
-    console.warn('between speaker turns. Continuing without inter-turn silence for this run.');
+  const voicePool = discoverEnglishVoices();
+  if (voicePool.length === 0) {
+    console.log('No English voices found via `say -v ?`.');
+    console.log('Add one in System Settings > Accessibility > Spoken Content > System Voice, then re-run.');
+    return;
   }
+  console.log(`Found ${voicePool.length} English voice(s) installed: ${voicePool.join(', ')}`);
 
   fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
   const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
   const humanCorpus = withTurns.filter((t) => t.audioSource?.kind === 'human_corpus');
-  const migrated = withTurns.filter((t) => t.audioSource?.kind !== 'human_corpus');
+  const localTts = withTurns.filter((t) => t.audioSource?.kind !== 'human_corpus');
   const legacyCount = content.listeningTracks.length - withTurns.length;
   let generated = 0;
   let failed = 0;
@@ -226,18 +199,24 @@ async function main() {
     console.log(`${humanCorpus.length} track(s) are marked audioSource.kind: 'human_corpus' — skipped here, their .mp3 must be placed manually.`);
   }
 
-  for (const track of migrated) {
+  for (const track of localTts) {
     const outPath = path.join(ASSETS_DIR, `${track.id}.mp3`);
     if (fs.existsSync(outPath)) {
       console.log(`Already generated: ${track.title}`);
       continue;
     }
-    const speakerCount = new Set(track.turns!.map((t) => t.speaker)).size;
-    console.log(`Generating "${track.title}" (${track.turns!.length} turns, ${speakerCount} speaker${speakerCount === 1 ? '' : 's'})...`);
+    const speakers = Array.from(new Set(track.turns!.map((t) => t.speaker)));
+    if (speakers.length > voicePool.length) {
+      failed++;
+      console.error(`  Failed "${track.title}": needs ${speakers.length} distinct voices but only ${voicePool.length} English voice(s) are installed.`);
+      continue;
+    }
+    const voices = assignVoices(track, voicePool);
+    console.log(`Generating "${track.title}" (${track.turns!.length} turns) — ${speakers.map((s) => `${s}: ${voices[s]}`).join(', ')}`);
     try {
-      await generateTrack(track, ffmpegAvailable);
+      generateTrack(track, voicePool);
       generated++;
-      console.log(`  Saved ${path.relative(ROOT, path.join(ASSETS_DIR, `${track.id}.mp3`))}`);
+      console.log(`  Saved ${path.relative(ROOT, outPath)}`);
     } catch (err) {
       failed++;
       console.error(`  Failed: ${(err as Error).message}`);
@@ -245,13 +224,10 @@ async function main() {
   }
 
   const totalRegistered = writeRegistry();
-  console.log(`\n${generated} track(s) newly generated this run${failed ? ` (${failed} failed)` : ''}.`);
+  console.log(`\n${generated} track(s) newly generated this run${failed ? ` (${failed} failed)` : ''}. $0 spent — this script never calls a paid API.`);
   console.log(`${totalRegistered}/${content.listeningTracks.length} listening tracks now have real generated audio.`);
   console.log(`${legacyCount} track(s) have no structured \`turns\` yet and were skipped (still on-device TTS fallback) — migrate them to \`turns\` before they can be regenerated here.`);
   console.log(`Wrote ${path.relative(ROOT, REGISTRY_PATH)}.`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main();

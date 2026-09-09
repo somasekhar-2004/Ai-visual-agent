@@ -7,8 +7,8 @@ import { COMMERCIAL_REDISTRIBUTION_ALLOWED, LICENSES_REQUIRING_ATTRIBUTION, vali
 // report). The rule itself still needs to be correct and tested now, so
 // it's ready the moment a real human_corpus track is added.
 describe('validateAudioSource', () => {
-  it('accepts a generated_tts source with no licence fields at all', () => {
-    expect(validateAudioSource({ kind: 'generated_tts', provider: 'openai-tts-1' })).toEqual([]);
+  it('accepts a local_tts source with no licence fields at all', () => {
+    expect(validateAudioSource({ kind: 'local_tts', provider: 'macos-say' })).toEqual([]);
   });
 
   it('accepts a CC0-1.0 human_corpus source with no attribution', () => {

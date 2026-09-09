@@ -81,7 +81,13 @@ export type ListeningSpeakerTurn = {
   text: string;
 };
 
-export type ListeningAudioSourceKind = 'generated_tts' | 'human_corpus';
+/** 'local_tts' = synthesized entirely offline on the developer's own
+ * machine (currently macOS's built-in `say`), zero cost, zero API key,
+ * never a paid service. 'human_corpus' = a reused real recording from an
+ * outside source, which is why it's the one kind that carries licence
+ * obligations below. There is deliberately no "paid cloud TTS" option in
+ * this type — see the Listening overhaul report for why. */
+export type ListeningAudioSourceKind = 'local_tts' | 'human_corpus';
 
 /** Where a track's real (non-fallback) audio came from — kept as data, not
  * inferred, so licence/attribution obligations are checked structurally
@@ -91,8 +97,8 @@ export type ListeningAudioSourceKind = 'generated_tts' | 'human_corpus';
  * outright — e.g. TED talks' CC BY-NC-ND). */
 export type ListeningAudioSource = {
   kind: ListeningAudioSourceKind;
-  /** e.g. "openai-tts-1" for generated audio, or "LibriVox" for a reused
-   * human recording. */
+  /** e.g. "macos-say" for locally synthesized audio, or "LibriVox" for a
+   * reused human recording. */
   provider: string;
   /** Required when kind === 'human_corpus'. One of the licences
    * lib/content/audioLicense.ts's COMMERCIAL_REDISTRIBUTION_ALLOWED lists. */
@@ -121,12 +127,18 @@ export type ListeningTrack = {
    * migrated to `turns` and has (or is meant to get) real generated/sourced
    * audio — see lib/content/audioLicense.ts's validateAudioSource. */
   audioSource?: ListeningAudioSource;
-  /** Per-speaker delivery persona (accent/age/tone/pace/style), keyed by
-   * the exact `speaker` name used in `turns`. Fed into gpt-4o-mini-tts's
-   * `instructions` parameter alongside the per-section style instruction
-   * (lib/content/listeningPace.ts) — see lib/content/audioInstructions.ts.
-   * Structural metadata only, just like `speaker` itself: it steers how a
-   * line is voiced, never becomes part of what's actually spoken. */
+  /** Per-speaker delivery persona (accent/age/tone/pace), keyed by the
+   * exact `speaker` name used in `turns`. Documents each speaker's intended
+   * character for content authors and for a future higher-steerability
+   * provider (e.g. a paid cloud TTS with natural-language style control, if
+   * ever reconsidered). The current zero-cost pipeline (macOS `say`, see
+   * scripts/generate-audio.ts) has no equivalent style-steering parameter,
+   * so this is descriptive metadata only right now — it does not
+   * automatically pick or shape a voice, but every speaker on a `local_tts`
+   * track is still required to have one (see contentIntegrity.test.ts) so
+   * the intended character is never left undocumented. Structural metadata
+   * only, just like `speaker` itself: it never becomes part of what's
+   * actually spoken. */
   speakerPersonas?: Record<string, string>;
   audioUrl: string | null;
   sectionNumber: number;

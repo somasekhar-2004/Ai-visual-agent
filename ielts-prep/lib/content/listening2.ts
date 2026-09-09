@@ -5,7 +5,7 @@ export const listeningTracksSet2: ListeningTrack[] = [
   {
     id: '31000000-0000-0000-0000-000000000001',
     title: 'Orientation Tour of Fernwood Leisure Centre',
-    audioSource: { kind: 'generated_tts', provider: 'openai-gpt-4o-mini-tts' },
+    audioSource: { kind: 'local_tts', provider: 'macos-say' },
     speakerPersonas: {
       Guide: 'a friendly, energetic leisure-centre staff member in his 20s with a neutral British accent, welcoming and upbeat but clear tone',
     },
@@ -65,7 +65,7 @@ That brings us to the end of the tour. Does anyone have any questions before we 
   {
     id: '31000000-0000-0000-0000-000000000002',
     title: 'Planning a Group Research Project',
-    audioSource: { kind: 'generated_tts', provider: 'openai-gpt-4o-mini-tts' },
+    audioSource: { kind: 'local_tts', provider: 'macos-say' },
     speakerPersonas: {
       Tutor: 'an experienced academic tutor in her 40s with a neutral British accent, calm, encouraging, and authoritative tone, measured pace',
       Liam: 'a young male university student in his early 20s with a neutral British accent, casual natural conversational tone, slightly quicker pace',

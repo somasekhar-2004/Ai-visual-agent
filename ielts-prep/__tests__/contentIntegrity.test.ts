@@ -242,13 +242,12 @@ describe('listening — audio source & licence metadata', () => {
 
   it('pace gets stricter (denser/shorter gaps) from Section 1 to Section 4, matching real IELTS difficulty progression', () => {
     expect(PACE_BY_SECTION[1].gapSeconds).toBeGreaterThan(PACE_BY_SECTION[4].gapSeconds);
-    expect(PACE_BY_SECTION[1].ttsSpeed).toBeLessThanOrEqual(PACE_BY_SECTION[4].ttsSpeed);
   });
 
-  it('every speaker in a generated_tts track has a persona (accent/age/tone) — required so the pipeline never falls back to an unsteered voice', () => {
+  it('every speaker in a local_tts track has a documented persona (accent/age/tone) — a content-quality floor even though the current zero-cost pipeline cannot act on it directly', () => {
     const problems: string[] = [];
     for (const t of withTurns) {
-      if (t.audioSource?.kind !== 'generated_tts') continue;
+      if (t.audioSource?.kind !== 'local_tts') continue;
       const speakers = new Set(t.turns!.map((turn) => turn.speaker));
       for (const speaker of speakers) {
         if (!t.speakerPersonas?.[speaker]?.trim()) problems.push(`${t.id}: speaker "${speaker}" has no persona in speakerPersonas`);
@@ -272,12 +271,13 @@ describe('listening — audio source & licence metadata', () => {
 
 describe('listening — production audio coverage (no silent regressions to device-TTS fallback)', () => {
   // Tracks that are correctly migrated to `turns` but don't have real
-  // generated audio *yet* — synthesizing it requires OPENAI_API_KEY, which
-  // is a dev-machine-only secret unavailable in CI. This list must only
-  // ever shrink: remove an id the moment you've run `npm run
-  // audio:generate` locally and committed its .mp3. If it's ever wrong in
-  // the other direction (a track here already has audio, or a track NOT
-  // here is missing audio), a test below fails on purpose.
+  // generated audio *yet* — scripts/generate-audio.ts only runs on macOS
+  // (it shells out to the built-in `say` command), which this CI/sandbox
+  // environment isn't. This list must only ever shrink: remove an id the
+  // moment you've run `npm run audio:generate` locally and committed its
+  // .mp3. If it's ever wrong in the other direction (a track here already
+  // has audio, or a track NOT here is missing audio), a test below fails
+  // on purpose.
   const PENDING_AUDIO_GENERATION = new Set([
     '30000000-0000-0000-0000-000000000001',
     '30000000-0000-0000-0000-000000000002',

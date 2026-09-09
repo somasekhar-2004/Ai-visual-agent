@@ -4,7 +4,7 @@ export const listeningTracks: ListeningTrack[] = [
   {
     id: '30000000-0000-0000-0000-000000000001',
     title: 'Booking a Self-Storage Unit',
-    audioSource: { kind: 'generated_tts', provider: 'openai-gpt-4o-mini-tts' },
+    audioSource: { kind: 'local_tts', provider: 'macos-say' },
     speakerPersonas: {
       Receptionist: 'a warm, professional receptionist in her 30s with a neutral British accent, clear diction, patient and helpful tone',
       Caller: 'a polite adult customer with a neutral British accent, natural relaxed conversational tone',
@@ -51,7 +51,7 @@ RECEPTIONIST: You're welcome, have a great day.`,
   {
     id: '30000000-0000-0000-0000-000000000002',
     title: 'The History and Ecology of Peat Bogs',
-    audioSource: { kind: 'generated_tts', provider: 'openai-gpt-4o-mini-tts' },
+    audioSource: { kind: 'local_tts', provider: 'macos-say' },
     speakerPersonas: {
       Lecturer: 'an articulate university lecturer in his 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery',
     },
