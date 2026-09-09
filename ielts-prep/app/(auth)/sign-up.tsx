@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
+import { DevAuthVersionBadge } from '@/components/auth/DevAuthVersionBadge';
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
 import { Button, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
@@ -56,6 +57,7 @@ export default function SignUpScreen() {
   if (flow.kind === 'existingConfirmed') {
     return (
       <Screen scroll>
+        <DevAuthVersionBadge />
         <ScreenHeader title="Account already exists" showBack />
         <Text color="secondary">An account with {flow.email} already exists.</Text>
         <View style={{ marginTop: theme.spacing.xl, gap: theme.spacing.sm }}>
@@ -69,6 +71,7 @@ export default function SignUpScreen() {
   if (flow.kind === 'pendingConfirmation') {
     return (
       <Screen scroll>
+        <DevAuthVersionBadge />
         <ScreenHeader title="Create account" showBack />
         <ResendConfirmationNotice email={flow.email} alreadyRegistered={flow.alreadyRegistered} justResent={flow.alreadyRegistered} />
         <View style={{ marginTop: theme.spacing.xl }}>
@@ -80,6 +83,7 @@ export default function SignUpScreen() {
 
   return (
     <Screen scroll>
+      <DevAuthVersionBadge />
       <ScreenHeader title="Create account" showBack />
       <View style={{ gap: theme.spacing.md }}>
         <TextField label="Full name" value={fullName} onChangeText={setFullName} autoCapitalize="words" />

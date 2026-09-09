@@ -2,6 +2,7 @@ import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
+import { DevAuthVersionBadge } from '@/components/auth/DevAuthVersionBadge';
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
 import { Button, IconCircle, Screen, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
@@ -60,6 +61,7 @@ export default function SignInScreen() {
   if (pendingEmail) {
     return (
       <Screen scroll>
+        <DevAuthVersionBadge />
         <View style={{ alignItems: 'center', gap: theme.spacing.md, marginTop: theme.spacing.xl, marginBottom: theme.spacing.xl }}>
           <IconCircle name="log-in-outline" size={64} />
           <Text variant="h1">Welcome back</Text>
@@ -74,6 +76,7 @@ export default function SignInScreen() {
 
   return (
     <Screen scroll>
+      <DevAuthVersionBadge />
       <View style={{ alignItems: 'center', gap: theme.spacing.md, marginTop: theme.spacing.xl, marginBottom: theme.spacing.xl }}>
         <IconCircle name="log-in-outline" size={64} />
         <Text variant="h1">Welcome back</Text>

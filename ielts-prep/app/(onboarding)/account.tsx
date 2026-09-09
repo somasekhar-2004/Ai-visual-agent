@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
+import { DevAuthVersionBadge } from '@/components/auth/DevAuthVersionBadge';
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
 import { OnboardingScaffold } from '@/components/onboarding/OnboardingScaffold';
 import { Button, Text, TextField } from '@/components/ui';
@@ -80,8 +81,10 @@ export default function AccountScreen() {
 
   const goToSignIn = () => router.replace('/(auth)/sign-in');
 
+  let body: React.ReactNode;
+
   if (mode === 'choice') {
-    return (
+    body = (
       <OnboardingScaffold
         step={8}
         totalSteps={9}
@@ -98,10 +101,8 @@ export default function AccountScreen() {
         </View>
       </OnboardingScaffold>
     );
-  }
-
-  if (flow.kind === 'existingConfirmed') {
-    return (
+  } else if (flow.kind === 'existingConfirmed') {
+    body = (
       <OnboardingScaffold
         step={8}
         totalSteps={9}
@@ -114,10 +115,8 @@ export default function AccountScreen() {
         <Text color="secondary">An account with {flow.email} already exists. Sign in to continue.</Text>
       </OnboardingScaffold>
     );
-  }
-
-  if (flow.kind === 'pendingConfirmation') {
-    return (
+  } else if (flow.kind === 'pendingConfirmation') {
+    body = (
       <OnboardingScaffold
         step={8}
         totalSteps={9}
@@ -133,40 +132,47 @@ export default function AccountScreen() {
         <ResendConfirmationNotice email={flow.email} alreadyRegistered={flow.alreadyRegistered} justResent={flow.alreadyRegistered} />
       </OnboardingScaffold>
     );
+  } else {
+    body = (
+      <OnboardingScaffold
+        step={8}
+        totalSteps={9}
+        title="Create your account"
+        onPrimary={handleCreateAccount}
+        primaryLabel="Create account"
+        loading={loading}
+        secondaryLabel="Back"
+        onSecondary={() => setMode('choice')}
+      >
+        <View style={{ gap: theme.spacing.md }}>
+          <TextField label="Full name" value={fullName} onChangeText={setFullName} autoCapitalize="words" placeholder="Alex Kim" />
+          <TextField
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="you@example.com"
+          />
+          <TextField label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="At least 8 characters" />
+          {error ? <Text color="error">{error}</Text> : null}
+          {isDemoMode ? (
+            <Text variant="caption" color="tertiary">
+              No Supabase project configured yet — account creation will continue in Demo Mode instead.
+            </Text>
+          ) : null}
+          <View style={{ alignItems: 'center' }}>
+            <Button label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} />
+          </View>
+        </View>
+      </OnboardingScaffold>
+    );
   }
 
   return (
-    <OnboardingScaffold
-      step={8}
-      totalSteps={9}
-      title="Create your account"
-      onPrimary={handleCreateAccount}
-      primaryLabel="Create account"
-      loading={loading}
-      secondaryLabel="Back"
-      onSecondary={() => setMode('choice')}
-    >
-      <View style={{ gap: theme.spacing.md }}>
-        <TextField label="Full name" value={fullName} onChangeText={setFullName} autoCapitalize="words" placeholder="Alex Kim" />
-        <TextField
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="you@example.com"
-        />
-        <TextField label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="At least 8 characters" />
-        {error ? <Text color="error">{error}</Text> : null}
-        {isDemoMode ? (
-          <Text variant="caption" color="tertiary">
-            No Supabase project configured yet — account creation will continue in Demo Mode instead.
-          </Text>
-        ) : null}
-        <View style={{ alignItems: 'center' }}>
-          <Button label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} />
-        </View>
-      </View>
-    </OnboardingScaffold>
+    <>
+      <DevAuthVersionBadge />
+      {body}
+    </>
   );
 }
