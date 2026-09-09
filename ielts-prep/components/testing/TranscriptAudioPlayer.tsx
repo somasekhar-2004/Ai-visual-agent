@@ -7,10 +7,11 @@ import { Pressable, View } from 'react-native';
 import { ProgressBar, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { audioRegistry } from '@/lib/content/audioRegistry';
+import type { ListeningSpeakerTurn } from '@/types/models';
 
 const WORDS_PER_MINUTE = 150;
 
-type PlayerProps = { title: string; transcript: string; showTitle?: boolean; restrictToOnePass?: boolean };
+type PlayerProps = { title: string; transcript: string; turns?: ListeningSpeakerTurn[]; showTitle?: boolean; restrictToOnePass?: boolean };
 
 /** Plays a listening-section transcript aloud. Uses a real pre-generated
  * audio file (see scripts/generate-audio.ts) when one exists for this track;
@@ -21,10 +22,10 @@ type PlayerProps = { title: string; transcript: string; showTitle?: boolean; res
  * recording plays once with no pausing or rewinding — pass it in exam/mock
  * contexts (listening-test.tsx). Free-practice contexts (practice-session.tsx)
  * omit it and keep full play/pause/scrub/replay controls. */
-export function TranscriptAudioPlayer({ trackId, title, transcript, showTitle = true, restrictToOnePass = false }: PlayerProps & { trackId: string }) {
+export function TranscriptAudioPlayer({ trackId, title, transcript, turns, showTitle = true, restrictToOnePass = false }: PlayerProps & { trackId: string }) {
   const realSource = audioRegistry[trackId];
   if (realSource) return <RealAudioPlayer source={realSource} title={title} showTitle={showTitle} restrictToOnePass={restrictToOnePass} />;
-  return <SpeechFallbackPlayer title={title} transcript={transcript} showTitle={showTitle} restrictToOnePass={restrictToOnePass} />;
+  return <SpeechFallbackPlayer title={title} transcript={transcript} turns={turns} showTitle={showTitle} restrictToOnePass={restrictToOnePass} />;
 }
 
 function RealAudioPlayer({ source, title, showTitle, restrictToOnePass }: { source: number; title: string; showTitle?: boolean; restrictToOnePass?: boolean }) {
@@ -86,14 +87,21 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function SpeechFallbackPlayer({ title, transcript, showTitle, restrictToOnePass }: PlayerProps) {
+function SpeechFallbackPlayer({ title, transcript, turns, showTitle, restrictToOnePass }: PlayerProps) {
   const theme = useTheme();
   const [playing, setPlaying] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const wordCount = transcript.trim().split(/\s+/).length;
+  // When structured turns exist, speak only the spoken words — never the
+  // "Speaker:" label — even on this on-device fallback path. On-device TTS
+  // still can't switch voices per speaker (a real platform limitation,
+  // which is exactly why production sections must use pre-generated audio
+  // instead of relying on this fallback), but it must never read metadata
+  // aloud regardless of which path is playing.
+  const spokenText = turns && turns.length > 0 ? turns.map((t) => t.text).join(' ') : transcript;
+  const wordCount = spokenText.trim().split(/\s+/).length;
   const estimatedSeconds = Math.max(10, Math.round((wordCount / WORDS_PER_MINUTE) * 60));
 
   useEffect(() => {
@@ -107,7 +115,7 @@ function SpeechFallbackPlayer({ title, transcript, showTitle, restrictToOnePass 
     setElapsed(0);
     setPlaying(true);
     setHasPlayed(true);
-    Speech.speak(transcript, {
+    Speech.speak(spokenText, {
       rate: 0.95,
       onDone: stop,
       onStopped: stop,

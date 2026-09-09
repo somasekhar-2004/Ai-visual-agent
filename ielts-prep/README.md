@@ -255,14 +255,20 @@ All real-provider outputs are validated against Zod schemas before use both serv
 
 ## Listening audio generation
 
-Every listening track plays out of the box via real, audible on-device text-to-speech (`expo-speech`) — no listening button is ever a no-op. For higher-quality, pre-rendered audio instead:
+Every listening track plays out of the box via real, audible on-device text-to-speech (`expo-speech`) — no listening button is ever a no-op. For a track with no pre-generated audio, this is still what plays in production, which is why it's a real fallback and not a decorative button — but it is single-voice and, on any track that hasn't been migrated to `turns` (below), it literally reads speaker labels ("Receptionist:", "Tutor:") out loud. Pre-generated audio fixes both problems and is what a genuinely production-ready section should use.
 
-```bash
-echo "OPENAI_API_KEY=sk-..." >> .env   # dev-machine-only secret, read by this script alone — never EXPO_PUBLIC_
-npm run audio:generate
-```
+**Two things a listening track needs to sound right:**
 
-`scripts/generate-audio.ts` reads every transcript in `lib/content/listening.ts`, synthesizes it with OpenAI's TTS API (`OPENAI_TTS_MODEL`, default `tts-1`; a different voice per section number so multi-speaker sections don't all sound the same), saves the MP3s under `assets/audio/<trackId>.mp3`, and regenerates `lib/content/audioRegistry.ts` to `require()` exactly the files that exist. `TranscriptAudioPlayer` checks that registry first and only falls back to text-to-speech for tracks it doesn't cover — so partially generating audio (e.g. only Section 1 of each mock) is fine. Re-running the script skips tracks that already have a file.
+1. **Structured `turns` on the track** (`ListeningTrack.turns` in `types/models.ts`) — an array of `{ speaker, text }` splitting the transcript by who's speaking, with `text` holding only the actual spoken words (never a "Speaker:" prefix). A handful of tracks have been migrated as a proof of concept (the free Academic Mock 1 listening section — see `lib/content/listening.ts` and `lib/content/listening2.ts`); the rest still only have the legacy single-string `transcript` and fall back to on-device TTS with no per-speaker voice.
+2. **Pre-generated audio**, produced from those `turns`:
+   ```bash
+   brew install ffmpeg   # one-time — used to add natural pauses between speaker turns
+   echo "OPENAI_API_KEY=sk-..." >> .env   # dev-machine-only secret, read by this script alone — never EXPO_PUBLIC_
+   npm run audio:generate
+   ```
+   `scripts/generate-audio.ts` only processes tracks that have `turns` — it never touches a track that's still transcript-only, so this is safe to run repeatedly as more tracks get migrated. For each migrated track it synthesizes **one OpenAI TTS call per turn** (`OPENAI_TTS_MODEL`, default `tts-1`), assigning each unique speaker in that track a distinct voice (`lib/content/audioVoiceAssignment.ts` — deterministic, so re-running the script never reshuffles voices), then concatenates the per-turn clips with a short silence gap via `ffmpeg` for natural pacing. Without `ffmpeg` installed it still concatenates the clips (no gap, and a warning is printed). The MP3s are saved under `assets/audio/<trackId>.mp3`, and `lib/content/audioRegistry.ts` is rebuilt from whatever `.mp3` files actually exist on disk (so it never drops a previously-generated track, including the 74 Astra-sourced ones already committed). `TranscriptAudioPlayer` checks that registry first and only falls back to text-to-speech for tracks it doesn't cover. Re-running the script skips any track that already has a file — delete it first to force a re-generation (e.g. after editing that track's `turns`).
+
+To migrate another track: add a `turns` array to it (see the 4 tracks in `lib/content/listening.ts`/`listening2.ts` for the pattern — one entry per line of dialogue, or one per paragraph for a monologue), then run `npm run audio:generate`.
 
 ## RevenueCat setup
 

@@ -22,6 +22,40 @@ On membership cards — your card also acts as your entry pass and your locker d
 Finally, a word on the café, which is just through the far doors — it's run by an outside company, not the centre itself, so your membership discount doesn't apply there, though they do a ten percent discount for anyone who shows their membership card before ten a.m.
 
 That brings us to the end of the tour. Does anyone have any questions before we head back to reception to get your cards sorted?`,
+    turns: [
+      {
+        speaker: 'Guide',
+        text: "Right, if everyone can gather round, welcome to Fernwood Leisure Centre — I'm Danny, and I'll be showing you round today before you start your membership. It'll take about fifteen minutes, so do stop me if you have questions.",
+      },
+      {
+        speaker: 'Guide',
+        text: "Let's start with opening hours, because these trip people up more than anything else. On weekdays we're open from six a.m. right through to ten p.m. At weekends, though, we open a bit later — eight a.m. — and close earlier too, at eight p.m. The one exception is public holidays, when we run reduced hours of ten till four, so do check the website before you head over on a bank holiday.",
+      },
+      {
+        speaker: 'Guide',
+        text: "Now, moving through to the facilities. Straight ahead of us is the main pool, which is twenty-five metres and split into six lanes — lanes one and two are reserved for slow swimmers, three and four for medium pace, and five and six for fast lane swimming. Next to that, through the glass doors, is the smaller pool, which we call the training pool. That one's kept a couple of degrees warmer, and it's mainly used for our children's swimming lessons and for aqua aerobics classes.",
+      },
+      {
+        speaker: 'Guide',
+        text: "Upstairs — and mind the steps, they're a bit steep — you'll find the gym, which was fully refurbished last year. It has forty pieces of cardio equipment and a separate free-weights area. Gym inductions are compulsory for new members and take about thirty minutes; you'll need to book one before you can use the gym unsupervised. Also on the upper floor is Studio One, where we run our group classes — spin, yoga, and a new one starting this month called Body Blast.",
+      },
+      {
+        speaker: 'Guide',
+        text: "A few practical things before we finish up. Lockers are in the changing rooms just past reception — you'll need a one-pound coin, which is returned when you're done, so don't lose it thinking it's a fee. We also ask that everyone brings a padlock for the locker itself, as items left overnight are removed by staff and taken to lost property, which is behind the reception desk.",
+      },
+      {
+        speaker: 'Guide',
+        text: "On membership cards — your card also acts as your entry pass and your locker deposit, actually no, sorry, the locker still needs its own coin, the card is just for entry and for booking classes online. If you lose your card, there's a five-pound replacement fee, payable at reception.",
+      },
+      {
+        speaker: 'Guide',
+        text: "Finally, a word on the café, which is just through the far doors — it's run by an outside company, not the centre itself, so your membership discount doesn't apply there, though they do a ten percent discount for anyone who shows their membership card before ten a.m.",
+      },
+      {
+        speaker: 'Guide',
+        text: 'That brings us to the end of the tour. Does anyone have any questions before we head back to reception to get your cards sorted?',
+      },
+    ],
   },
   // ---------- MOCK 1 — Section 3 ----------
   {
@@ -55,6 +89,55 @@ PRIYA: We'll get that installed. Should we send you a draft of our observation r
 TUTOR: Yes, please do — email it to me by Friday and I'll check the categories make sense before you're out in the field collecting real data. It's much easier to fix the sheet now than to redo two weeks of observations.
 LIAM: Will do. Thanks, this has been really helpful.
 TUTOR: No problem — good luck with it, and come and see me again if anything comes up during the fieldwork stage.`,
+    turns: [
+      { speaker: 'Tutor', text: "Come in, come in — so this is our first meeting about the group project. It's just the two of you doing it together, is that right?" },
+      { speaker: 'Liam', text: 'Yes, that\'s right, me and Priya. We wanted to run our topic past you before we go too far with it.' },
+      { speaker: 'Priya', text: "We're thinking of looking at how noise pollution affects wildlife in urban parks." },
+      { speaker: 'Tutor', text: "That's a good area — quite broad, though. Have you narrowed it down at all?" },
+      { speaker: 'Liam', text: 'We were going to focus on birds specifically, comparing two parks — one near a main road and one further away from traffic.' },
+      { speaker: 'Tutor', text: "Good, that's more manageable. And what's your main research method going to be?" },
+      { speaker: 'Priya', text: 'We were planning to do a survey of park visitors, actually, asking about their perceptions of bird activity.' },
+      {
+        speaker: 'Tutor',
+        text: "Hmm, I'd push back on that a little. Perception surveys are interesting, but for a topic like this, you really want objective data — actual bird counts, not what people think they've noticed. I'd recommend direct observation instead: go to each park at the same time of day, on similar weather days, and record species and numbers over, say, a two-week period.",
+      },
+      { speaker: 'Liam', text: "That makes sense, it's more rigorous." },
+      { speaker: 'Tutor', text: 'Exactly. Now, how are you planning to divide the work between you?' },
+      { speaker: 'Priya', text: 'I was going to take the literature review, and Liam would handle the fieldwork.' },
+      {
+        speaker: 'Tutor',
+        text: "Okay, but I'd suggest you both do at least some fieldwork together, at the start anyway, so you're both applying the same recording method consistently. Otherwise your data from the two of you might not be comparable.",
+      },
+      { speaker: 'Liam', text: "Good point — we hadn't thought about that." },
+      { speaker: 'Tutor', text: "What about your timeline? When's this due?" },
+      { speaker: 'Priya', text: 'The final report is due on the twenty-second of November.' },
+      {
+        speaker: 'Tutor',
+        text: "Right, so working backwards from that — I'd want to see your literature review completed by, let's say, the fourteenth of October. That gives you time to actually let it inform your observation methods rather than just being a separate chapter bolted on afterwards.",
+      },
+      { speaker: 'Liam', text: 'And the fieldwork itself?' },
+      {
+        speaker: 'Tutor',
+        text: "I'd start that no later than the twentieth of October, so you've got a full two weeks of observation done before the first of November, leaving three weeks to write up, analyse and edit.",
+      },
+      { speaker: 'Priya', text: "That's tighter than I expected, but doable." },
+      {
+        speaker: 'Tutor',
+        text: "One more thing — for equipment, you'll need binoculars and a decent field guide. The department has a small stock of binoculars you can borrow from the equipment office, but you need to book them at least a week in advance because there's usually a queue for them.",
+      },
+      { speaker: 'Liam', text: "We'll do that this week then." },
+      {
+        speaker: 'Tutor',
+        text: "Good. And I'd also recommend downloading the birdsong identification app the biology department uses — it's called SongFinder, that's S-O-N-G, one word, then Finder. It helps a lot with identifying species by call rather than sight alone, since you won't always get a clear view.",
+      },
+      { speaker: 'Priya', text: "We'll get that installed. Should we send you a draft of our observation record sheet before we start?" },
+      {
+        speaker: 'Tutor',
+        text: "Yes, please do — email it to me by Friday and I'll check the categories make sense before you're out in the field collecting real data. It's much easier to fix the sheet now than to redo two weeks of observations.",
+      },
+      { speaker: 'Liam', text: 'Will do. Thanks, this has been really helpful.' },
+      { speaker: 'Tutor', text: 'No problem — good luck with it, and come and see me again if anything comes up during the fieldwork stage.' },
+    ],
   },
   // ---------- MOCK 2 — Section 1 ----------
   {

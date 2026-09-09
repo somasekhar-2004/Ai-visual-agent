@@ -72,10 +72,27 @@ export type ReadingPassage = {
   sectionNumber: number;
 };
 
+/** One speaker's line(s) in a listening transcript. `speaker` is structural
+ * metadata only — a display/attribution label (e.g. for voice assignment at
+ * audio-generation time). It must never be prepended to `text` and sent to a
+ * TTS engine or spoken aloud; `text` alone is what gets synthesized. */
+export type ListeningSpeakerTurn = {
+  speaker: string;
+  text: string;
+};
+
 export type ListeningTrack = {
   id: string;
   title: string;
   transcript: string;
+  /** Structured speaker-by-speaker breakdown of `transcript`, used by
+   * scripts/generate-audio.ts to synthesize natural multi-speaker audio
+   * (one TTS call per turn, a distinct voice per speaker, concatenated with
+   * pacing gaps) without ever speaking a "Speaker:" label aloud. Optional:
+   * only tracks migrated to the structured pipeline have it. A track
+   * without `turns` still works — it just keeps using the legacy
+   * single-voice/on-device-TTS path until it's migrated. */
+  turns?: ListeningSpeakerTurn[];
   audioUrl: string | null;
   sectionNumber: number;
 };

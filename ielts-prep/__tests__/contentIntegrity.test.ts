@@ -132,6 +132,77 @@ describe('listening — track/question mapping', () => {
   });
 });
 
+describe('listening — structured turns (multi-speaker audio pipeline)', () => {
+  // Tracks migrated to `turns` are the ones scripts/generate-audio.ts will
+  // synthesize as real, multi-speaker, label-free audio. A track without
+  // `turns` is left alone on purpose (see that script's header comment) —
+  // it keeps using the legacy single-voice/on-device-TTS path until it's
+  // migrated in a later batch.
+  const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
+
+  it('has at least one track migrated to the structured multi-speaker pipeline', () => {
+    expect(withTurns.length).toBeGreaterThan(0);
+  });
+
+  it('every turn has a non-empty speaker and non-empty text', () => {
+    const problems: string[] = [];
+    for (const t of withTurns) {
+      t.turns!.forEach((turn, i) => {
+        if (!turn.speaker.trim()) problems.push(`${t.id}[${i}]: empty speaker`);
+        if (!turn.text.trim()) problems.push(`${t.id}[${i}]: empty text`);
+      });
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('no turn text speaks a "Speaker:" label aloud — turns.text must be spoken words only', () => {
+    // Catches the exact defect that made every existing track (including
+    // all 74 Astra-sourced ones) speak "RECEPTIONIST:", "TUTOR:", etc. as
+    // part of the audio: turns.speaker is structural metadata, never
+    // spoken, so turns.text must never start with a label-like prefix.
+    const labelPattern = /^\s*[A-Z][A-Za-z .'-]{0,24}:\s/;
+    const problems: string[] = [];
+    for (const t of withTurns) {
+      t.turns!.forEach((turn, i) => {
+        if (labelPattern.test(turn.text)) problems.push(`${t.id}[${i}] ("${turn.speaker}"): text looks like it starts with a spoken label — "${turn.text.slice(0, 30)}..."`);
+      });
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it("every turn's text is a verbatim excerpt of the track's transcript (no drift between the two representations)", () => {
+    const problems: string[] = [];
+    for (const t of withTurns) {
+      for (const turn of t.turns!) {
+        if (!t.transcript.includes(turn.text)) problems.push(`${t.id}: turn text not found verbatim in transcript — "${turn.text.slice(0, 40)}..."`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('a Section 1 or Section 3 track (conversation/discussion) with turns has more than one distinct speaker', () => {
+    const problems: string[] = [];
+    for (const t of withTurns) {
+      if (t.sectionNumber === 1 || t.sectionNumber === 3) {
+        const speakers = new Set(t.turns!.map((turn) => turn.speaker));
+        if (speakers.size < 2) problems.push(`${t.id} (section ${t.sectionNumber}): only ${speakers.size} distinct speaker(s) — real IELTS Section 1/3 audio is multi-speaker`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('a Section 2 or Section 4 track (monologue/lecture) with turns has exactly one speaker', () => {
+    const problems: string[] = [];
+    for (const t of withTurns) {
+      if (t.sectionNumber === 2 || t.sectionNumber === 4) {
+        const speakers = new Set(t.turns!.map((turn) => turn.speaker));
+        if (speakers.size !== 1) problems.push(`${t.id} (section ${t.sectionNumber}): ${speakers.size} distinct speakers — real IELTS Section 2/4 audio is a single speaker`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+});
+
 describe('mock tests — structure and uniqueness', () => {
   it('has at least 16 Academic and 16 General Training full mock tests', () => {
     const academic = content.mockTests.filter((t) => t.ieltsType === 'academic');
