@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
+import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
 import { OnboardingScaffold } from '@/components/onboarding/OnboardingScaffold';
 import { Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
@@ -22,6 +23,7 @@ export default function AccountScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   async function finishOnboarding() {
     await completeOnboarding({
@@ -57,6 +59,10 @@ export default function AccountScreen() {
         setError(result.error);
         return;
       }
+      if ('pendingConfirmation' in result) {
+        setPendingEmail(result.email);
+        return;
+      }
       await finishOnboarding();
     } finally {
       setLoading(false);
@@ -77,6 +83,25 @@ export default function AccountScreen() {
         loading={loading}
       >
         <View />
+      </OnboardingScaffold>
+    );
+  }
+
+  if (pendingEmail) {
+    return (
+      <OnboardingScaffold
+        step={8}
+        totalSteps={9}
+        title="Create your account"
+        onPrimary={() => setPendingEmail(null)}
+        primaryLabel="Use a different email"
+        secondaryLabel="Back"
+        onSecondary={() => {
+          setPendingEmail(null);
+          setMode('choice');
+        }}
+      >
+        <ResendConfirmationNotice email={pendingEmail} />
       </OnboardingScaffold>
     );
   }

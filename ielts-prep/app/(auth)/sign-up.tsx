@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
+import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
 import { Button, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { signUpWithEmail } from '@/services/auth';
@@ -15,6 +16,7 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   async function handleSignUp() {
     setError(null);
@@ -29,11 +31,27 @@ export default function SignUpScreen() {
         setError(result.error);
         return;
       }
+      if ('pendingConfirmation' in result) {
+        setPendingEmail(result.email);
+        return;
+      }
       // A brand new account has no goals yet — route through onboarding to collect them.
       router.replace('/(onboarding)/ielts-type');
     } finally {
       setLoading(false);
     }
+  }
+
+  if (pendingEmail) {
+    return (
+      <Screen scroll>
+        <ScreenHeader title="Create account" showBack />
+        <ResendConfirmationNotice email={pendingEmail} />
+        <View style={{ marginTop: theme.spacing.xl }}>
+          <Button label="Use a different email" variant="ghost" onPress={() => setPendingEmail(null)} fullWidth />
+        </View>
+      </Screen>
+    );
   }
 
   return (

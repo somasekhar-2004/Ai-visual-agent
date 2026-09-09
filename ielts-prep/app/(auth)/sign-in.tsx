@@ -2,6 +2,7 @@ import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
+import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
 import { Button, IconCircle, Screen, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { isDemoMode } from '@/lib/env';
@@ -18,6 +19,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   async function handleSignIn() {
     setError(null);
@@ -30,6 +32,10 @@ export default function SignInScreen() {
       const result = await signInWithEmail(email, password);
       if ('error' in result) {
         setError(result.error);
+        return;
+      }
+      if ('pendingConfirmation' in result) {
+        setPendingEmail(result.email);
         return;
       }
       await setOnboardingComplete();
@@ -49,6 +55,21 @@ export default function SignInScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (pendingEmail) {
+    return (
+      <Screen scroll>
+        <View style={{ alignItems: 'center', gap: theme.spacing.md, marginTop: theme.spacing.xl, marginBottom: theme.spacing.xl }}>
+          <IconCircle name="log-in-outline" size={64} />
+          <Text variant="h1">Welcome back</Text>
+        </View>
+        <ResendConfirmationNotice email={pendingEmail} />
+        <View style={{ marginTop: theme.spacing.xl }}>
+          <Button label="Back to sign in" variant="ghost" onPress={() => setPendingEmail(null)} fullWidth />
+        </View>
+      </Screen>
+    );
   }
 
   return (
