@@ -1,4 +1,8 @@
-import { allSpeakingTopics, content } from '@/lib/content';
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { allListeningTracks, allSpeakingTopics, content } from '@/lib/content';
+import { audioRegistry } from '@/lib/content/audioRegistry';
 
 function duplicateIds(items: { id: string }[]): string[] {
   const seen = new Set<string>();
@@ -129,11 +133,11 @@ describe('listening — track/question mapping', () => {
 });
 
 describe('mock tests — structure and uniqueness', () => {
-  it('has at least 6 Academic and 6 General Training full mock tests', () => {
+  it('has at least 16 Academic and 16 General Training full mock tests', () => {
     const academic = content.mockTests.filter((t) => t.ieltsType === 'academic');
     const general = content.mockTests.filter((t) => t.ieltsType === 'general');
-    expect(academic.length).toBeGreaterThanOrEqual(6);
-    expect(general.length).toBeGreaterThanOrEqual(6);
+    expect(academic.length).toBeGreaterThanOrEqual(16);
+    expect(general.length).toBeGreaterThanOrEqual(16);
   });
 
   it('every mock section references a mock test that exists', () => {
@@ -174,24 +178,30 @@ describe('mock tests — structure and uniqueness', () => {
     expect(problems).toEqual([]);
   });
 
-  it('no two mock tests reuse the same reading passage, listening track, or writing prompt', () => {
+  it('no two mock tests reuse the same reading passage (Reading must always be unique per mock)', () => {
     const owner = new Map<string, string>();
     const collisions: string[] = [];
     for (const section of content.mockSections) {
-      const ids = [
-        ...(section.contentRef.passageIds ?? []),
-        ...(section.contentRef.trackIds ?? []),
-        ...(section.contentRef.writingPromptIds ?? []),
-      ];
-      for (const id of ids) {
+      for (const id of section.contentRef.passageIds ?? []) {
         const existingOwner = owner.get(id);
-        if (existingOwner && existingOwner !== section.mockTestId) {
-          collisions.push(`${id} used by both ${existingOwner} and ${section.mockTestId}`);
-        }
+        if (existingOwner && existingOwner !== section.mockTestId) collisions.push(`${id} used by both ${existingOwner} and ${section.mockTestId}`);
         owner.set(id, section.mockTestId);
       }
     }
     expect(collisions).toEqual([]);
+  });
+
+  it('a listening track or writing prompt is never reused by more than 2 mock tests (real IELTS shares Listening + Task 2 essays between one Academic/General pair only, never across unrelated mocks)', () => {
+    const owners = new Map<string, Set<string>>();
+    for (const section of content.mockSections) {
+      for (const id of [...(section.contentRef.trackIds ?? []), ...(section.contentRef.writingPromptIds ?? [])]) {
+        const set = owners.get(id) ?? new Set<string>();
+        set.add(section.mockTestId);
+        owners.set(id, set);
+      }
+    }
+    const overused = Array.from(owners.entries()).filter(([, mockIds]) => mockIds.size > 2);
+    expect(overused.map(([id, mockIds]) => `${id} used by ${mockIds.size} mocks`)).toEqual([]);
   });
 
   it('has at least one free mock test for each IELTS type', () => {
@@ -269,5 +279,31 @@ describe('writing prompts — library depth', () => {
     const academic1 = content.writingPrompts.filter((p) => p.taskType === 'task1_academic');
     const missingChart = academic1.filter((p) => !p.chartData);
     expect(missingChart.map((p) => p.id)).toEqual([]);
+  });
+});
+
+describe('audio — every registry entry resolves to a real bundled file', () => {
+  const audioDir = path.join(__dirname, '..', 'assets', 'audio');
+
+  it('every audioRegistry entry has a corresponding .mp3 file on disk', () => {
+    const missing = Object.keys(audioRegistry).filter((trackId) => !fs.existsSync(path.join(audioDir, `${trackId}.mp3`)));
+    expect(missing).toEqual([]);
+  });
+
+  it('every audioRegistry key is a real listening track id (no stale/orphaned entries)', () => {
+    const trackIds = new Set(allListeningTracks.map((t) => t.id));
+    const orphanKeys = Object.keys(audioRegistry).filter((id) => !trackIds.has(id));
+    expect(orphanKeys).toEqual([]);
+  });
+
+  it('has at least 70 listening tracks backed by real generated audio (not just TTS fallback)', () => {
+    expect(Object.keys(audioRegistry).length).toBeGreaterThanOrEqual(70);
+  });
+
+  it('every .mp3 file physically present under assets/audio is registered under some track id (no orphan files)', () => {
+    const files = fs.readdirSync(audioDir).filter((f) => f.endsWith('.mp3'));
+    const registered = new Set(Object.keys(audioRegistry));
+    const orphanFiles = files.filter((f) => !registered.has(f.replace(/\.mp3$/, '')));
+    expect(orphanFiles).toEqual([]);
   });
 });

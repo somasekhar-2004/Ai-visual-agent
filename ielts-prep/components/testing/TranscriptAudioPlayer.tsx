@@ -10,24 +10,37 @@ import { audioRegistry } from '@/lib/content/audioRegistry';
 
 const WORDS_PER_MINUTE = 150;
 
-type PlayerProps = { title: string; transcript: string; showTitle?: boolean };
+type PlayerProps = { title: string; transcript: string; showTitle?: boolean; restrictToOnePass?: boolean };
 
 /** Plays a listening-section transcript aloud. Uses a real pre-generated
  * audio file (see scripts/generate-audio.ts) when one exists for this track;
  * otherwise falls back to on-device text-to-speech, which is still real,
- * audible playback — never a decorative button that does nothing. */
-export function TranscriptAudioPlayer({ trackId, title, transcript, showTitle = true }: PlayerProps & { trackId: string }) {
+ * audible playback — never a decorative button that does nothing.
+ *
+ * `restrictToOnePass` mirrors the real IELTS Listening test, where the
+ * recording plays once with no pausing or rewinding — pass it in exam/mock
+ * contexts (listening-test.tsx). Free-practice contexts (practice-session.tsx)
+ * omit it and keep full play/pause/scrub/replay controls. */
+export function TranscriptAudioPlayer({ trackId, title, transcript, showTitle = true, restrictToOnePass = false }: PlayerProps & { trackId: string }) {
   const realSource = audioRegistry[trackId];
-  if (realSource) return <RealAudioPlayer source={realSource} title={title} showTitle={showTitle} />;
-  return <SpeechFallbackPlayer title={title} transcript={transcript} showTitle={showTitle} />;
+  if (realSource) return <RealAudioPlayer source={realSource} title={title} showTitle={showTitle} restrictToOnePass={restrictToOnePass} />;
+  return <SpeechFallbackPlayer title={title} transcript={transcript} showTitle={showTitle} restrictToOnePass={restrictToOnePass} />;
 }
 
-function RealAudioPlayer({ source, title, showTitle }: { source: number; title: string; showTitle?: boolean }) {
+function RealAudioPlayer({ source, title, showTitle, restrictToOnePass }: { source: number; title: string; showTitle?: boolean; restrictToOnePass?: boolean }) {
   const theme = useTheme();
   const player = useAudioPlayer(source);
   const status = useAudioPlayerStatus(player);
+  const [hasPlayed, setHasPlayed] = useState(false);
+  const finished = restrictToOnePass && hasPlayed && !status.playing && status.currentTime >= (status.duration || 0) - 0.25 && status.duration > 0;
 
   function toggle() {
+    if (restrictToOnePass) {
+      if (hasPlayed || status.playing) return;
+      setHasPlayed(true);
+      player.play();
+      return;
+    }
     if (status.playing) player.pause();
     else {
       if (status.currentTime >= (status.duration || 0) - 0.25) player.seekTo(0);
@@ -36,20 +49,28 @@ function RealAudioPlayer({ source, title, showTitle }: { source: number; title: 
   }
 
   const progress = status.duration ? status.currentTime / status.duration : 0;
+  const disabled = restrictToOnePass && hasPlayed;
 
   return (
     <View style={{ gap: theme.spacing.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
         <Pressable
           onPress={toggle}
-          style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}
+          disabled={disabled}
+          style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: disabled ? theme.colors.border : theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}
         >
           <Ionicons name={status.playing ? 'pause' : 'play'} size={22} color={theme.colors.onPrimary} />
         </Pressable>
         <View style={{ flex: 1 }}>
           {showTitle ? <Text variant="bodyMedium">{title}</Text> : null}
           <Text variant="caption" color="tertiary">
-            {status.playing ? 'Playing' : 'Tap play to listen'} · {formatTime(status.currentTime)} / {formatTime(status.duration)}
+            {restrictToOnePass
+              ? finished
+                ? 'Played — this recording plays once, as in the real test'
+                : hasPlayed
+                  ? `Playing (plays once) · ${formatTime(status.currentTime)} / ${formatTime(status.duration)}`
+                  : 'Tap play to start — this recording plays once, as in the real test'
+              : `${status.playing ? 'Playing' : 'Tap play to listen'} · ${formatTime(status.currentTime)} / ${formatTime(status.duration)}`}
           </Text>
         </View>
       </View>
@@ -65,9 +86,10 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function SpeechFallbackPlayer({ title, transcript, showTitle }: PlayerProps) {
+function SpeechFallbackPlayer({ title, transcript, showTitle, restrictToOnePass }: PlayerProps) {
   const theme = useTheme();
   const [playing, setPlaying] = useState(false);
+  const [hasPlayed, setHasPlayed] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -84,6 +106,7 @@ function SpeechFallbackPlayer({ title, transcript, showTitle }: PlayerProps) {
   function play() {
     setElapsed(0);
     setPlaying(true);
+    setHasPlayed(true);
     Speech.speak(transcript, {
       rate: 0.95,
       onDone: stop,
@@ -104,19 +127,30 @@ function SpeechFallbackPlayer({ title, transcript, showTitle }: PlayerProps) {
     }
   }
 
+  const disabled = restrictToOnePass && hasPlayed && !playing;
+
   return (
     <View style={{ gap: theme.spacing.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
         <Pressable
-          onPress={playing ? stop : play}
-          style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}
+          onPress={disabled ? undefined : playing ? stop : play}
+          disabled={disabled}
+          style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: disabled ? theme.colors.border : theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}
         >
           <Ionicons name={playing ? 'stop' : 'play'} size={22} color={theme.colors.onPrimary} />
         </Pressable>
         <View style={{ flex: 1 }}>
           {showTitle ? <Text variant="bodyMedium">{title}</Text> : null}
           <Text variant="caption" color="tertiary">
-            {playing ? 'Playing (on-device text-to-speech)' : 'Tap play to listen (on-device text-to-speech)'}
+            {restrictToOnePass
+              ? disabled
+                ? 'Played — this recording plays once, as in the real test (on-device text-to-speech)'
+                : playing
+                  ? 'Playing (plays once, on-device text-to-speech)'
+                  : 'Tap play to start — this recording plays once, as in the real test (on-device text-to-speech)'
+              : playing
+                ? 'Playing (on-device text-to-speech)'
+                : 'Tap play to listen (on-device text-to-speech)'}
           </Text>
         </View>
       </View>

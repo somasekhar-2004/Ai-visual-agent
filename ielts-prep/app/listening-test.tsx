@@ -170,7 +170,7 @@ export default function ListeningTestScreen() {
 
       <View style={{ padding: theme.spacing.md, borderTopWidth: 1, borderBottomWidth: 1, borderColor: theme.colors.border }}>
         {currentTrack ? (
-          <TranscriptAudioPlayer trackId={currentTrack.id} title={currentTrack.title} transcript={currentTrack.transcript} />
+          <TranscriptAudioPlayer trackId={currentTrack.id} title={currentTrack.title} transcript={currentTrack.transcript} restrictToOnePass />
         ) : null}
       </View>
 
