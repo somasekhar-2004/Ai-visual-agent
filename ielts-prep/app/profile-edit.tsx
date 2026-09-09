@@ -29,10 +29,13 @@ export default function ProfileEditScreen() {
   const [targetBand, setTargetBand] = useState(goal?.targetBand ?? 7);
   const [weakestSkill, setWeakestSkill] = useState<SkillKey | null>(goal?.weakestSkill ?? null);
   const [dailyStudyMinutes, setDailyStudyMinutes] = useState(goal?.dailyStudyMinutes ?? 30);
+  const [examDateText, setExamDateText] = useState(goal?.examDate ?? '');
   const [saving, setSaving] = useState(false);
 
+  const examDateValid = examDateText.trim() === '' || /^\d{4}-\d{2}-\d{2}$/.test(examDateText.trim());
+
   async function handleSave() {
-    if (!userId) return;
+    if (!userId || !examDateValid) return;
     setSaving(true);
     try {
       await updateProfileName(userId, fullName);
@@ -40,7 +43,7 @@ export default function ProfileEditScreen() {
         ieltsType,
         currentBand: goal?.currentBand ?? null,
         targetBand,
-        examDate: goal?.examDate ?? null,
+        examDate: examDateText.trim() || null,
         weakestSkill,
         dailyStudyMinutes,
       });
@@ -96,6 +99,20 @@ export default function ProfileEditScreen() {
             ))}
           </View>
         </View>
+
+        <View>
+          <TextField
+            label="Exam date (YYYY-MM-DD, optional)"
+            value={examDateText}
+            onChangeText={setExamDateText}
+            placeholder="e.g. 2026-03-15"
+          />
+          {!examDateValid ? (
+            <Text variant="caption" color="error" style={{ marginTop: 4 }}>
+              Enter a date as YYYY-MM-DD, or clear the field if you haven&apos;t booked one yet.
+            </Text>
+          ) : null}
+        </View>
       </Card>
 
       <Card style={{ marginBottom: theme.spacing.lg, gap: theme.spacing.xs }}>
@@ -109,7 +126,7 @@ export default function ProfileEditScreen() {
         </View>
       </Card>
 
-      <Button label="Save changes" onPress={handleSave} loading={saving} fullWidth style={{ marginBottom: theme.spacing.huge }} />
+      <Button label="Save changes" onPress={handleSave} loading={saving} disabled={!examDateValid} fullWidth style={{ marginBottom: theme.spacing.huge }} />
     </Screen>
   );
 }

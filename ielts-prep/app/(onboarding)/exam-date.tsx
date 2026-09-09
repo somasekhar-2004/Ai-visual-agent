@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 
 import { OnboardingScaffold } from '@/components/onboarding/OnboardingScaffold';
@@ -24,6 +24,10 @@ const OPTIONS = [
 export default function ExamDateScreen() {
   const router = useRouter();
   const { examDate, setExamDate } = useOnboardingStore();
+  // The store's examDate defaults to null, which is also the "no date yet"
+  // option's own value — track whether the user has actually pressed
+  // something yet so that option doesn't render pre-selected on first view.
+  const [hasChosen, setHasChosen] = useState(false);
 
   return (
     <OnboardingScaffold
@@ -42,16 +46,22 @@ export default function ExamDateScreen() {
               title={`In about ${opt.label}`}
               subtitle={date}
               icon="calendar-outline"
-              selected={examDate === date}
-              onPress={() => setExamDate(date)}
+              selected={hasChosen && examDate === date}
+              onPress={() => {
+                setHasChosen(true);
+                setExamDate(date);
+              }}
             />
           );
         })}
         <OptionCard
           title="I haven't booked a date yet"
           icon="help-circle-outline"
-          selected={examDate === null}
-          onPress={() => setExamDate(null)}
+          selected={hasChosen && examDate === null}
+          onPress={() => {
+            setHasChosen(true);
+            setExamDate(null);
+          }}
         />
       </View>
       <Text variant="caption" color="tertiary" style={{ marginTop: 8 }}>

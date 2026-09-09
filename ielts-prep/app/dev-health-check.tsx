@@ -143,7 +143,7 @@ export default function DevHealthCheckScreen() {
 
       const writingPing = pingResults.find((r) => r.name === 'evaluate-writing');
       if (writingPing?.ok) {
-        update('ai-provider', writingPing.provider ? 'pass' : 'info', writingPing.provider ? `Configured: ${writingPing.provider}.` : 'Reachable, but no OPENAI_API_KEY/ANTHROPIC_API_KEY set — falls back to on-device mock.');
+        update('ai-provider', writingPing.provider ? 'pass' : 'info', writingPing.provider ? `Configured: ${writingPing.provider}.` : 'Reachable, but no OPENAI_API_KEY/ANTHROPIC_API_KEY/GEMINI_API_KEY set — falls back to on-device mock.');
       } else {
         update('ai-provider', 'info', 'Could not determine — evaluate-writing was unreachable (see above).');
       }

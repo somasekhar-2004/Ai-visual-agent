@@ -96,9 +96,14 @@ export async function getMockAttempts(userId: string): Promise<MockAttempt[]> {
   return (data ?? []).map(mapMockAttempt);
 }
 
-export async function getInProgressMockAttempt(userId: string): Promise<MockAttempt | null> {
+/** Scoped to a single mock test — without `mockTestId`, an in-progress
+ * attempt abandoned on one mock test would be resumed while navigating the
+ * flow steps of a completely different mock test the user just started,
+ * silently mixing that other test's content into this attempt's saved
+ * state. */
+export async function getInProgressMockAttempt(userId: string, mockTestId: string): Promise<MockAttempt | null> {
   const attempts = await getMockAttempts(userId);
-  return attempts.find((a) => a.status === 'in_progress') ?? null;
+  return attempts.find((a) => a.status === 'in_progress' && a.mockTestId === mockTestId) ?? null;
 }
 
 function mapMockAttempt(data: any): MockAttempt {

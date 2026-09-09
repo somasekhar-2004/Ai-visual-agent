@@ -75,7 +75,6 @@ export default function WritingTestScreen() {
     AsyncStorage.setItem(draftKey, essay).catch(() => {});
   }, [essay, draftKey]);
 
-  const { label: timerLabel, isExpired } = useCountdown(prompt.timeLimitMinutes * 60);
   const wordCount = countWords(essay);
   const belowMinimum = wordCount < prompt.minWords;
 
@@ -131,6 +130,8 @@ export default function WritingTestScreen() {
     await AsyncStorage.removeItem(draftKey);
     setPhase('result');
   }
+
+  const { label: timerLabel, isExpired } = useCountdown(prompt.timeLimitMinutes * 60, () => phase === 'writing' && doSubmit());
 
   if (phase === 'evaluating') {
     return (

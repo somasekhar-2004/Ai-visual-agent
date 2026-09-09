@@ -68,6 +68,11 @@ export default function SpeakingSessionScreen() {
   const [evaluation, setEvaluation] = useState<SpeakingEvaluationResult | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Guards against stopRecording firing twice for the same turn — it's
+  // reachable both from the countdown hitting zero and from the user tapping
+  // "Stop and continue", and a near-simultaneous double call would push two
+  // transcript entries and advance turnIndex twice, silently skipping a turn.
+  const stoppingRef = useRef(false);
 
   const turn = turns[turnIndex];
 
@@ -128,6 +133,7 @@ export default function SpeakingSessionScreen() {
       setPhase('permission_denied');
       return;
     }
+    stoppingRef.current = false;
     setPhase('recording');
     setSecondsLeft(turn.maxSpeakSeconds);
     intervalRef.current = setInterval(() => {
@@ -143,6 +149,8 @@ export default function SpeakingSessionScreen() {
   }
 
   async function stopRecording() {
+    if (stoppingRef.current) return;
+    stoppingRef.current = true;
     clearTimer();
     setPhase('transcribing');
     const { uri, durationSeconds } = await recorder.stop();

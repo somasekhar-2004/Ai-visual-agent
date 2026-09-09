@@ -38,6 +38,11 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Deno (supabase/functions/_shared/aiProviders.test.ts) — auto-generated
+# lockfile covering the whole npm dependency graph when run from repo root;
+# not needed to reproduce `deno check`/`deno lint`/`deno test`.
+deno.lock
+
 # generated native folders
 /ios
 /android

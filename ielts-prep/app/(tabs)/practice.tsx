@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View } from 'react-native';
 
 import { Card, IconCircle, Screen, Text } from '@/components/ui';
@@ -35,6 +35,14 @@ export default function PracticeHubScreen() {
   const attempted = new Set(attemptsQuery.data?.map((a) => a.questionId));
   const incorrectIds = new Set(attemptsQuery.data?.filter((a) => !a.isCorrect).map((a) => a.questionId));
 
+  // listQuestions({skill}) filters the full question list — compute it once
+  // per skill per render instead of once for "total" and again for "done".
+  const questionsBySkill = useMemo(() => {
+    const map = new Map<SkillKey, ReturnType<typeof listQuestions>>();
+    for (const skill of SKILLS) map.set(skill.key, listQuestions({ skill: skill.key }));
+    return map;
+  }, []);
+
   return (
     <Screen scroll>
       <Text variant="h1" style={{ marginBottom: theme.spacing.xs }}>
@@ -45,8 +53,9 @@ export default function PracticeHubScreen() {
       </Text>
 
       {SKILLS.map((skill) => {
-        const total = listQuestions({ skill: skill.key }).length;
-        const done = listQuestions({ skill: skill.key }).filter((q) => attempted.has(q.id)).length;
+        const skillQuestions = questionsBySkill.get(skill.key)!;
+        const total = skillQuestions.length;
+        const done = skillQuestions.filter((q) => attempted.has(q.id)).length;
         return (
           <Card
             key={skill.key}

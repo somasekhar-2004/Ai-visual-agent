@@ -38,7 +38,7 @@ export default function MockTestIntroScreen() {
     }
     setStarting(true);
     try {
-      const existing = await getInProgressMockAttempt(userId);
+      const existing = await getInProgressMockAttempt(userId, mockTest.id);
       const attempt = existing ?? (await startMockAttempt(userId, mockTest.id));
 
       const steps = buildMockFlowSteps(mockTest.id);

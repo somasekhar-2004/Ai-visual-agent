@@ -182,7 +182,7 @@ export default function PracticeSessionScreen() {
           icon="headset-outline"
           maxHeight={140}
         >
-          <TranscriptAudioPlayer trackId={track.id} title={track.title} transcript={track.transcript} showTitle={false} />
+          <TranscriptAudioPlayer key={track.id} trackId={track.id} title={track.title} transcript={track.transcript} showTitle={false} />
         </CollapsiblePanel>
       ) : null}
 

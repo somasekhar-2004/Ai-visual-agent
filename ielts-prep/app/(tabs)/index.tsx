@@ -161,8 +161,10 @@ export default function HomeScreen() {
               onPress={() => router.push(studyPlanItemTarget(item) as any)}
             />
           ))
-        ) : (
+        ) : planQuery.isLoading ? (
           <Text color="secondary">Loading your plan...</Text>
+        ) : (
+          <Text color="secondary">Nothing scheduled for today — tap below to practice your weakest skill anyway.</Text>
         )}
         <Button
           label="Continue studying"

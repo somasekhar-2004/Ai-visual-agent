@@ -7,28 +7,39 @@ import { fetchWithRetry } from './httpClient.ts';
 import { buildCoachSystemPrompt, buildSpeakingEvalPrompt, buildStudyPlanSuggestionPrompt, buildWritingEvalPrompt } from './prompts.ts';
 import type { CoachContext, SpeakingEvalRequest, WritingEvalRequest } from './schemas.ts';
 
-export type ProviderName = 'openai' | 'anthropic';
+export type ProviderName = 'openai' | 'anthropic' | 'gemini';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
 const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') || 'gpt-4o-mini';
 const ANTHROPIC_MODEL = Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-5';
-// Which provider to prefer when both keys happen to be set. Defaults to
+// gemini-2.0-flash is on the free Gemini Developer API tier at the time this
+// was written and supports responseMimeType: 'application/json' for
+// structured output — check https://ai.google.dev/pricing for the current
+// free-tier model list before relying on this default in production, and
+// override with GEMINI_MODEL if it has changed.
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-2.0-flash';
+// Which provider to prefer when multiple keys happen to be set. Defaults to
 // openai since it's also the only one that supports transcription.
 const PREFERRED_PROVIDER = (Deno.env.get('AI_PROVIDER') as ProviderName | undefined) || 'openai';
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const ANTHROPIC_BASE = 'https://api.anthropic.com/v1';
 const ANTHROPIC_VERSION = '2023-06-01';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 /** Returns the provider to use for text generation, or null if no key is
  * configured at all — callers must treat null as "AI not configured on the
  * server" and respond accordingly (never crash, never fall back to a fake
  * result: the mobile client's own mock provider is the fallback). */
 export function getConfiguredTextProvider(): ProviderName | null {
+  if (PREFERRED_PROVIDER === 'gemini' && GEMINI_API_KEY) return 'gemini';
   if (PREFERRED_PROVIDER === 'anthropic' && ANTHROPIC_API_KEY) return 'anthropic';
+  if (PREFERRED_PROVIDER === 'openai' && OPENAI_API_KEY) return 'openai';
   if (OPENAI_API_KEY) return 'openai';
   if (ANTHROPIC_API_KEY) return 'anthropic';
+  if (GEMINI_API_KEY) return 'gemini';
   return null;
 }
 
@@ -77,11 +88,42 @@ async function anthropicMessages(userContent: string, systemContent: string | un
   return text;
 }
 
+type GeminiPart = { text?: string };
+type GeminiContent = { role: 'user' | 'model'; parts: GeminiPart[] };
+
+async function geminiGenerateContent(contents: GeminiContent[], systemContent: string | undefined, jsonMode: boolean, temperature = 0.4): Promise<string> {
+  const body: Record<string, unknown> = {
+    contents,
+    generationConfig: { temperature, ...(jsonMode ? { responseMimeType: 'application/json' } : {}) },
+    ...(systemContent ? { systemInstruction: { parts: [{ text: systemContent }] } } : {}),
+  };
+  const res = await fetchWithRetry(`${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  const candidate = data.candidates?.[0];
+  const text: string | undefined = candidate?.content?.parts?.map((p: GeminiPart) => p.text ?? '').join('');
+  if (!text) {
+    // A missing candidate with no error status usually means the response was
+    // blocked by Gemini's safety filters (finishReason: SAFETY) rather than a
+    // network/auth failure — surface that distinctly rather than a generic error.
+    const finishReason = candidate?.finishReason;
+    throw new Error(finishReason ? `Gemini response had no content (finishReason: ${finishReason})` : 'Gemini response missing content');
+  }
+  return text;
+}
+
 /** Runs a JSON-shaped evaluation prompt against whichever provider is
  * configured and returns the raw JSON text — the caller (each function's
  * index.ts) is responsible for Zod-validating it before trusting it. */
 export async function runJsonPrompt(provider: ProviderName, prompt: string): Promise<string> {
   if (provider === 'openai') return openAiChatCompletion(prompt);
+  if (provider === 'gemini') {
+    const text = await geminiGenerateContent([{ role: 'user', parts: [{ text: prompt }] }], undefined, true);
+    return extractJson(text);
+  }
   const text = await anthropicMessages(prompt, undefined);
   return extractJson(text);
 }
@@ -118,6 +160,15 @@ export async function runChat(provider: ProviderName, messages: { role: string; 
     if (!text) throw new Error('OpenAI response missing content');
     return text;
   }
+  if (provider === 'gemini') {
+    // Gemini's contents array only accepts 'user'/'model' roles — a 'system'
+    // role in the conversation (there isn't one today, but defensively
+    // handled) is dropped since systemContent already carries instructions.
+    const contents: GeminiContent[] = messages
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+    return geminiGenerateContent(contents, system, false, 0.6);
+  }
   const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
   const transcript = messages.map((m) => `${m.role === 'user' ? 'Student' : 'Coach'}: ${m.content}`).join('\n');
   const prompt = `${transcript}\n\nRespond as the Coach to the student's latest message: "${lastUser}"`;
@@ -127,7 +178,7 @@ export async function runChat(provider: ProviderName, messages: { role: string; 
 export async function transcribeWithOpenAi(audioBytes: Uint8Array, mimeType: string): Promise<string> {
   const ext = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a' : mimeType.includes('wav') ? 'wav' : 'm4a';
   const form = new FormData();
-  form.append('file', new Blob([audioBytes], { type: mimeType }), `speech.${ext}`);
+  form.append('file', new Blob([audioBytes as BlobPart], { type: mimeType }), `speech.${ext}`);
   form.append('model', 'whisper-1');
 
   const res = await fetchWithRetry(
