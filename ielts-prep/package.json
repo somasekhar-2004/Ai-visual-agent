@@ -55,6 +55,7 @@
     "eslint-config-expo": "^57.0.2",
     "jest": "^30.5.1",
     "jest-expo": "^57.0.5",
+    "patch-package": "^8.0.1",
     "pg": "^8.23.0",
     "prettier": "^3.9.6",
     "ts-jest": "^29.4.12",
@@ -62,6 +63,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "postinstall": "patch-package",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",

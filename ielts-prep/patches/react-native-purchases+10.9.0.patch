@@ -1,0 +1,20 @@
+diff --git a/node_modules/react-native-purchases/android/build.gradle b/node_modules/react-native-purchases/android/build.gradle
+index 840b485..d5823e3 100644
+--- a/node_modules/react-native-purchases/android/build.gradle
++++ b/node_modules/react-native-purchases/android/build.gradle
+@@ -6,7 +6,14 @@ buildscript {
+     }
+ 
+     dependencies {
+-        classpath 'com.android.tools.build:gradle:8.13.2'
++        // Do not hardcode a com.android.tools.build:gradle version here: this
++        // module's plugin resolution must inherit the single AGP version
++        // already loaded from the root project's buildscript classpath (set
++        // via React Native's own gradle/libs.versions.toml). Declaring a
++        // second, different AGP version in this subproject's own buildscript
++        // causes Gradle/AGP to detect two AGP versions in one build and fail
++        // during configuration ("Run gradlew" phase) before any compilation
++        // starts.
+         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+     }
+ }
