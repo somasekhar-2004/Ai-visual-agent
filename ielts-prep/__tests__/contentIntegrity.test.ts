@@ -244,6 +244,30 @@ describe('listening — audio source & licence metadata', () => {
     expect(PACE_BY_SECTION[1].gapSeconds).toBeGreaterThan(PACE_BY_SECTION[4].gapSeconds);
     expect(PACE_BY_SECTION[1].ttsSpeed).toBeLessThanOrEqual(PACE_BY_SECTION[4].ttsSpeed);
   });
+
+  it('every speaker in a generated_tts track has a persona (accent/age/tone) — required so the pipeline never falls back to an unsteered voice', () => {
+    const problems: string[] = [];
+    for (const t of withTurns) {
+      if (t.audioSource?.kind !== 'generated_tts') continue;
+      const speakers = new Set(t.turns!.map((turn) => turn.speaker));
+      for (const speaker of speakers) {
+        if (!t.speakerPersonas?.[speaker]?.trim()) problems.push(`${t.id}: speaker "${speaker}" has no persona in speakerPersonas`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('speakerPersonas never has a stale entry for a speaker that no longer appears in turns', () => {
+    const problems: string[] = [];
+    for (const t of withTurns) {
+      if (!t.speakerPersonas) continue;
+      const speakers = new Set(t.turns!.map((turn) => turn.speaker));
+      for (const persona of Object.keys(t.speakerPersonas)) {
+        if (!speakers.has(persona)) problems.push(`${t.id}: speakerPersonas has a stale entry "${persona}" not in turns`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
 });
 
 describe('listening — production audio coverage (no silent regressions to device-TTS fallback)', () => {

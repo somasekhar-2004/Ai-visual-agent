@@ -121,6 +121,13 @@ export type ListeningTrack = {
    * migrated to `turns` and has (or is meant to get) real generated/sourced
    * audio — see lib/content/audioLicense.ts's validateAudioSource. */
   audioSource?: ListeningAudioSource;
+  /** Per-speaker delivery persona (accent/age/tone/pace/style), keyed by
+   * the exact `speaker` name used in `turns`. Fed into gpt-4o-mini-tts's
+   * `instructions` parameter alongside the per-section style instruction
+   * (lib/content/listeningPace.ts) — see lib/content/audioInstructions.ts.
+   * Structural metadata only, just like `speaker` itself: it steers how a
+   * line is voiced, never becomes part of what's actually spoken. */
+  speakerPersonas?: Record<string, string>;
   audioUrl: string | null;
   sectionNumber: number;
 };

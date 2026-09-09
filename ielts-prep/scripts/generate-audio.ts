@@ -24,15 +24,26 @@
 //      structural metadata, not something that gets read aloud).
 //   2. Each unique speaker in a track gets a distinct OpenAI voice, assigned
 //      deterministically from VOICE_POOL so re-runs are stable.
-//   3. Speech rate and the silence gap between turns both come from
-//      lib/content/listeningPace.ts, keyed by sectionNumber — Section 1 is
-//      slightly slower with longer pauses, Section 4 is denser and more
-//      continuous, matching real IELTS difficulty progression.
-//   4. The per-turn clips are concatenated with that gap (via ffmpeg, if
-//      installed). Install it once with `brew install ffmpeg` on macOS.
-//      Without ffmpeg, clips are still concatenated (raw MPEG frame
-//      concatenation) but with no gap — the script prints a warning so
-//      this is never silently degraded.
+//   3. Delivery is steered with gpt-4o-mini-tts's `instructions` parameter
+//      (lib/content/audioInstructions.ts): this section's style
+//      (lib/content/listeningPace.ts — Section 1 clear/slower, Section 4
+//      dense/continuous, matching real IELTS difficulty progression) plus
+//      this speaker's persona (track.speakerPersonas — accent/age/tone),
+//      plus a standing instruction to never speak a label or metadata.
+//      The numeric `speed` parameter is also sent as a secondary lever, but
+//      OpenAI's developer forum has reports of gpt-4o-mini-tts ignoring it —
+//      `instructions` is the primary, reliable pace control for this model.
+//   4. The per-turn clips are concatenated with a silence gap (from the same
+//      pace profile) via ffmpeg, if installed. Install it once with `brew
+//      install ffmpeg` on macOS. Without ffmpeg, clips are still
+//      concatenated (raw MPEG frame concatenation) but with no gap — the
+//      script prints a warning so this is never silently degraded.
+//
+// Model: OPENAI_TTS_MODEL env var, default 'gpt-4o-mini-tts' (OpenAI's
+// current documented TTS model; supports the `instructions` steering above,
+// unlike the older 'tts-1'/'tts-1-hd'). Override it in .env if OpenAI ships
+// a newer model and you want to try it — nothing else in this script is
+// model-specific except this one default.
 //
 // A track whose audioSource.kind is 'human_corpus' is skipped here on
 // purpose — that's a reused real recording, not something this script
@@ -51,6 +62,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
 import { content } from '../lib/content';
+import { buildTurnInstructions } from '../lib/content/audioInstructions';
 import { assignVoices } from '../lib/content/audioVoiceAssignment';
 import { paceForSection } from '../lib/content/listeningPace';
 import type { ListeningTrack } from '../types/models';
@@ -64,7 +76,7 @@ const TMP_DIR = path.join(os.tmpdir(), 'ielts-prep-audio-gen');
 dotenv.config({ path: path.join(ROOT, '.env') });
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1';
+const OPENAI_TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 const TTS_SAMPLE_RATE = 24000;
 
 function hasFfmpeg(): boolean {
@@ -76,11 +88,11 @@ function hasFfmpeg(): boolean {
   }
 }
 
-async function synthesizeOpenAI(text: string, voice: string, speed: number): Promise<Buffer> {
+async function synthesizeOpenAI(text: string, voice: string, speed: number, instructions: string): Promise<Buffer> {
   const res = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice, input: text, response_format: 'mp3', speed }),
+    body: JSON.stringify({ model: OPENAI_TTS_MODEL, voice, input: text, response_format: 'mp3', speed, instructions }),
   });
   if (!res.ok) throw new Error(`OpenAI TTS request failed: ${res.status} ${await res.text()}`);
   return Buffer.from(await res.arrayBuffer());
@@ -146,8 +158,10 @@ async function generateTrack(track: ListeningTrack, ffmpegAvailable: boolean): P
     for (let i = 0; i < turns.length; i++) {
       const turn = turns[i];
       const voice = voices[turn.speaker];
+      const persona = track.speakerPersonas?.[turn.speaker];
+      const instructions = buildTurnInstructions(pace, persona);
       const segPath = path.join(TMP_DIR, `${track.id}__${i}.mp3`);
-      const audio = await synthesizeOpenAI(turn.text, voice, pace.ttsSpeed);
+      const audio = await synthesizeOpenAI(turn.text, voice, pace.ttsSpeed, instructions);
       fs.writeFileSync(segPath, audio);
       segmentPaths.push(segPath);
     }

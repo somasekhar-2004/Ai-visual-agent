@@ -5,7 +5,10 @@ export const listeningTracksSet2: ListeningTrack[] = [
   {
     id: '31000000-0000-0000-0000-000000000001',
     title: 'Orientation Tour of Fernwood Leisure Centre',
-    audioSource: { kind: 'generated_tts', provider: 'openai-tts-1' },
+    audioSource: { kind: 'generated_tts', provider: 'openai-gpt-4o-mini-tts' },
+    speakerPersonas: {
+      Guide: 'a friendly, energetic leisure-centre staff member in his 20s with a neutral British accent, welcoming and upbeat but clear tone',
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `GUIDE: Right, if everyone can gather round, welcome to Fernwood Leisure Centre — I'm Danny, and I'll be showing you round today before you start your membership. It'll take about fifteen minutes, so do stop me if you have questions.
@@ -62,7 +65,12 @@ That brings us to the end of the tour. Does anyone have any questions before we 
   {
     id: '31000000-0000-0000-0000-000000000002',
     title: 'Planning a Group Research Project',
-    audioSource: { kind: 'generated_tts', provider: 'openai-tts-1' },
+    audioSource: { kind: 'generated_tts', provider: 'openai-gpt-4o-mini-tts' },
+    speakerPersonas: {
+      Tutor: 'an experienced academic tutor in her 40s with a neutral British accent, calm, encouraging, and authoritative tone, measured pace',
+      Liam: 'a young male university student in his early 20s with a neutral British accent, casual natural conversational tone, slightly quicker pace',
+      Priya: 'a young female university student in her early 20s with a neutral British accent, engaged natural conversational tone, slightly quicker pace',
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `TUTOR: Come in, come in — so this is our first meeting about the group project. It's just the two of you doing it together, is that right?
