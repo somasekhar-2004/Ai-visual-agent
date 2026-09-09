@@ -284,19 +284,16 @@ describe('listening — audio source & licence metadata', () => {
 
 describe('listening — production audio coverage (no silent regressions to device-TTS fallback)', () => {
   // Tracks that are correctly migrated to `turns` but don't have real
-  // generated audio *yet* — scripts/generate-audio.ts only runs on macOS
-  // (it shells out to the built-in `say` command), which this CI/sandbox
-  // environment isn't. This list must only ever shrink: remove an id the
-  // moment you've run `npm run audio:generate` locally and committed its
-  // .mp3. If it's ever wrong in the other direction (a track here already
-  // has audio, or a track NOT here is missing audio), a test below fails
-  // on purpose.
-  const PENDING_AUDIO_GENERATION = new Set([
-    '30000000-0000-0000-0000-000000000001',
-    '30000000-0000-0000-0000-000000000002',
-    '31000000-0000-0000-0000-000000000001',
-    '31000000-0000-0000-0000-000000000002',
-  ]);
+  // generated audio *yet* — scripts/generate-audio.ts (Piper TTS) needs a
+  // locally pip-installed `piper` + a downloaded voice model, neither of
+  // which this CI/sandbox environment has. This list must only ever
+  // shrink: remove an id the moment you've run `npm run audio:generate`
+  // locally and committed its .mp3 — as of the 4 proof-of-concept tracks
+  // (generated on the developer's Mac, commit a517120), it's empty. If
+  // it's ever wrong in the other direction (a track here already has
+  // audio, or a track NOT here is missing audio), a test below fails on
+  // purpose.
+  const PENDING_AUDIO_GENERATION = new Set<string>([]);
 
   const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
 
