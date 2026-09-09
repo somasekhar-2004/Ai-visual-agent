@@ -14,9 +14,30 @@
 // "personal, non-commercial use" only and explicitly bars "recording,
 // publishing or redistribution... in a profit, non-profit, public sharing
 // or commercial context," so they can never be used for this app's shipped
-// content regardless of cost. Piper is used instead: an MIT-licensed local
-// TTS engine, with a voice model whose own licence was checked separately
-// (see below) and explicitly permits commercial use.
+// content regardless of cost.
+//
+// Piper is used instead — but read this carefully, because "Piper" no
+// longer means one single licence. As of this pipeline, `pip install
+// piper-tts` installs from OHF-Voice/piper1-gpl, licensed GPL-3.0-or-later
+// (confirmed directly against PyPI's own licence field for the current
+// release — the original rhasspy/piper engine was MIT, but that repo was
+// archived in October 2025 and is no longer what this package installs).
+// This script uses that GPL-3.0 engine ONLY as an arm's-length, offline,
+// dev-time CLI tool — invoked once per turn via a plain subprocess call,
+// exactly like calling `ffmpeg` or a compiler, never imported, linked, or
+// bundled into the Bandpath app itself. Per the FSF's own GPL FAQ (the
+// long-settled "can I use GCC to compile a nonfree program" answer: yes,
+// because a tool's licence does not extend to its output, unless the tool
+// literally copies its own copyrighted source into that output — which
+// Piper does not do; the generated waveform encodes the input text and the
+// voice *model's* learned parameters, not Piper's engine source code),
+// using the engine this way creates no GPL obligation on either this
+// repository's source code or the generated .mp3 files. What actually
+// governs the generated audio's licence is the voice *model* file, which
+// is licensed independently of the engine — see the audit below and the
+// Listening overhaul report for the full reasoning and a documented
+// zero-ambiguity fallback (eSpeak NG) if you want to avoid even this
+// well-established interpretation.
 //
 // Prerequisites (all free, one-time, documented in README.md):
 //   pip install piper-tts
@@ -56,11 +77,18 @@
 //      mixed down to one mp3. ffmpeg is a hard requirement (`brew install
 //      ffmpeg`).
 //
-// PIPER_VOICE (env-configurable, default en_GB-vctk-medium) — licence audit:
-//   - Piper engine software: MIT (rhasspy/piper / piper-tts on PyPI).
+// PIPER_VOICE (env-configurable, default en_GB-vctk-medium) — licence audit,
+// three layers, checked separately (never assume one layer's licence tells
+// you anything about another):
+//   - Piper engine software (what `pip install piper-tts` installs today):
+//     GPL-3.0-or-later, OHF-Voice/piper1-gpl. Used only as an offline
+//     dev-time CLI tool — see the header comment above for why that
+//     creates no obligation on this repo's source or the generated audio.
 //   - This voice model file: MIT, per its own MODEL_CARD on
 //     https://huggingface.co/rhasspy/piper-voices — commercial use and
-//     redistribution of generated audio both explicitly permitted.
+//     redistribution of generated audio both explicitly permitted. This is
+//     independent of the engine's licence above; it did not change when
+//     the engine relicensed.
 //   - Underlying training data: the VCTK Corpus (University of Edinburgh,
 //     CSTR), licensed CC BY 4.0 — also permits commercial use, but requires
 //     attribution, which is why this app's content carries an explicit
@@ -68,8 +96,9 @@
 //     lib/content/listening.ts/listening2.ts's audioSource fields and
 //     lib/content/audioLicense.ts, which validates it's actually present).
 // Swap PIPER_VOICE for a different model only after repeating this same
-// two-layer check (engine AND voice-model AND underlying-data licence) —
-// never assume a voice is commercial-safe just because Piper itself is.
+// three-layer check (engine AND voice-model AND underlying-data licence) —
+// never assume a voice is commercial-safe just because Piper itself is, and
+// never assume a MIT-labeled model means the engine is MIT too (it isn't).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
