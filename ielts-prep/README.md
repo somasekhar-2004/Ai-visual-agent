@@ -367,7 +367,7 @@ It signs in as that test account, then for each function: sends a `{ healthCheck
 
 ## Production builds (EAS)
 
-This app uses native modules (`expo-audio`, `expo-notifications`, `react-native-purchases`) that require [EAS Build](https://docs.expo.dev/build/introduction/) — plain Expo Go is fine for development but not for a store release.
+This app uses native modules (`expo-audio`, `expo-notifications`, `react-native-purchases`) that require [EAS Build](https://docs.expo.dev/build/introduction/) — plain Expo Go is fine for development but not for a store release. As of Expo SDK 53+, Expo Go on Android also no longer includes `expo-notifications`' native module at all (`expo-notifications: ... was removed from Expo Go`) — a development build is required to use local scheduled notifications on Android, not just for a store release.
 
 ```bash
 npm install -g eas-cli
@@ -384,6 +384,34 @@ Build profiles are defined in `eas.json` (`development`, `preview`, `production`
 - Replace the placeholder icons/splash in `assets/` with your real branding.
 - Replace the Privacy Policy / Terms placeholders in `app/help.tsx`.
 - Configure the microphone (`NSMicrophoneUsageDescription`, `RECORD_AUDIO`) and notification permission strings in `app.json` if you change their wording.
+
+### Building and installing a development build on an Android phone
+
+`expo-dev-client` is a dependency and `eas.json`'s `development` profile already has `developmentClient: true` + `android.buildType: "apk"` (a direct-installable APK, not an `.aab` store bundle) — no extra config plugin entry is needed for `expo-dev-client` itself, it autolinks.
+
+```bash
+npm install -g eas-cli          # if not already installed
+eas login                        # your Expo account
+eas build:configure              # only needed once — links this project to EAS, writes extra.eas.projectId to app.json
+eas build --profile development --platform android
+```
+
+That last command builds in Expo's cloud (no local Android SDK needed on your Mac) and, when it finishes, prints a URL/QR code for the built `.apk`. To get it onto your phone:
+
+- **Easiest:** open the printed build URL (or scan the QR code) on the Android phone itself, tap to download, then tap the downloaded `.apk` to install — Android will prompt you to allow installs from that source once.
+- **Or, with the phone connected via USB with USB debugging enabled** (Settings → About phone → tap Build number 7 times → Developer options → USB debugging), run:
+  ```bash
+  eas build:run --platform android
+  ```
+  This downloads the finished build and installs it on the connected device (or a running emulator) automatically via `adb`.
+
+Once installed, start the dev server with the dev-client flag (not plain `expo start`, which targets Expo Go):
+
+```bash
+npx expo start --dev-client
+```
+
+Open the installed app on your phone — it behaves like Expo Go but with full native-module support (notifications included), and reloads on every save just the same.
 
 ## Account deletion (Edge Function)
 
@@ -418,5 +446,6 @@ In Demo Mode, "Delete account" just resets the local on-device database — no f
 - **Demo listening audio** is synthesized on-device via text-to-speech (no bundled audio files) — attach real `audio_url`s to `listening_tracks` for production-quality listening audio.
 - **Pronunciation scoring** (both mock and real AI providers) is estimated from transcript/speech patterns, not full acoustic phoneme analysis — labeled as an estimate everywhere it's shown.
 - **`react-native-purchases`** requires a custom dev client / real build, not Expo Go.
+- **`expo-notifications` on Android requires a development build, not Expo Go** (Expo Go for Android dropped its native module starting with SDK 53) — see "Building and installing a development build on an Android phone" above. iOS Expo Go and web are unaffected.
 - Content (lessons, questions, vocabulary, mock tests) grows by editing `lib/content/*.ts` only, then running `npm run seed:generate` to regenerate the matching SQL — see "Content model" above.
 - **The Supabase Edge Functions (`supabase/functions/`) are implemented and reviewed but not yet deployed or run against a real AI key** — see "Verification status" at the end of "AI provider setup" above.
