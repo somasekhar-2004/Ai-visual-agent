@@ -46,3 +46,7 @@ deno.lock
 # generated native folders
 /ios
 /android
+
+# Supabase CLI local cache/state (npx supabase ...) — machine-local, never
+# holds anything the app or its migrations need; recreated automatically.
+supabase/.temp/
