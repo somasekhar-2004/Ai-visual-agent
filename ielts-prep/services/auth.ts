@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 
 import { isDemoMode } from '@/lib/env';
 import { DEMO_USER_ID } from '@/lib/demoStore';
@@ -7,23 +8,44 @@ import { supabase } from '@/lib/supabase';
 const DEMO_SESSION_KEY = 'ielts-prep/auth/demo-session';
 const ONBOARDING_KEY = 'ielts-prep/auth/onboarding-complete';
 
-export type AuthResult = { userId: string } | { error: string } | { pendingConfirmation: true; email: string };
+// Where Supabase sends the browser after verifying a signup confirmation
+// link (must be added to the project's Auth → URL Configuration → Redirect
+// URLs allowlist — see app/confirm.tsx, which is what this resolves to).
+export const EMAIL_CONFIRMATION_REDIRECT_URL = Linking.createURL('confirm');
+
+export type AuthResult = { userId: string } | { error: string; retryAfterSeconds?: number } | { pendingConfirmation: true; email: string };
+
+/** Supabase's over_email_send_rate_limit message includes the exact wait
+ * time (e.g. "For security purposes, you can only request this after 58
+ * seconds."), so the countdown shown to the user reflects the real
+ * server-enforced cooldown rather than a guessed constant. */
+function parseRetryAfterSeconds(message: string): number | undefined {
+  const match = message.match(/(\d+)\s*seconds?/i);
+  return match ? Number(match[1]) : undefined;
+}
 
 /** Turns a raw Supabase auth error into copy a user can act on, using the
  * stable `error.code` values Supabase documents (auth-js's `ErrorCode`
  * union) rather than matching on `error.message` text, which is not a
  * documented, stable contract. */
-function friendlyAuthErrorMessage(error: { code?: string; message: string }): string {
+function friendlyAuthErrorMessage(error: { code?: string; message: string }): { message: string; retryAfterSeconds?: number } {
   switch (error.code) {
-    case 'over_email_send_rate_limit':
-      return 'Too many emails were requested for this address recently. Please wait a few minutes, then try again — also check spam for one already sent.';
+    case 'over_email_send_rate_limit': {
+      const retryAfterSeconds = parseRetryAfterSeconds(error.message);
+      return {
+        message: retryAfterSeconds
+          ? `Please wait ${retryAfterSeconds} seconds before requesting another email.`
+          : 'Too many emails were requested for this address recently. Please wait a few minutes, then try again.',
+        retryAfterSeconds,
+      };
+    }
     case 'user_already_exists':
     case 'email_exists':
-      return 'An account with this email already exists and is confirmed. Please sign in instead.';
+      return { message: 'An account with this email already exists and is confirmed. Please sign in instead.' };
     case 'email_not_confirmed':
-      return 'This account has not confirmed its email yet. Check your inbox, or use "Resend confirmation email".';
+      return { message: 'This account has not confirmed its email yet. Check your inbox, or use "Resend confirmation email".' };
     default:
-      return error.message;
+      return { message: error.message };
   }
 }
 
@@ -56,9 +78,12 @@ export async function signUpWithEmail(email: string, password: string, fullName:
   const { data, error } = await supabase!.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    options: { data: { full_name: fullName }, emailRedirectTo: EMAIL_CONFIRMATION_REDIRECT_URL },
   });
-  if (error) return { error: friendlyAuthErrorMessage(error) };
+  if (error) {
+    const { message, retryAfterSeconds } = friendlyAuthErrorMessage(error);
+    return { error: message, retryAfterSeconds };
+  }
   if (!data.user) return { error: 'Sign up did not return a user. Check your email to confirm your account.' };
   // Anti-enumeration: when the email already belongs to a CONFIRMED account,
   // Supabase returns success with an empty `identities` array instead of an
@@ -82,11 +107,32 @@ export async function signUpWithEmail(email: string, password: string, fullName:
  * confirmed yet — the purpose-built API for this (rather than calling
  * signUpWithEmail again), with the same friendly error mapping (in
  * particular, this is what surfaces Supabase's per-address send-rate-limit
- * clearly instead of a raw "over_email_send_rate_limit" message). */
-export async function resendConfirmationEmail(email: string): Promise<{ ok: boolean; error?: string }> {
+ * clearly, with the exact cooldown, instead of a raw
+ * "over_email_send_rate_limit" message). */
+export async function resendConfirmationEmail(email: string): Promise<{ ok: boolean; error?: string; retryAfterSeconds?: number }> {
   if (isDemoMode) return { ok: true };
-  const { error } = await supabase!.auth.resend({ type: 'signup', email });
-  if (error) return { ok: false, error: friendlyAuthErrorMessage(error) };
+  const { error } = await supabase!.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: EMAIL_CONFIRMATION_REDIRECT_URL },
+  });
+  if (error) {
+    const { message, retryAfterSeconds } = friendlyAuthErrorMessage(error);
+    return { ok: false, error: message, retryAfterSeconds };
+  }
+  return { ok: true };
+}
+
+/** Exchanges the one-time `code` from a tapped email-confirmation link
+ * (app/confirm.tsx's deep link) for a real session — the PKCE counterpart to
+ * the implicit flow's URL-fragment tokens. A failure here (invalid, already
+ * used, or expired code) is surfaced as a plain message; the confirm screen
+ * points the user back to sign-in, which already offers "Resend confirmation
+ * email" for an account that still isn't confirmed. */
+export async function exchangeConfirmationCode(code: string): Promise<{ ok: boolean; error?: string }> {
+  if (isDemoMode) return { ok: true };
+  const { error } = await supabase!.auth.exchangeCodeForSession(code);
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
@@ -98,7 +144,8 @@ export async function signInWithEmail(email: string, password: string): Promise<
     // sign-in screen can offer "Resend confirmation email" for it, the same
     // as the pending-confirmation outcome from signUpWithEmail.
     if (error.code === 'email_not_confirmed') return { pendingConfirmation: true, email };
-    return { error: friendlyAuthErrorMessage(error) };
+    const { message, retryAfterSeconds } = friendlyAuthErrorMessage(error);
+    return { error: message, retryAfterSeconds };
   }
   return { userId: data.user.id };
 }

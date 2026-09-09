@@ -11,6 +11,12 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        // PKCE (rather than the implicit-flow default) returns the email
+        // confirmation link's payload as a `?code=` query parameter instead
+        // of a `#access_token=...` URL fragment. Query parameters survive
+        // Expo Router's deep-link parsing reliably; fragments often don't —
+        // see app/confirm.tsx, which exchanges that code for a session.
+        flowType: 'pkce',
       },
     })
   : null;

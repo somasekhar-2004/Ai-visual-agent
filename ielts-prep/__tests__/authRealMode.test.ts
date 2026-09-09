@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { resendConfirmationEmail, signInWithEmail, signUpWithEmail } from '@/services/auth';
+import { exchangeConfirmationCode, resendConfirmationEmail, signInWithEmail, signUpWithEmail } from '@/services/auth';
 
 // These tests exercise the real-backend branch of services/auth.ts, so
 // isDemoMode must be false here (unlike the rest of the suite, which runs
@@ -11,10 +11,16 @@ jest.mock('@/lib/env', () => ({
 }));
 
 jest.mock('@/lib/supabase', () => ({
-  supabase: { auth: { signUp: jest.fn(), signInWithPassword: jest.fn(), resend: jest.fn() } },
+  supabase: {
+    auth: { signUp: jest.fn(), signInWithPassword: jest.fn(), resend: jest.fn(), exchangeCodeForSession: jest.fn() },
+  },
 }));
 
-const auth = (supabase as unknown as { auth: { signUp: jest.Mock; signInWithPassword: jest.Mock; resend: jest.Mock } }).auth;
+const auth = (
+  supabase as unknown as {
+    auth: { signUp: jest.Mock; signInWithPassword: jest.Mock; resend: jest.Mock; exchangeCodeForSession: jest.Mock };
+  }
+).auth;
 
 describe('signUpWithEmail — real backend', () => {
   afterEach(() => jest.clearAllMocks());
@@ -104,17 +110,50 @@ describe('signInWithEmail — real backend', () => {
 describe('resendConfirmationEmail — real backend', () => {
   afterEach(() => jest.clearAllMocks());
 
-  it('returns ok on a successful resend', async () => {
+  it('returns ok on a successful resend, using auth.resend (not signUp again)', async () => {
     auth.resend.mockResolvedValue({ error: null });
     const result = await resendConfirmationEmail('a@b.com');
     expect(result).toEqual({ ok: true });
-    expect(auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'a@b.com' });
+    expect(auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'a@b.com', options: expect.objectContaining({ emailRedirectTo: expect.any(String) }) });
+    expect(auth.signUp).not.toHaveBeenCalled();
   });
 
-  it('surfaces a clear message when the resend is rate-limited', async () => {
+  it('surfaces a clear, generic message when rate-limited with no parseable wait time', async () => {
     auth.resend.mockResolvedValue({ error: { code: 'over_email_send_rate_limit', message: 'Email rate limit exceeded' } });
     const result = await resendConfirmationEmail('a@b.com');
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/too many emails/i);
+    expect(result.retryAfterSeconds).toBeUndefined();
+  });
+
+  it('surfaces the exact countdown when Supabase reports a specific wait time', async () => {
+    auth.resend.mockResolvedValue({
+      error: { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 42 seconds.' },
+    });
+    const result = await resendConfirmationEmail('a@b.com');
+    expect(result.ok).toBe(false);
+    expect(result.retryAfterSeconds).toBe(42);
+    expect(result.error).toBe('Please wait 42 seconds before requesting another email.');
+  });
+});
+
+describe('exchangeConfirmationCode — real backend', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('returns ok on a successful confirmation redirect', async () => {
+    auth.exchangeCodeForSession.mockResolvedValue({ data: { session: { access_token: 'jwt' } }, error: null });
+    const result = await exchangeConfirmationCode('valid-code');
+    expect(result).toEqual({ ok: true });
+    expect(auth.exchangeCodeForSession).toHaveBeenCalledWith('valid-code');
+  });
+
+  it('surfaces an error for an invalid or expired confirmation link', async () => {
+    auth.exchangeCodeForSession.mockResolvedValue({
+      data: { session: null },
+      error: { message: 'Email link is invalid or has expired', code: 'otp_expired' },
+    });
+    const result = await exchangeConfirmationCode('expired-code');
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/invalid or has expired/i);
   });
 });
