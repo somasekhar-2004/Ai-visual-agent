@@ -285,69 +285,14 @@ describe('listening — audio source & licence metadata', () => {
 
 describe('listening — production audio coverage (no silent regressions to device-TTS fallback)', () => {
   // Tracks that are correctly migrated to `turns` but don't have real
-  // generated audio *yet* — scripts/generate-audio.ts (Piper TTS) needs a
-  // locally pip-installed `piper` + a downloaded voice model, neither of
-  // which this CI/sandbox environment has. This list must only ever
-  // shrink: remove an id the moment you've run `npm run audio:generate`
-  // locally and committed its .mp3. The 4 proof-of-concept tracks (commit
-  // a517120) are already generated, hence not listed. The 44 ids below are
-  // the rest of the 48-track production Listening library (see the
-  // Listening rollout report) — migrated to `turns`/`audioSource` in this
-  // batch, awaiting generation on the developer's Mac. If this list is ever
-  // wrong in either direction (a track here already has audio, or a track
-  // NOT here is missing audio), a test below fails on purpose.
-  const PENDING_AUDIO_GENERATION = new Set<string>([
-    // "Booking a Self-Storage Unit" — real-device QA found its two voices
-    // sounded almost identical; its old .mp3 was deleted after fixing the
-    // speaker assignment (see audioVoiceAssignment.ts/the Listening rollout
-    // report) so the Mac generation run produces genuinely distinct voices
-    // instead of silently keeping the old, bad-sounding file.
-    '30000000-0000-0000-0000-000000000001',
-    '31000000-0000-0000-0000-000000000003',
-    '31000000-0000-0000-0000-000000000004',
-    '31000000-0000-0000-0000-000000000005',
-    '31000000-0000-0000-0000-000000000006',
-    '32000000-0000-0000-0000-000000000001',
-    '32000000-0000-0000-0000-000000000002',
-    '32000000-0000-0000-0000-000000000003',
-    '32000000-0000-0000-0000-000000000004',
-    '33000000-0000-0000-0000-000000000001',
-    '33000000-0000-0000-0000-000000000002',
-    '33000000-0000-0000-0000-000000000003',
-    '33000000-0000-0000-0000-000000000004',
-    '34000000-0000-0000-0000-000000000001',
-    '34000000-0000-0000-0000-000000000002',
-    '34000000-0000-0000-0000-000000000003',
-    '34000000-0000-0000-0000-000000000004',
-    '34000000-0000-0000-0000-000000000005',
-    '34000000-0000-0000-0000-000000000006',
-    '34000000-0000-0000-0000-000000000007',
-    '34000000-0000-0000-0000-000000000008',
-    '34000000-0000-0000-0000-000000000009',
-    '34000000-0000-0000-0000-000000000010',
-    '34000000-0000-0000-0000-000000000011',
-    '34000000-0000-0000-0000-000000000012',
-    '35000000-0000-0000-0000-000000000001',
-    '35000000-0000-0000-0000-000000000002',
-    '35000000-0000-0000-0000-000000000003',
-    '35000000-0000-0000-0000-000000000004',
-    '35000000-0000-0000-0000-000000000005',
-    '35000000-0000-0000-0000-000000000006',
-    '35000000-0000-0000-0000-000000000007',
-    '35000000-0000-0000-0000-000000000008',
-    '35000000-0000-0000-0000-000000000009',
-    '35000000-0000-0000-0000-000000000010',
-    '35000000-0000-0000-0000-000000000011',
-    '35000000-0000-0000-0000-000000000012',
-    '36000000-0000-0000-0000-000000000001',
-    '36000000-0000-0000-0000-000000000002',
-    '36000000-0000-0000-0000-000000000003',
-    '36000000-0000-0000-0000-000000000004',
-    '36000000-0000-0000-0000-000000000005',
-    '36000000-0000-0000-0000-000000000006',
-    '36000000-0000-0000-0000-000000000007',
-    '36000000-0000-0000-0000-000000000008',
-  ]);
+  // generated audio *yet*. This list must only ever shrink: remove an id
+  // the moment you've run `npm run audio:generate` locally and committed
+  // its .mp3. As of commit 490242c (all 48 production tracks generated on
+  // the developer's Mac, including a fresh Self-Storage with its fixed,
+  // contrasting-gender speaker assignment), it's empty. If it's ever wrong
+  // in either direction (a track here already has audio, or a track NOT
+  // here is missing audio), a test below fails on purpose.
+  const PENDING_AUDIO_GENERATION = new Set<string>([]);
 
   const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
 
@@ -388,6 +333,17 @@ describe('listening — 48-track production library (12 complete IELTS-style Lis
   it('every production track has a real audioSource (never left implicitly on-device-TTS)', () => {
     const missing = productionTracks.filter((t) => !t.audioSource).map((t) => t.id);
     expect(missing).toEqual([]);
+  });
+
+  it('all 48 production tracks now have real generated audio in the registry (nothing left pending)', () => {
+    const missing = productionTracks.filter((t) => !audioRegistry[t.id]).map((t) => t.id);
+    expect(missing).toEqual([]);
+  });
+
+  it('every production track is reachable from a full mock test (wired into a mock_sections contentRef, not just standalone/practice)', () => {
+    const referencedTrackIds = new Set(content.mockSections.flatMap((s) => s.contentRef.trackIds ?? []));
+    const unreachable = productionTracks.filter((t) => !referencedTrackIds.has(t.id)).map((t) => t.id);
+    expect(unreachable).toEqual([]);
   });
 
   it('a multi-speaker production track gets >=2 distinct curated voice categories, not just >=2 distinct IDs (the actual Self-Storage root cause)', () => {
