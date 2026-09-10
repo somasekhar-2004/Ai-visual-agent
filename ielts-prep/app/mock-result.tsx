@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import { SkillBandCard } from '@/components/home/SkillBandCard';
 import { Badge, BandRing, Button, Card, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
-import { computeOverallBand } from '@/lib/bandScore';
+import { computeOverallBand, computeWritingSkillBand } from '@/lib/bandScore';
 import { firstParam } from '@/lib/firstParam';
 import {
   checkAndUnlockAchievements,
@@ -38,15 +38,26 @@ export default function MockResultScreen() {
 
   const reading = readingQ.data?.find((a) => a.mockAttemptId === mockAttemptId);
   const listening = listeningQ.data?.find((a) => a.mockAttemptId === mockAttemptId);
-  const writing = writingQ.data?.find((w) => w.submission.mockAttemptId === mockAttemptId);
+  // A Full Mock's Writing section has TWO separate submissions (Task 1 and
+  // Task 2), each recorded independently under the same mockAttemptId —
+  // both must genuinely exist and be evaluated before an aggregate Writing
+  // band is produced; picking just one (the previous behavior) silently
+  // discarded the other task's result entirely.
+  const mockWritingSubmissions = writingQ.data?.filter((w) => w.submission.mockAttemptId === mockAttemptId) ?? [];
+  const writingTask1 = mockWritingSubmissions.find((w) => w.submission.taskType.startsWith('task1'));
+  const writingTask2 = mockWritingSubmissions.find((w) => w.submission.taskType === 'task2');
+  const writingReady = Boolean(writingTask1?.feedback && writingTask2?.feedback);
+  const writingBand = writingReady
+    ? computeWritingSkillBand(writingTask1!.feedback!.overallBand, writingTask2!.feedback!.overallBand)
+    : null;
   const speaking = speakingQ.data?.find((s) => s.session.mockAttemptId === mockAttemptId);
 
-  const ready = reading && listening && writing?.feedback && speaking?.feedback;
+  const ready = Boolean(reading && listening && writingBand != null && speaking?.feedback);
 
   const bands: Partial<Record<SkillKey, number>> = {
     reading: reading?.band,
     listening: listening?.band,
-    writing: writing?.feedback?.overallBand,
+    writing: writingBand ?? undefined,
     speaking: speaking?.feedback?.overallBand,
   };
   const overall = ready

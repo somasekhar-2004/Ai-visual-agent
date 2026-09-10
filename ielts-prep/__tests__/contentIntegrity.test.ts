@@ -220,9 +220,16 @@ describe('listening — structured turns (multi-speaker audio pipeline)', () => 
 describe('listening — audio source & licence metadata', () => {
   const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
 
-  it('every track migrated to structured turns declares an audioSource', () => {
-    const missing = withTurns.filter((t) => !t.audioSource);
-    expect(missing.map((t) => t.id)).toEqual([]);
+  // Turns-ready no longer implies "has real generated/sourced audio": the 74
+  // legacy Astra tracks were migrated to structured turns (so they're ready
+  // for the real Piper pipeline once it can actually run) but deliberately
+  // do NOT declare audioSource yet — no verified Piper audio exists for
+  // them (see scripts/convert-astra-listening-turns.ts's header). The
+  // invariant that still must hold is the reverse direction: nothing may
+  // claim a real audioSource while still on the legacy flat-transcript path.
+  it('every track that declares an audioSource also has structured turns (audioSource is never set on the legacy flat-transcript path)', () => {
+    const problems = content.listeningTracks.filter((t) => t.audioSource && !(t.turns && t.turns.length > 0)).map((t) => t.id);
+    expect(problems).toEqual([]);
   });
 
   it('every declared audioSource passes licence validation (commercial redistribution allowed, source/licence/attribution present as required)', () => {
@@ -314,12 +321,17 @@ describe('listening — production audio coverage (no silent regressions to devi
 });
 
 describe('listening — 48-track production library (12 complete IELTS-style Listening tests)', () => {
-  // The production set is exactly the tracks migrated to structured `turns`
-  // — currently the 48 originally Claude-authored tracks (ids '30xxxxxx'
-  // through '36xxxxxx'); the 74 Astra-sourced tracks are deliberately not
-  // part of this set yet (see the Listening rollout report on why their
-  // pre-existing bundled audio is NOT reused as-is).
-  const productionTracks = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
+  // The production set is exactly the tracks with a declared, licence-
+  // validated audioSource — currently the 48 originally Claude-authored
+  // tracks (ids '30xxxxxx' through '36xxxxxx'). `turns` alone is no longer
+  // a valid proxy for this: the 74 Astra-sourced tracks were migrated to
+  // structured turns too (ready for the real Piper pipeline) but
+  // deliberately don't declare audioSource yet, since no verified Piper
+  // audio has actually been generated for them (see
+  // scripts/convert-astra-listening-turns.ts's header) — they must NOT be
+  // counted as production until real audio is generated and audioSource is
+  // set.
+  const productionTracks = content.listeningTracks.filter((t) => t.audioSource != null);
 
   it('has exactly 48 production-quality listening sections', () => {
     expect(productionTracks.length).toBe(48);
@@ -392,6 +404,42 @@ describe('listening — 48-track production library (12 complete IELTS-style Lis
       if (counts.male > 3 || counts.female > 3) problems.push(`${track.id}: ${counts.male} male + ${counts.female} female speakers exceeds the 3-per-gender curated pool`);
     }
     expect(problems).toEqual([]);
+  });
+
+  it('no production track is one of the 74 legacy Astra tracks — they are turns-ready but not yet real Piper audio', () => {
+    const astraInProduction = productionTracks.filter((t) => t.id.startsWith('81')).map((t) => t.id);
+    expect(astraInProduction).toEqual([]);
+  });
+});
+
+describe('listening — legacy Astra tracks are turns-ready but correctly excluded from production', () => {
+  // scripts/convert-astra-listening-turns.ts migrated all 74 legacy Astra
+  // tracks to structured turns (so they're ready for the real Piper
+  // pipeline once it can run with network access to download the voice
+  // model) without setting audioSource, since no verified Piper audio has
+  // actually been generated for them yet. These tests pin that exact,
+  // intentional in-between state so a future change can't silently regress
+  // it in either direction — claiming production status too early, or
+  // losing the turns migration work.
+  const astraTracks = content.listeningTracks.filter((t) => t.id.startsWith('81'));
+
+  it('has exactly 74 legacy Astra tracks', () => {
+    expect(astraTracks.length).toBe(74);
+  });
+
+  it('every legacy Astra track has structured turns (migrated, ready for Piper generation)', () => {
+    const missing = astraTracks.filter((t) => !(t.turns && t.turns.length > 0)).map((t) => t.id);
+    expect(missing).toEqual([]);
+  });
+
+  it('no legacy Astra track declares audioSource yet (no verified Piper audio has been generated for them)', () => {
+    const withAudioSource = astraTracks.filter((t) => t.audioSource).map((t) => t.id);
+    expect(withAudioSource).toEqual([]);
+  });
+
+  it('every legacy Astra track still has real bundled audio in the registry (its original, undocumented-licence .mp3 — never a silent on-device-TTS fallback)', () => {
+    const missing = astraTracks.filter((t) => !audioRegistry[t.id]).map((t) => t.id);
+    expect(missing).toEqual([]);
   });
 });
 

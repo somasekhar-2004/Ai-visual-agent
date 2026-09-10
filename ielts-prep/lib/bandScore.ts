@@ -107,6 +107,21 @@ export function computeOverallBand(skills: SkillBands): number {
   return roundIeltsBand(average);
 }
 
+/**
+ * Aggregates a Full Mock's two Writing tasks into a single Writing skill
+ * band, using IELTS's own task weighting: Task 2 counts twice as much as
+ * Task 1 — (task1Band + task2Band * 2) / 3 — then rounded with the same
+ * half-band convention as every other band in the app.
+ *
+ * Returns null when either task's genuine AI-evaluated band is missing —
+ * an aggregate Writing band must never be fabricated from a single
+ * completed task while the other is still outstanding or failed.
+ */
+export function computeWritingSkillBand(task1Band: number | null | undefined, task2Band: number | null | undefined): number | null {
+  if (task1Band == null || task2Band == null) return null;
+  return roundIeltsBand((task1Band + task2Band * 2) / 3);
+}
+
 export function bandLabel(band: number): string {
   if (band >= 8.5) return 'Expert';
   if (band >= 7.5) return 'Very Good';
