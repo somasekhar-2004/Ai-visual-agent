@@ -165,7 +165,7 @@ describe('hydrate — dataLoaded distinguishes "still fetching" from every settl
     expect(mockGetActiveGoal).not.toHaveBeenCalled();
   });
 
-  it('a genuinely new user with no goal rows at all: Home shows the onboarding setup screen, not a permanent loading spinner', async () => {
+  it('a genuinely new user with no goal rows at all: Home still shows the real dashboard (with a goal-setup CTA card inside it), not a permanent loading spinner', async () => {
     mockGetProfile.mockResolvedValue(PROFILE);
     mockGetActiveGoal.mockResolvedValue(null); // getActiveGoal already proved it checked for a historical row too — see homeGoalRecovery.test.ts
     mockGetLatestBandScores.mockResolvedValue({});
@@ -178,13 +178,17 @@ describe('hydrate — dataLoaded distinguishes "still fetching" from every settl
     const state = useAppStore.getState();
     expect(state.dataLoaded).toBe(true);
     expect(state.homeError).toBeNull();
-    expect(getHomeViewState(state)).toBe('setup');
+    expect(state.goal).toBeNull();
+    // No full-screen "let's set up your goal" state exists anymore — Home
+    // always renders "ready" and ProgressDashboard's Target progress card
+    // degrades to a setup CTA on its own when `goal` is null.
+    expect(getHomeViewState(state)).toBe('ready');
   });
 
-  it('a query failure during the initial load: Home shows the error/retry screen, never the onboarding setup screen', async () => {
+  it('a scoped query failure (only the goal query) during the initial load: Home still shows the real dashboard — a missing/failed goal must not blank the rest of the screen', async () => {
     mockGetProfile.mockResolvedValue(PROFILE);
     mockGetActiveGoal.mockRejectedValue(new Error('permission denied for table user_goals'));
-    mockGetLatestBandScores.mockResolvedValue({});
+    mockGetLatestBandScores.mockResolvedValue({ overall: 6.5 });
     mockGetSubscription.mockResolvedValue(null);
     mockGetStreak.mockResolvedValue({ count: 0, lastActiveDate: null });
     mockGetXp.mockResolvedValue(0);
@@ -193,6 +197,28 @@ describe('hydrate — dataLoaded distinguishes "still fetching" from every settl
 
     const state = useAppStore.getState();
     expect(state.dataLoaded).toBe(true);
+    expect(state.homeError).toMatch(/permission denied/);
+    expect(state.profile).toEqual(PROFILE);
+    expect(state.bandScores).toEqual({ overall: 6.5 });
+    // profile (and every other independently-fetched field) still loaded,
+    // so this renders "ready" with an inline retry banner for homeError and
+    // the goal card degraded — never the old full-screen error state.
+    expect(getHomeViewState(state)).toBe('ready');
+  });
+
+  it('a failure that leaves nothing usable at all (e.g. every table permission-denied, so profile never loads either): Home shows the full-screen error/retry state', async () => {
+    mockGetProfile.mockRejectedValue(new Error('permission denied for table profiles'));
+    mockGetActiveGoal.mockRejectedValue(new Error('permission denied for table user_goals'));
+    mockGetLatestBandScores.mockRejectedValue(new Error('permission denied for table band_scores'));
+    mockGetSubscription.mockRejectedValue(new Error('permission denied for table subscriptions'));
+    mockGetStreak.mockRejectedValue(new Error('permission denied for table streaks'));
+    mockGetXp.mockRejectedValue(new Error('permission denied for table xp'));
+
+    await useAppStore.getState().hydrate();
+
+    const state = useAppStore.getState();
+    expect(state.dataLoaded).toBe(true);
+    expect(state.profile).toBeNull();
     expect(state.homeError).toMatch(/permission denied/);
     expect(getHomeViewState(state)).toBe('error');
   });

@@ -12,7 +12,10 @@ type Row = { title: string; icon: keyof typeof Ionicons.glyphMap; href: string; 
 
 const ROWS: Row[] = [
   { title: 'Edit profile & goals', icon: 'person-outline', href: '/profile-edit' },
-  { title: 'Progress & analytics', icon: 'stats-chart-outline', href: '/analytics' },
+  // Progress & analytics is no longer a separate Settings destination — the
+  // Home tab now shows that entire dashboard directly (see
+  // components/dashboard/ProgressDashboard.tsx). /analytics still exists
+  // as a route for any old deep link, just not linked from here anymore.
   { title: 'Achievements', icon: 'trophy-outline', href: '/achievements' },
   { title: 'Notification settings', icon: 'notifications-outline', href: '/notification-settings' },
   { title: 'Subscription', icon: 'star-outline', href: '/subscription' },

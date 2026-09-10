@@ -29,7 +29,7 @@ It covers all four IELTS skills (Listening, Reading, Writing, Speaking), realist
 ## What's included
 
 - **Onboarding** — IELTS type, current/target band, exam date, weakest skill, daily study time, notifications, account creation, and a generated study plan summary.
-- **Home dashboard** — target vs. predicted band, per-skill bands, today's study plan, streak/XP, recommended mock test, recent activity, weak-area callout, and a floating AI Coach button.
+- **Home dashboard** — the full Progress & Analytics experience (predicted vs. target band, per-skill bands, overall accuracy, streak, questions completed, and — for Premium — predicted-band trend, weekly activity, Writing/Speaking criterion breakdowns, and question-type accuracy), plus today's study plan, recommended mock test, recent activity, and a weak-area callout. Shown immediately after login regardless of whether a study goal is set up yet — a missing goal only degrades the one goal-specific "Target progress" card (to a setup CTA), never the rest of the dashboard. A standalone `/analytics` route still exists (components/dashboard/ProgressDashboard.tsx is the single shared implementation) for old deep links, but Settings no longer links to it.
 - **Learn** — structured lessons per skill (strategy, question types, time management), plus dedicated Grammar and Vocabulary sections.
 - **Practice** — unlimited, filterable question practice (skill/difficulty/type) with instant feedback, explanations, bookmarks, and "retry incorrect."
 - **Reading test** — passage + question panes, countdown timer, question navigator, flag-for-review, tap-to-highlight, notes, submit confirmation, and a scored report with a band estimate.
@@ -39,7 +39,6 @@ It covers all four IELTS skills (Listening, Reading, Writing, Speaking), realist
 - **Full mock test** — chains Listening → Reading → Writing (x2) → Speaking into one timed flow with autosave/resume, ending in a full band report (per-skill + overall, strongest/weakest skill, readiness score, recommendation).
 - **AI Coach** — a context-aware chat that knows the user's goals, band history, and weak areas, with suggested prompts and conversation history.
 - **Vocabulary & Grammar** — 11 topic word packs with flashcards, a spaced-repetition review ladder, and a quiz mode; targeted IELTS grammar lessons.
-- **Progress & Analytics** — predicted band trend, weekly activity, accuracy, and question-type breakdowns.
 - **Gamification** — streaks, XP, and achievements.
 - **Notifications** — daily reminder, streak reminder, exam countdown, and weekly summary (local scheduled notifications).
 - **Subscription/Paywall** — Free vs. Premium gating with a RevenueCat abstraction (mock purchases when RevenueCat isn't configured).

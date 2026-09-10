@@ -7,9 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
 import { AiCoachFab } from '@/components/home/AiCoachFab';
-import { SkillBandCard } from '@/components/home/SkillBandCard';
 import { StudyPlanItemRow } from '@/components/home/StudyPlanItemRow';
-import { Badge, Button, Card, DemoAiBadge, IconCircle, Text } from '@/components/ui';
+import { ProgressDashboard } from '@/components/dashboard/ProgressDashboard';
+import { Button, Card, DemoAiBadge, IconCircle, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { getHomeViewState } from '@/lib/homeViewState';
 import { studyPlanItemTarget } from '@/lib/studyPlanNav';
@@ -22,14 +22,8 @@ import {
   listMockTests,
 } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
-import type { SkillKey } from '@/types/models';
 
 const today = () => new Date().toISOString().slice(0, 10);
-
-function daysUntil(dateStr: string | null | undefined): number | null {
-  if (!dateStr) return null;
-  return Math.max(0, Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000));
-}
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -90,14 +84,14 @@ export default function HomeScreen() {
     }
   }
 
-  // Home must always render real content, a meaningful empty state, a
-  // recoverable error, or a loading indicator — never a blank screen, and
-  // never conflate any of those four. `!goal` alone is ambiguous between
-  // three very different situations (still fetching; a genuine Supabase/RLS
-  // failure; genuinely no goal ever set up), so `dataLoaded`/`homeError` —
-  // both set only from real fetch outcomes, never inferred from missing
-  // data — decide which one to show. See lib/homeViewState.ts.
-  const viewState = getHomeViewState({ dataLoaded, goal, homeError });
+  // Home always shows the real dashboard once the initial fetch settles —
+  // it must never be replaced by a full-screen "let's set up your goal"
+  // state (that's now just one degraded card inside ProgressDashboard when
+  // `goal` is null), and a scoped query failure (say, only the goal query)
+  // must not blank the rest of the screen either. "error" is reserved for a
+  // load that came back with genuinely nothing usable at all. See
+  // lib/homeViewState.ts.
+  const viewState = getHomeViewState({ dataLoaded, profile, homeError });
 
   if (viewState === 'loading') {
     return (
@@ -122,28 +116,8 @@ export default function HomeScreen() {
     );
   }
 
-  if (viewState === 'setup') {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.xl, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
-        <IconCircle name="flag-outline" size={64} />
-        <Text variant="h3" align="center">
-          Let&apos;s set up your study goal
-        </Text>
-        <Text color="secondary" align="center">
-          We need your target band and IELTS type to build your home dashboard.
-        </Text>
-        <Button label="Set up my goal" onPress={() => router.push('/(onboarding)/ielts-type')} />
-      </SafeAreaView>
-    );
-  }
-
-  if (!goal) return null; // unreachable — viewState === 'ready' guarantees getHomeViewState saw a truthy goal
-
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const days = daysUntil(goal.examDate);
-  const overall = bandScores.overall;
-  const skills: SkillKey[] = ['listening', 'reading', 'writing', 'speaking'];
   const freeMock = listMockTests().find((m) => m.isFree);
   const recentActivity = historyQuery.data?.slice(0, 3) ?? [];
 
@@ -156,52 +130,31 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.lg }}>
-        <View>
-          <Text variant="body" color="secondary">
-            {greeting},
-          </Text>
-          <Text variant="h1">{profile?.fullName ?? 'there'}</Text>
-        </View>
-        <Button label={`🔥 ${streak.count}`} variant="secondary" size="sm" onPress={() => router.push('/analytics')} />
+      <View style={{ marginBottom: theme.spacing.lg }}>
+        <Text variant="body" color="secondary">
+          {greeting},
+        </Text>
+        <Text variant="h1">{profile?.fullName ?? 'there'}</Text>
       </View>
 
-      <Card elevation="md" style={{ marginBottom: theme.spacing.lg }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
-          <Badge label={goal.ieltsType === 'academic' ? 'IELTS Academic' : 'IELTS General Training'} tone="brand" />
-        </View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <View>
+      {/* A missing/failed real-time refresh degrades gracefully everywhere
+          else (each field keeps its last-known value), but is still worth
+          surfacing here — non-blocking, with its own retry — rather than
+          silently pretending everything is current. */}
+      {homeError ? (
+        <Card style={{ marginBottom: theme.spacing.lg, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+          <IconCircle name="alert-circle-outline" backgroundColor={theme.colors.errorSoft} color={theme.colors.error} />
+          <View style={{ flex: 1 }}>
+            <Text variant="bodyMedium">Couldn&apos;t refresh your data</Text>
             <Text variant="caption" color="secondary">
-              Current band
-            </Text>
-            <Text variant="h1">{goal.currentBand ? goal.currentBand.toFixed(1) : 'Not yet assessed'}</Text>
-          </View>
-          <View>
-            <Text variant="caption" color="secondary">
-              Target band
-            </Text>
-            <Text variant="h1" color="brand">
-              {goal.targetBand.toFixed(1)}
+              {homeError}
             </Text>
           </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text variant="caption" color="secondary">
-              Predicted band
-            </Text>
-            <Text variant="h1">{overall ? overall.toFixed(1) : '—'}</Text>
-          </View>
-        </View>
-        <View style={{ marginTop: theme.spacing.sm }}>
-          {days !== null ? <Badge label={`${days} days until your test`} tone="brand" /> : <Badge label="No exam date yet" tone="neutral" />}
-        </View>
-      </Card>
+          <Button label="Retry" size="sm" onPress={handleRetry} loading={retrying} />
+        </Card>
+      ) : null}
 
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
-        {skills.map((skill) => (
-          <SkillBandCard key={skill} skill={skill} band={bandScores[skill] ?? null} onPress={() => router.push('/analytics')} />
-        ))}
-      </View>
+      <ProgressDashboard onSetGoal={() => router.push('/(onboarding)/ielts-type')} onUpgrade={() => router.push('/paywall')} />
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
         <Text variant="h3">Today’s Study Plan</Text>
@@ -209,39 +162,46 @@ export default function HomeScreen() {
           {xp} XP
         </Text>
       </View>
-      <Card style={{ marginBottom: theme.spacing.lg }}>
-        {focusQuery.data ? (
-          <View style={{ marginBottom: theme.spacing.sm, paddingBottom: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border, gap: 4 }}>
-            <Text variant="bodyMedium">{focusQuery.data.focusSummary}</Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: theme.spacing.sm }}>
-              <Text variant="caption" color="secondary" style={{ flex: 1 }}>
-                {focusQuery.data.motivationalNote}
-              </Text>
-              <DemoAiBadge source={focusQuery.data.aiSource} />
+      {goal ? (
+        <Card style={{ marginBottom: theme.spacing.lg }}>
+          {focusQuery.data ? (
+            <View style={{ marginBottom: theme.spacing.sm, paddingBottom: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border, gap: 4 }}>
+              <Text variant="bodyMedium">{focusQuery.data.focusSummary}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: theme.spacing.sm }}>
+                <Text variant="caption" color="secondary" style={{ flex: 1 }}>
+                  {focusQuery.data.motivationalNote}
+                </Text>
+                <DemoAiBadge source={focusQuery.data.aiSource} />
+              </View>
             </View>
-          </View>
-        ) : null}
-        {planQuery.data?.items.length ? (
-          planQuery.data.items.map((item) => (
-            <StudyPlanItemRow
-              key={item.id}
-              item={item}
-              onToggle={() => toggleItem(item.id, item.isCompleted)}
-              onPress={() => router.push(studyPlanItemTarget(item) as any)}
-            />
-          ))
-        ) : planQuery.isLoading ? (
-          <Text color="secondary">Loading your plan...</Text>
-        ) : (
-          <Text color="secondary">Nothing scheduled for today — tap below to practice your weakest skill anyway.</Text>
-        )}
-        <Button
-          label="Continue studying"
-          onPress={() => router.push({ pathname: '/practice-session', params: { skill: goal.weakestSkill ?? 'reading' } })}
-          style={{ marginTop: theme.spacing.sm }}
-          fullWidth
-        />
-      </Card>
+          ) : null}
+          {planQuery.data?.items.length ? (
+            planQuery.data.items.map((item) => (
+              <StudyPlanItemRow
+                key={item.id}
+                item={item}
+                onToggle={() => toggleItem(item.id, item.isCompleted)}
+                onPress={() => router.push(studyPlanItemTarget(item) as any)}
+              />
+            ))
+          ) : planQuery.isLoading ? (
+            <Text color="secondary">Loading your plan...</Text>
+          ) : (
+            <Text color="secondary">Nothing scheduled for today — tap below to practice your weakest skill anyway.</Text>
+          )}
+          <Button
+            label="Continue studying"
+            onPress={() => router.push({ pathname: '/practice-session', params: { skill: goal.weakestSkill ?? 'reading' } })}
+            style={{ marginTop: theme.spacing.sm }}
+            fullWidth
+          />
+        </Card>
+      ) : (
+        <Card style={{ marginBottom: theme.spacing.lg }}>
+          <Text color="secondary">Set up your study goal to get a personalized daily study plan.</Text>
+          <Button label="Set up my goal" onPress={() => router.push('/(onboarding)/ielts-type')} style={{ marginTop: theme.spacing.sm }} />
+        </Card>
+      )}
 
       {freeMock ? (
         <Card
@@ -288,7 +248,7 @@ export default function HomeScreen() {
         )}
       </Card>
 
-      {goal.weakestSkill ? (
+      {goal?.weakestSkill ? (
         <Card style={{ marginBottom: theme.spacing.huge, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
           <IconCircle name="bulb-outline" backgroundColor={theme.colors.warningSoft} color={theme.colors.warning} />
           <View style={{ flex: 1 }}>
