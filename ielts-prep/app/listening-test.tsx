@@ -147,7 +147,7 @@ export default function ListeningTestScreen() {
           );
         })}
         <Text variant="caption" color="tertiary" style={{ marginBottom: theme.spacing.lg }}>
-          This is an AI-generated practice estimate, not an official IELTS result.
+          This is an IELTS-style practice estimate from a standard raw-score conversion table, not an official IELTS result (no AI is involved in this score — it is based purely on your number of correct answers).
         </Text>
         <Button
           label="Continue"

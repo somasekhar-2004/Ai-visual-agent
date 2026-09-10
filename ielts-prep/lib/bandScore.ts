@@ -10,7 +10,25 @@ export function roundIeltsBand(value: number): number {
   return Math.round(value * 2) / 2;
 }
 
-/** Default raw-score -> band tables, mirroring supabase/seed/0001_band_conversion.sql. Used as an offline/demo-mode fallback when the DB table isn't available. */
+/**
+ * Default raw-score -> band tables, mirroring supabase/seed/0001_band_conversion.sql.
+ * Used as an offline/demo-mode fallback when the DB table isn't available.
+ *
+ * IMPORTANT — this is an IELTS-STYLE PRACTICE conversion, not an official
+ * IELTS operational scoring table. The real IELTS organisation has stated
+ * that exact raw-score boundaries can vary slightly between test versions;
+ * no publicly published table is guaranteed identical to any specific real
+ * test's actual conversion. This table is built from IELTS's own publicly
+ * published band descriptors and widely-reported approximate boundaries
+ * (ielts.org), used here as a realistic practice estimate — never present
+ * it in the UI as an official or guaranteed-exact scoring table.
+ *
+ * Scoring itself is fully deterministic and non-AI: Listening and Reading
+ * are objective (1 raw mark per correct answer out of 40, see
+ * lib/answerChecking.ts for accepted-answer normalisation), and this table
+ * is the only thing that turns that raw count into a band — no model ever
+ * invents or adjusts a Listening/Reading band.
+ */
 export const defaultBandConversion: BandConversionRow[] = [
   // Listening
   { scale: 'listening', rawMin: 39, rawMax: 40, band: 9.0 },

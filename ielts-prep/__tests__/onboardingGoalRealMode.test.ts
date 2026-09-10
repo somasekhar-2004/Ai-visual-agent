@@ -24,13 +24,14 @@ const INPUT = {
 };
 
 function mockGoalTable({ deactivateError = null as any, insertData = null as any, insertError = null as any }) {
-  const eqMock = jest.fn().mockResolvedValue({ error: deactivateError });
+  const neqMock = jest.fn().mockResolvedValue({ error: deactivateError });
+  const eqMock = jest.fn().mockReturnValue({ neq: neqMock });
   const updateMock = jest.fn().mockReturnValue({ eq: eqMock });
   const singleMock = jest.fn().mockResolvedValue({ data: insertData, error: insertError });
   const selectMock = jest.fn().mockReturnValue({ single: singleMock });
   const insertMock = jest.fn().mockReturnValue({ select: selectMock });
   (supabase!.from as jest.Mock).mockReturnValue({ update: updateMock, insert: insertMock });
-  return { updateMock, insertMock };
+  return { updateMock, insertMock, neqMock };
 }
 
 describe('saveOnboardingGoal — real backend', () => {
@@ -79,9 +80,30 @@ describe('saveOnboardingGoal — real backend', () => {
     await expect(saveOnboardingGoal('user-1', INPUT)).rejects.toThrow(/no row/);
   });
 
-  it('throws when deactivating the previous goal fails, without attempting the insert', async () => {
-    const { insertMock } = mockGoalTable({ deactivateError: { message: 'connection reset', code: '08006' } });
-    await expect(saveOnboardingGoal('user-1', INPUT)).rejects.toThrow(/connection reset/);
-    expect(insertMock).not.toHaveBeenCalled();
+  // Regression coverage for "Home still shows the setup CTA for an existing
+  // account" (see __tests__/homeGoalRecovery.test.ts for the full story):
+  // this used to deactivate every previous goal BEFORE inserting the new
+  // one — a failure between those two calls left the account with zero
+  // active goals. The insert now happens first, so a failure to deactivate
+  // old goals afterward is a non-fatal cleanup step, never a reason for
+  // onboarding itself to appear to have failed.
+  it('still returns the newly-saved goal even if deactivating previous goals fails afterward', async () => {
+    const { insertMock } = mockGoalTable({
+      deactivateError: { message: 'connection reset', code: '08006' },
+      insertData: {
+        id: 'goal-1',
+        user_id: 'user-1',
+        ielts_type: 'academic',
+        current_band: 6,
+        target_band: 7,
+        exam_date: null,
+        weakest_skill: null,
+        daily_study_minutes: 30,
+        is_active: true,
+        created_at: '2026-01-01T00:00:00Z',
+      },
+    });
+    await expect(saveOnboardingGoal('user-1', INPUT)).resolves.toMatchObject({ id: 'goal-1' });
+    expect(insertMock).toHaveBeenCalled();
   });
 });

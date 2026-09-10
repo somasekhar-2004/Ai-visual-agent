@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { WritingFeedbackView } from '@/components/testing/WritingFeedbackView';
 import { WritingChart } from '@/components/writing/WritingChart';
-import { Badge, Button, Card, DailyLimitCard, Text } from '@/components/ui';
+import { Badge, Button, Card, DailyLimitCard, IconCircle, Text } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
@@ -18,6 +18,7 @@ import { activityUsedToday, checkDailyLimit, FREE_DAILY_WRITING_EVALS } from '@/
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
 import { countWords } from '@/lib/textAnalysis';
+import { assessWritingEvidence } from '@/lib/writingEvidence';
 import { evaluateWriting, getAiProviderName, type WritingEvaluationResult } from '@/services/ai';
 import { getTestHistory, saveWritingFeedback, submitWriting } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
@@ -62,8 +63,10 @@ export default function WritingTestScreen() {
 
   const [essay, setEssay] = useState('');
   const [startTime] = useState(() => Date.now());
-  const [phase, setPhase] = useState<'writing' | 'evaluating' | 'result'>('writing');
+  const [phase, setPhase] = useState<'writing' | 'evaluating' | 'result' | 'insufficient_evidence' | 'error'>('writing');
   const [evaluation, setEvaluation] = useState<WritingEvaluationResult | null>(null);
+  const [insufficientEvidence, setInsufficientEvidence] = useState<{ reason: string; explanation: string } | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(draftKey).then((saved) => {
@@ -98,37 +101,57 @@ export default function WritingTestScreen() {
   async function doSubmit() {
     if (!userId) return;
     setPhase('evaluating');
-    const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
-    const submission = await submitWriting(userId, {
-      mockAttemptId,
-      promptId: prompt.id,
-      taskType: prompt.taskType,
-      essayText: essay,
-      wordCount,
-      timeSpentSeconds,
-    });
-    const result = await evaluateWriting({
-      taskType: prompt.taskType,
-      promptText: prompt.promptText,
-      essayText: essay,
-      wordCount,
-      minWords: prompt.minWords,
-    });
-    setEvaluation(result);
-    await saveWritingFeedback(submission.id, userId, {
-      overallBand: result.overallBand,
-      taskAchievement: result.taskAchievement,
-      coherenceCohesion: result.coherenceCohesion,
-      lexicalResource: result.lexicalResource,
-      grammaticalRange: result.grammaticalRange,
-      strengths: result.strengths,
-      weaknesses: result.weaknesses,
-      suggestions: result.suggestions,
-      improvedExample: result.improvedExample,
-      aiModel: result.aiSource === 'real' ? getAiProviderName() : 'mock',
-    });
-    await AsyncStorage.removeItem(draftKey);
-    setPhase('result');
+    try {
+      const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
+      const submission = await submitWriting(userId, {
+        mockAttemptId,
+        promptId: prompt.id,
+        taskType: prompt.taskType,
+        essayText: essay,
+        wordCount,
+        timeSpentSeconds,
+      });
+
+      // Mandatory gate, run before any provider (real or mock) is ever
+      // asked for a band — see lib/writingEvidence.ts. A blank or
+      // near-blank submission must never receive a normal-looking band.
+      const evidence = assessWritingEvidence(wordCount);
+      if (!evidence.sufficient) {
+        setInsufficientEvidence({ reason: evidence.reason, explanation: evidence.explanation });
+        await AsyncStorage.removeItem(draftKey);
+        setPhase('insufficient_evidence');
+        return;
+      }
+
+      const result = await evaluateWriting({
+        taskType: prompt.taskType,
+        promptText: prompt.promptText,
+        essayText: essay,
+        wordCount,
+        minWords: prompt.minWords,
+      });
+      setEvaluation(result);
+      await saveWritingFeedback(submission.id, userId, {
+        overallBand: result.overallBand,
+        taskAchievement: result.taskAchievement,
+        coherenceCohesion: result.coherenceCohesion,
+        lexicalResource: result.lexicalResource,
+        grammaticalRange: result.grammaticalRange,
+        strengths: result.strengths,
+        weaknesses: result.weaknesses,
+        suggestions: result.suggestions,
+        improvedExample: result.improvedExample,
+        aiModel: result.aiSource === 'real' ? getAiProviderName() : 'mock',
+      });
+      await AsyncStorage.removeItem(draftKey);
+      setPhase('result');
+    } catch (err) {
+      // A real evaluator failure must surface visibly, never leave the
+      // screen stuck on "Evaluating..." and never fall back to a fabricated
+      // score — see services/ai/index.ts's evaluateWriting.
+      setErrorMessage((err as Error).message);
+      setPhase('error');
+    }
   }
 
   const { label: timerLabel, isExpired } = useCountdown(prompt.timeLimitMinutes * 60, () => phase === 'writing' && doSubmit());
@@ -148,6 +171,36 @@ export default function WritingTestScreen() {
         evaluation={evaluation}
         onDone={() => (nextHref ? router.replace(nextHref as any) : router.replace('/(tabs)/tests'))}
       />
+    );
+  }
+
+  if (phase === 'insufficient_evidence' && insufficientEvidence) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl, gap: theme.spacing.md }}>
+        <IconCircle name="document-outline" size={72} backgroundColor={theme.colors.warningSoft} color={theme.colors.warning} />
+        <Text variant="h3" align="center">
+          {insufficientEvidence.reason}
+        </Text>
+        <Text color="secondary" align="center">
+          {insufficientEvidence.explanation}
+        </Text>
+        <Button label="Done" onPress={() => (nextHref ? router.replace(nextHref as any) : router.replace('/(tabs)/tests'))} fullWidth />
+      </SafeAreaView>
+    );
+  }
+
+  if (phase === 'error') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl, gap: theme.spacing.md }}>
+        <IconCircle name="alert-circle-outline" size={72} backgroundColor={theme.colors.errorSoft} color={theme.colors.error} />
+        <Text variant="h3" align="center">
+          Something went wrong
+        </Text>
+        <Text color="secondary" align="center">
+          {errorMessage ?? 'We could not evaluate your essay. Check your connection and try again.'}
+        </Text>
+        <Button label="Try again" onPress={() => { setErrorMessage(null); setPhase('writing'); }} fullWidth />
+      </SafeAreaView>
     );
   }
 

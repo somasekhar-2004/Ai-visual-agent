@@ -16,7 +16,6 @@ import {
   getXp,
   type OnboardingInput,
   type SkillBandMap,
-  refreshOverallBand,
   saveOnboardingGoal,
   syncSubscriptionEntitlement,
 } from '@/services/repository';
@@ -131,7 +130,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     if (!userId) throw new Error('No signed-in user to attach onboarding data to.');
     await saveOnboardingGoal(userId, input);
-    await refreshOverallBand(userId);
+    // Deliberately does NOT call refreshOverallBand here: a brand-new user
+    // has taken zero tests at onboarding time, and refreshOverallBand
+    // correctly refuses to compute an overall band until all four skills
+    // have a real score — calling it here would have been a no-op at best,
+    // and was previously the exact place a fabricated "Overall Band 6.0"
+    // got recorded before any test was ever attempted.
     await setOnboardingComplete();
     set({ userId, onboardingComplete: true });
     await get().refreshUserData(userId);

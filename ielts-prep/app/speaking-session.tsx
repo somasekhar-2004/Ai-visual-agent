@@ -16,6 +16,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_SPEAKING_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
+import { assessSpeakingEvidence } from '@/lib/speakingEvidence';
 import { buildSpeakingTurns } from '@/lib/speakingFlow';
 import { evaluateSpeaking, transcribeAudio, type SpeakingEvaluationResult } from '@/services/ai';
 import {
@@ -30,7 +31,7 @@ import { useAppStore } from '@/store/useAppStore';
 import type { SpeakingPart } from '@/types/models';
 
 type Params = { part?: SpeakingPart; mockAttemptId?: string; mockTestId?: string; stepIndex?: string; nextHref?: string; groupId?: string };
-type Phase = 'intro' | 'prep' | 'recording' | 'transcribing' | 'evaluating' | 'result' | 'permission_denied' | 'error';
+type Phase = 'intro' | 'prep' | 'recording' | 'transcribing' | 'evaluating' | 'result' | 'insufficient_evidence' | 'permission_denied' | 'error';
 
 export default function SpeakingSessionScreen() {
   const theme = useTheme();
@@ -67,6 +68,7 @@ export default function SpeakingSessionScreen() {
   const [totalDuration, setTotalDuration] = useState(0);
   const [evaluation, setEvaluation] = useState<SpeakingEvaluationResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [insufficientEvidence, setInsufficientEvidence] = useState<{ reason: string; explanation: string } | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Guards against stopRecording firing twice for the same turn — it's
@@ -202,7 +204,8 @@ export default function SpeakingSessionScreen() {
         setTurnIndex((i) => i + 1);
         setPhase('intro');
       } else {
-        await finishSession([...transcripts, transcript].join(' '), totalDuration + durationSeconds);
+        const allTranscripts = [...transcripts, transcript];
+        await finishSession(allTranscripts, totalDuration + durationSeconds);
       }
     } catch (err) {
       // The screen must never get stuck on "Transcribing your answer..."
@@ -215,10 +218,24 @@ export default function SpeakingSessionScreen() {
     }
   }
 
-  async function finishSession(fullTranscript: string, durationSeconds: number) {
+  async function finishSession(allTranscripts: string[], durationSeconds: number) {
     setPhase('evaluating');
     try {
       if (sessionIdRef.current) await completeSpeakingSession(sessionIdRef.current);
+
+      // Mandatory gate, run before any provider (real or mock) is ever
+      // asked for a band — see lib/speakingEvidence.ts. This is what
+      // closes the real-device bug where a near-silent recording ("Yeah.
+      // Gods [no speech detected] [no speech detected]") still produced a
+      // full Overall Band 5.5 with fabricated criteria and strengths.
+      const evidence = assessSpeakingEvidence(allTranscripts);
+      if (!evidence.sufficient) {
+        setInsufficientEvidence({ reason: evidence.reason, explanation: evidence.explanation });
+        setPhase('insufficient_evidence');
+        return;
+      }
+
+      const fullTranscript = allTranscripts.join(' ');
       const result = await evaluateSpeaking({
         part,
         topicCategory: turn.part,
@@ -306,6 +323,32 @@ export default function SpeakingSessionScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', gap: theme.spacing.md }}>
         <Text variant="h3">Evaluating your speaking...</Text>
         <Text color="secondary">Analyzing fluency, vocabulary, grammar, and pronunciation.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (phase === 'insufficient_evidence' && insufficientEvidence) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl, gap: theme.spacing.md }}>
+        <IconCircle name="mic-outline" size={72} backgroundColor={theme.colors.warningSoft} color={theme.colors.warning} />
+        <Text variant="h3" align="center">
+          {insufficientEvidence.reason}
+        </Text>
+        <Text color="secondary" align="center">
+          {insufficientEvidence.explanation}
+        </Text>
+        <Button
+          label="Try again"
+          onPress={() => {
+            setInsufficientEvidence(null);
+            setTranscripts([]);
+            setTotalDuration(0);
+            setTurnIndex(0);
+            setPhase('intro');
+          }}
+          fullWidth
+        />
+        <Button label="Exit test" variant="ghost" onPress={handleExit} />
       </SafeAreaView>
     );
   }

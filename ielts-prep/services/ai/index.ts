@@ -75,13 +75,34 @@ async function withFallback<T>(operation: () => Promise<T>, fallback: () => Prom
 }
 
 export async function evaluateWriting(input: WritingEvalInput): Promise<WritingEvaluationResult> {
-  const { data, source } = await withFallback(() => provider.evaluateWriting(input), () => mock.evaluateWriting(input));
-  return { ...data, aiSource: source };
+  // Deliberately does NOT use withFallback's silent-mock-on-failure
+  // behaviour — see transcribeAudio's and evaluateSpeaking's identical
+  // comment. A Writing band is a scored result a student trusts; silently
+  // substituting the heuristic mock's output when the real evaluator fails
+  // would hand them a fabricated band with no indication anything went
+  // wrong. Demo Mode (provider.name === 'mock') is unaffected — there's no
+  // real backend to fail there in the first place, and it's an explicitly
+  // separate, clearly-labelled mode (see DemoAiBadge).
+  if (provider.name === 'mock') return { ...(await mock.evaluateWriting(input)), aiSource: 'mock' };
+  return { ...(await provider.evaluateWriting(input)), aiSource: 'real' };
 }
 
 export async function evaluateSpeaking(input: SpeakingEvalInput): Promise<SpeakingEvaluationResult> {
-  const { data, source } = await withFallback(() => provider.evaluateSpeaking(input), () => mock.evaluateSpeaking(input));
-  return { ...data, aiSource: source };
+  // Same reasoning as evaluateWriting/transcribeAudio: a real-provider
+  // failure must surface as a visible error, never a silently substituted
+  // mock band. This was the root cause of a release-blocking bug — a
+  // near-silent real-device recording ("Yeah. Gods [no speech detected]
+  // [no speech detected]") that produced Overall Band 5.5 because the real
+  // evaluate-speaking call failed and withFallback quietly handed back
+  // MockAiProvider's heuristic score instead of an error. The heuristic
+  // itself is also not a reliable judge of a near-empty transcript (very
+  // few words can spike its uniqueWordRatio-based Lexical Resource score),
+  // which is exactly why a fabricated band from it must never reach a real
+  // user. See lib/speakingEvidence.ts for the separate, mandatory
+  // insufficient-evidence gate that runs before this function is ever
+  // called at all.
+  if (provider.name === 'mock') return { ...(await mock.evaluateSpeaking(input)), aiSource: 'mock' };
+  return { ...(await provider.evaluateSpeaking(input)), aiSource: 'real' };
 }
 
 export async function chatWithCoach(messages: ChatMessage[], context: CoachContext): Promise<ChatResult> {

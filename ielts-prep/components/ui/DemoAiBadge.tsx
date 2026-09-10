@@ -4,12 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from './Text';
 import { useTheme } from '@/hooks/useTheme';
-import { getAiProviderName, isRealAiActive, type AiSource } from '@/services/ai';
+import { isRealAiActive, type AiSource } from '@/services/ai';
 
-/** Shown next to every AI-generated result so it is never mistaken for a
- * real model's output when no AI credentials are configured (or for a
- * real provider's output when they are). Never hide this — see AGENTS
- * requirement: "Never silently present mocked scoring as real AI scoring."
+/** Shown next to every AI-generated result so a practice-mode estimate is
+ * never mistaken for a live evaluation. Never hide this distinction — see
+ * AGENTS requirement: "Never silently present mocked scoring as real AI
+ * scoring." Deliberately never names a provider or model (Gemini, OpenAI,
+ * ...) — that's an implementation detail with no place in normal user UI;
+ * see app/dev-health-check.tsx for provider diagnostics aimed at
+ * developers instead.
  *
  * Pass `source` when you have the actual per-call result (from
  * evaluateWriting/evaluateSpeaking/chatWithCoach) — a single call can fall
@@ -38,7 +41,7 @@ export function DemoAiBadge({ source }: { source?: AiSource }) {
     >
       <Ionicons name={real ? 'sparkles' : 'flask-outline'} size={12} color={fg} />
       <Text variant="micro" style={{ color: fg }}>
-        {real ? `Live AI (${getAiProviderName()})` : 'Demo AI — simulated result'}
+        {real ? 'AI Evaluation' : 'AI Evaluation (practice mode, offline estimate)'}
       </Text>
     </View>
   );

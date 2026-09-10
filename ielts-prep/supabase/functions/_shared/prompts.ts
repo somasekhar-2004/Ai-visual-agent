@@ -35,7 +35,13 @@ ${input.essayText}
 Respond with ONLY a single valid JSON object matching exactly this shape (no markdown fences, no extra text):
 ${WRITING_JSON_SHAPE}
 
-Be specific and reference actual phrases or issues from the response. This is a practice estimate, not an official score, but should be realistic and calibrated to genuine IELTS standards.`;
+Be specific and reference actual phrases or issues from the response. This is a practice estimate, not an official score, but should be realistic and calibrated to genuine IELTS standards.
+
+Critical guardrails — the client already refuses to call you at all for a blank or near-blank response, so treat anything you do receive as worth engaging with, but still ground every criterion strictly in evidence actually present in the response above:
+- Never award Lexical Resource above what the response's actual vocabulary demonstrates — a handful of words cannot justify a high score just because they happen to all be different from each other.
+- Never award Grammatical Range credit for structures the response does not actually contain — if there is no complex-sentence evidence, say so and score accordingly.
+- Never award Task Achievement/Response credit for addressing parts of the prompt the response does not actually address.
+- If the response is too short or underdeveloped to confidently judge a criterion, say so explicitly in your strengths/weaknesses rather than inventing a plausible-sounding score.`;
 }
 
 const SPEAKING_JSON_SHAPE = `{
@@ -64,7 +70,14 @@ ${input.transcript}
 Respond with ONLY a single valid JSON object matching exactly this shape (no markdown fences, no extra text):
 ${SPEAKING_JSON_SHAPE}
 
-Note pronunciation can only be estimated from phrasing/transcript patterns since no audio signal is provided directly — say so implicitly by keeping the estimate conservative. This is a practice estimate, not an official score.`;
+Note pronunciation can only be estimated from phrasing/transcript patterns since no audio signal is provided directly — say so implicitly by keeping the estimate conservative. This is a practice estimate, not an official score.
+
+Critical guardrails — the client already refuses to call you at all for a near-silent recording, so treat this transcript as worth engaging with, but still ground every criterion strictly in evidence actually present in it:
+- Never award Fluency and Coherence credit for sustained, connected speech the transcript does not actually contain — a few short, disconnected words or fragments cannot receive a mid-range or higher score.
+- Never award Lexical Resource above what the transcript's actual vocabulary demonstrates — a tiny transcript happening to contain no repeated words is not evidence of a wide vocabulary.
+- Never award Grammatical Range credit for sentence structures the transcript does not actually contain.
+- Never award Pronunciation confidently when the transcript gives you next to nothing to infer it from — keep the estimate low and say so in your weaknesses rather than defaulting to a mid-range score.
+- If the transcript is too short or fragmented to confidently judge a criterion at all, set "developmentNote" to say so explicitly rather than inventing a plausible-sounding score.`;
 }
 
 export function buildCoachSystemPrompt(context: CoachContext): string {

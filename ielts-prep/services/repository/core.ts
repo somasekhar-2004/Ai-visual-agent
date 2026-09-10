@@ -54,8 +54,39 @@ export async function getActiveGoal(userId: string): Promise<UserGoal | null> {
     .limit(1)
     .maybeSingle();
   throwIfSupabaseError(error, 'Failed to load your study goal');
-  if (!data) return null;
-  return mapGoalRow(data);
+  if (data) return mapGoalRow(data);
+
+  // No row has is_active=true — before concluding "this user never set up a
+  // goal" (and sending them back through onboarding), check for ANY goal
+  // row under this account. A real-device bug left existing users stuck on
+  // the setup screen despite having completed onboarding: saveOnboardingGoal
+  // used to deactivate every previous goal *before* inserting the new one,
+  // as two separate, non-transactional requests — an app kill, a dropped
+  // connection, or any failure between those two calls left the account
+  // with zero active goals and no way back short of a real DB fix. That
+  // ordering is fixed below (insert first, deactivate after), but this
+  // fallback is the actual recovery path for any account that already hit
+  // it: recover the most recent goal — reactivating it — rather than
+  // silently sending someone who genuinely already set up a goal through
+  // onboarding again.
+  const { data: anyGoal, error: anyGoalError } = await supabase!
+    .from('user_goals')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  throwIfSupabaseError(anyGoalError, 'Failed to load your study goal');
+  if (!anyGoal) return null;
+
+  const { error: reactivateError } = await supabase!.from('user_goals').update({ is_active: true }).eq('id', anyGoal.id);
+  if (reactivateError) {
+    // Recovery itself failed (e.g. a transient network error) — still
+    // return the goal we found rather than losing it entirely; the next
+    // refresh will retry reactivation.
+    console.warn('[repository] found an inactive goal to recover but failed to reactivate it:', reactivateError.message);
+  }
+  return mapGoalRow({ ...anyGoal, is_active: true });
 }
 
 export type OnboardingInput = {
@@ -85,10 +116,17 @@ export async function saveOnboardingGoal(userId: string, input: OnboardingInput)
       return db.goal;
     });
   }
-  const { error: deactivateError } = await supabase!.from('user_goals').update({ is_active: false }).eq('user_id', userId);
-  if (deactivateError) {
-    throw new Error(`Could not deactivate previous goals before saving onboarding: ${deactivateError.message}`);
-  }
+  // Insert the new goal BEFORE deactivating any previous one — deliberately
+  // the opposite order from an earlier version of this function. These are
+  // two separate, non-transactional requests; deactivating first meant that
+  // any failure between the two calls (an app kill, a dropped connection,
+  // a timeout) left the account with every goal marked inactive and the new
+  // one never inserted — zero active goals, with no way back short of a
+  // direct DB fix. Inserting first means the same failure instead just
+  // leaves an old goal active alongside a new one (getActiveGoal picks the
+  // most recently created), which is a soft, self-correcting inconsistency
+  // rather than "no goal exists" (see this file's Listening rollout /
+  // integrity-audit history for the real-device bug this caused).
   const { data, error } = await supabase!
     .from('user_goals')
     .insert({
@@ -113,6 +151,14 @@ export async function saveOnboardingGoal(userId: string, input: OnboardingInput)
       `Failed to save onboarding goal: ${error?.message ?? 'the database returned no row for the new goal.'}` +
         (error?.code ? ` (code: ${error.code})` : '')
     );
+  }
+
+  const { error: deactivateError } = await supabase!.from('user_goals').update({ is_active: false }).eq('user_id', userId).neq('id', data.id);
+  if (deactivateError) {
+    // The new goal is already saved and active — a failure to deactivate
+    // old ones is a (harmless-to-Home) cleanup step, not a reason to throw
+    // and make onboarding look like it failed when it actually succeeded.
+    console.warn('[repository] saved new goal but failed to deactivate previous ones:', deactivateError.message);
   }
   return mapGoalRow(data);
 }
@@ -191,15 +237,20 @@ export async function recordBandScore(
   throwIfSupabaseError(error, 'Failed to record band score');
 }
 
-/** Recomputes and stores the overall band from the four skill bands, using the official IELTS rounding rule. */
-export async function refreshOverallBand(userId: string): Promise<number> {
+/** Recomputes and stores the overall band from the four skill bands, using
+ * the official IELTS rounding rule — but ONLY once all four have a real
+ * recorded score. A missing skill used to silently default to band 6,
+ * which meant a brand-new user got a fabricated "Overall Band 6.0" the
+ * moment they finished onboarding, before ever attempting a single test.
+ * Returns null (and records nothing) when any of the four is still
+ * missing, so the UI can correctly show "not enough data yet" instead of
+ * inventing a number. */
+export async function refreshOverallBand(userId: string): Promise<number | null> {
   const bands = await getLatestBandScores(userId);
-  const overall = computeOverallBand({
-    listening: bands.listening ?? 6,
-    reading: bands.reading ?? 6,
-    writing: bands.writing ?? 6,
-    speaking: bands.speaking ?? 6,
-  });
+  if (bands.listening === undefined || bands.reading === undefined || bands.writing === undefined || bands.speaking === undefined) {
+    return null;
+  }
+  const overall = computeOverallBand({ listening: bands.listening, reading: bands.reading, writing: bands.writing, speaking: bands.speaking });
   await recordBandScore(userId, 'overall', roundIeltsBand(overall), 'manual');
   return overall;
 }
