@@ -4,6 +4,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { Button, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { firstMissingOnboardingStepRoute, validateOnboardingInput } from '@/lib/onboardingValidation';
 import { exchangeConfirmationCode, setOnboardingComplete } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
@@ -76,7 +77,8 @@ export default function ConfirmScreen() {
       // falls back to creating a demo user when userId is unset, which
       // would be wrong here since this user is genuinely authenticated.
       await hydrate();
-      if (onboarding.ieltsType) {
+      const input = validateOnboardingInput(onboarding);
+      if (input) {
         // The onboarding wizard's answers (collected before "Create
         // account with email" was even tapped) previously never made it
         // into a saved goal for this flow — completeOnboarding was only
@@ -85,15 +87,20 @@ export default function ConfirmScreen() {
         // round trip. That's why Home kept showing "Let's set up your
         // study goal" even though the goal-setup screens had already been
         // filled in: they genuinely never got saved.
-        await completeOnboarding({
-          ieltsType: onboarding.ieltsType,
-          currentBand: onboarding.currentBand,
-          targetBand: onboarding.targetBand ?? 7,
-          examDate: onboarding.examDate,
-          weakestSkill: onboarding.weakestSkill,
-          dailyStudyMinutes: onboarding.dailyStudyMinutes ?? 30,
-        });
+        await completeOnboarding(input);
         onboarding.reset();
+        router.replace('/(tabs)');
+      } else if (onboarding.ieltsType) {
+        // Real wizard answers exist (this is a genuine in-progress
+        // onboarding, not an empty store) but a required field
+        // (targetBand/dailyStudyMinutes) is still missing — e.g. the app
+        // was killed while waiting for the confirmation email, before the
+        // user reached those later steps. Resume the wizard at the first
+        // missing step instead of either fabricating the missing value
+        // (targetBand ?? 7 previously could silently save a Band 7 goal
+        // the user never chose) or discarding the answers already given —
+        // the persisted onboarding store is left untouched here.
+        router.replace(firstMissingOnboardingStepRoute(onboarding)!);
       } else {
         // No wizard answers to save — either this is a re-confirmation for
         // an account whose goal already exists, or the answers were lost
@@ -102,8 +109,8 @@ export default function ConfirmScreen() {
         // fabricating a goal from nothing would be worse than honestly
         // leaving Home to show its own "let's set up your goal" state.
         await setOnboardingComplete();
+        router.replace('/(tabs)');
       }
-      router.replace('/(tabs)');
     } catch (err) {
       setContinueError((err as Error).message);
     } finally {

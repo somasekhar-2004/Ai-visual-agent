@@ -8,6 +8,7 @@ import { OnboardingScaffold } from '@/components/onboarding/OnboardingScaffold';
 import { Button, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { isDemoMode } from '@/lib/env';
+import { firstMissingOnboardingStepRoute, validateOnboardingInput } from '@/lib/onboardingValidation';
 import { signUpWithEmail } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
@@ -32,14 +33,19 @@ export default function AccountScreen() {
   const [flow, setFlow] = useState<FlowState>({ kind: 'idle' });
 
   async function finishOnboarding() {
-    await completeOnboarding({
-      ieltsType: onboarding.ieltsType ?? 'academic',
-      currentBand: onboarding.currentBand,
-      targetBand: onboarding.targetBand ?? 7,
-      examDate: onboarding.examDate,
-      weakestSkill: onboarding.weakestSkill,
-      dailyStudyMinutes: onboarding.dailyStudyMinutes ?? 30,
-    });
+    // Never fabricate a missing required answer (ieltsType/targetBand/
+    // dailyStudyMinutes) — this screen is normally only reached after the
+    // gated earlier steps (each disables "Next" until answered), but that's
+    // an invariant this relies on, not something it trusts blindly. If
+    // something is still missing (a stale deep link, a skipped step), send
+    // the user back to answer it rather than saving an invented value.
+    const input = validateOnboardingInput(onboarding);
+    if (!input) {
+      const route = firstMissingOnboardingStepRoute(onboarding);
+      if (route) router.replace(route);
+      return;
+    }
+    await completeOnboarding(input);
     router.replace('/(onboarding)/plan-ready');
   }
 

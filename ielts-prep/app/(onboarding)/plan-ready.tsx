@@ -31,7 +31,7 @@ export default function PlanReadyScreen() {
     { icon: 'flag-outline' as const, label: 'Target band', value: goal?.targetBand?.toFixed(1) ?? '-' },
     { icon: 'trending-up-outline' as const, label: 'Estimated current band', value: goal?.currentBand?.toFixed(1) ?? 'Unknown' },
     { icon: 'calendar-outline' as const, label: 'Days until exam', value: days !== null ? `${days}` : 'Not set' },
-    { icon: 'time-outline' as const, label: 'Daily study time', value: `${goal?.dailyStudyMinutes ?? 30} min` },
+    { icon: 'time-outline' as const, label: 'Daily study time', value: goal?.dailyStudyMinutes != null ? `${goal.dailyStudyMinutes} min` : '-' },
     {
       icon: 'star-outline' as const,
       label: 'Priority skill',

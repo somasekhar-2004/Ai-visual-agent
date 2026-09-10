@@ -31,7 +31,7 @@ function mockGoalTable({ deactivateError = null as any, insertData = null as any
   const selectMock = jest.fn().mockReturnValue({ single: singleMock });
   const insertMock = jest.fn().mockReturnValue({ select: selectMock });
   (supabase!.from as jest.Mock).mockReturnValue({ update: updateMock, insert: insertMock });
-  return { updateMock, insertMock, neqMock };
+  return { updateMock, insertMock, neqMock, eqMock };
 }
 
 describe('saveOnboardingGoal — real backend', () => {
@@ -105,5 +105,30 @@ describe('saveOnboardingGoal — real backend', () => {
     });
     await expect(saveOnboardingGoal('user-1', INPUT)).resolves.toMatchObject({ id: 'goal-1' });
     expect(insertMock).toHaveBeenCalled();
+  });
+
+  // Explicit coverage for "no duplicate active goals": every OTHER goal row
+  // for this user (matched by user_id, excluding the just-inserted row's own
+  // id) is deactivated right after the insert, so exactly one active goal
+  // ever exists per user.
+  it('deactivates every other goal for this user (never the one just inserted), so no duplicate active goals exist afterward', async () => {
+    const { updateMock, eqMock, neqMock } = mockGoalTable({
+      insertData: {
+        id: 'goal-new',
+        user_id: 'user-1',
+        ielts_type: 'academic',
+        current_band: 6,
+        target_band: 7,
+        exam_date: null,
+        weakest_skill: null,
+        daily_study_minutes: 30,
+        is_active: true,
+        created_at: '2026-01-01T00:00:00Z',
+      },
+    });
+    await saveOnboardingGoal('user-1', INPUT);
+    expect(updateMock).toHaveBeenCalledWith({ is_active: false });
+    expect(eqMock).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(neqMock).toHaveBeenCalledWith('id', 'goal-new');
   });
 });
