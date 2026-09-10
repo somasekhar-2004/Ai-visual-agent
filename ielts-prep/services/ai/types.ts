@@ -7,6 +7,15 @@ export type WritingEvalInput = {
   essayText: string;
   wordCount: number;
   minWords: number;
+  /** Set only when this evaluation is a genuine step of a Full Mock attempt
+   * (the real `mock_attempts.id`, from the screen's own route params) —
+   * omit/null for standalone Practice. The server independently verifies
+   * this against the database by authenticated user id before counting it
+   * against the separate, more generous Mock quota bucket rather than
+   * Practice's — see supabase/functions/_shared/mockAttempt.ts. Never a
+   * bare boolean: an id the server can actually look up, not a flag it
+   * would have to take on faith. */
+  mockAttemptId?: string | null;
 };
 
 export type SpeakingEvalInput = {
@@ -15,6 +24,8 @@ export type SpeakingEvalInput = {
   transcript: string;
   questionCount: number;
   totalDurationSeconds: number;
+  /** See WritingEvalInput.mockAttemptId — identical contract. */
+  mockAttemptId?: string | null;
 };
 
 export type CoachContext = {

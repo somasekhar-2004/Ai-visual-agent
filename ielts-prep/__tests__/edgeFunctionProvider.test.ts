@@ -46,6 +46,14 @@ describe('EdgeFunctionProvider — never touches a real AI provider directly', (
     expect(result.overallBand).toBe(6);
   });
 
+  it('forwards mockAttemptId to the Edge Function so the server can independently verify Full Mock status — never omits it when the caller supplies one', async () => {
+    mockInvoke.mockResolvedValue({ data: { result: VALID_WRITING_RESULT, provider: 'openai' }, error: null });
+    const provider = new EdgeFunctionProvider();
+    await provider.evaluateWriting({ taskType: 'task2', promptText: 'p', essayText: 'e', wordCount: 1, minWords: 1, mockAttemptId: 'attempt-123' });
+    const [, options] = mockInvoke.mock.calls[0];
+    expect(options.body.mockAttemptId).toBe('attempt-123');
+  });
+
   it('updates its name to the provider the server actually used, not a guess', async () => {
     mockInvoke.mockResolvedValue({ data: { result: VALID_WRITING_RESULT, provider: 'anthropic' }, error: null });
     const provider = new EdgeFunctionProvider();

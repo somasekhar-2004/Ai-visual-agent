@@ -7,8 +7,14 @@ import type { QuestionAttempt, TestHistoryEntry } from '@/types/models';
 // one place.
 export const FREE_DAILY_PRACTICE_QUESTIONS = 20;
 export const FREE_DAILY_AI_MESSAGES = 5;
-export const FREE_DAILY_WRITING_EVALS = 1;
-export const FREE_DAILY_SPEAKING_EVALS = 1;
+// Practice-only — Full Mock Writing/Speaking has its own, separate,
+// deliberately more generous server-side allowance (see
+// supabase/functions/_shared/rateLimit.ts) so using up today's Practice
+// evaluations never blocks completing or retaking a Full Mock. These
+// numbers exist to hide the "Evaluate" button before a free user wastes a
+// request — the real enforcement is server-side and does not read these.
+export const FREE_DAILY_WRITING_PRACTICE_EVALS = 10;
+export const FREE_DAILY_SPEAKING_PRACTICE_EVALS = 10;
 export const FREE_VOCABULARY_TOPIC_LIMIT = 4;
 export const FREE_GRAMMAR_LESSON_LIMIT = 6;
 

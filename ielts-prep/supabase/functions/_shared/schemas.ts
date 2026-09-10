@@ -5,12 +5,19 @@
 // files — keep the two in sync by hand if either changes.
 import { z } from 'npm:zod@3';
 
+// mockAttemptId is only a CLAIM at this point — never trusted by itself.
+// The edge function looks it up against `mock_attempts` (scoped to the
+// caller's own JWT) before treating the request as a genuine Full Mock
+// evaluation; see _shared/mockAttempt.ts. null/omitted means Practice.
+const mockAttemptIdField = z.string().uuid().nullable().optional();
+
 export const WritingEvalRequestSchema = z.object({
   taskType: z.enum(['task1_academic', 'task1_general', 'task2']),
   promptText: z.string().min(1).max(4000),
   essayText: z.string().min(1).max(20000),
   wordCount: z.number().int().min(0).max(20000),
   minWords: z.number().int().min(0).max(2000),
+  mockAttemptId: mockAttemptIdField,
 });
 export type WritingEvalRequest = z.infer<typeof WritingEvalRequestSchema>;
 
@@ -20,6 +27,7 @@ export const SpeakingEvalRequestSchema = z.object({
   transcript: z.string().min(1).max(20000),
   questionCount: z.number().int().min(0).max(100),
   totalDurationSeconds: z.number().min(0).max(7200),
+  mockAttemptId: mockAttemptIdField,
 });
 export type SpeakingEvalRequest = z.infer<typeof SpeakingEvalRequestSchema>;
 

@@ -14,7 +14,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
 import { confirmAsync } from '@/lib/confirm';
-import { activityUsedToday, checkDailyLimit, FREE_DAILY_WRITING_EVALS } from '@/lib/entitlements';
+import { activityUsedToday, checkDailyLimit, FREE_DAILY_WRITING_PRACTICE_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
 import { countWords } from '@/lib/textAnalysis';
@@ -52,7 +52,7 @@ export default function WritingTestScreen() {
     queryFn: () => getTestHistory(userId!),
     enabled: Boolean(userId) && isStandalone,
   });
-  const limitStatus = checkDailyLimit(activityUsedToday(historyQuery.data ?? [], 'writing'), FREE_DAILY_WRITING_EVALS, isPremium);
+  const limitStatus = checkDailyLimit(activityUsedToday(historyQuery.data ?? [], 'writing'), FREE_DAILY_WRITING_PRACTICE_EVALS, isPremium);
   const blockedByLimit = isStandalone && !limitStatus.allowed;
 
   const prompt = useMemo(
@@ -129,6 +129,9 @@ export default function WritingTestScreen() {
         essayText: essay,
         wordCount,
         minWords: prompt.minWords,
+        // The server verifies this independently before counting it
+        // against the separate Full Mock quota — see WritingEvalInput.
+        mockAttemptId: mockAttemptId ?? null,
       });
       setEvaluation(result);
       await saveWritingFeedback(submission.id, userId, {
