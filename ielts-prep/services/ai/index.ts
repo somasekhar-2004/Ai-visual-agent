@@ -1,7 +1,6 @@
 import { isSupabaseConfigured } from '@/lib/env';
 
 import { EdgeFunctionProvider } from './edgeFunctionProvider';
-import { friendlyAiErrorMessage } from './httpClient';
 import { MockAiProvider } from './mockProvider';
 import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, StudyPlanSuggestionInput, WritingEvalInput } from './types';
 import type { SpeakingEvaluation, StudyPlanSuggestion, WritingEvaluation } from './schemas';
@@ -35,12 +34,13 @@ const mock = new MockAiProvider();
  *  - Supabase configured: attempt the Edge Function. Whether that function
  *    actually has a real OpenAI/Anthropic key configured server-side is
  *    entirely the server's decision (via `supabase secrets set`) — if it
- *    doesn't, the function returns a clean "ai_not_configured" error and
- *    `withFallback` below falls back to mock exactly as if the call had
- *    failed for any other reason. This is what makes requirement "Demo
- *    Mode works with zero config, production AI turns on automatically
- *    once Supabase + AI credentials are both configured" true without the
- *    client needing to know anything about AI credentials at all. */
+ *    doesn't, the function returns a clean "ai_not_configured" error, which
+ *    every function below surfaces to the caller as a real, visible error
+ *    rather than silently substituting mock output (see each function's own
+ *    comment for why). This is what makes requirement "Demo Mode works with
+ *    zero config, production AI turns on automatically once Supabase + AI
+ *    credentials are both configured" true without the client needing to
+ *    know anything about AI credentials at all. */
 function selectConfiguredProvider(): AiProvider {
   return isSupabaseConfigured ? new EdgeFunctionProvider() : mock;
 }
@@ -62,16 +62,6 @@ export function getAiProviderName(): string {
  * mock. Use the per-call `aiSource` on a result for that. */
 export function isRealAiActive(): boolean {
   return provider.name !== 'mock';
-}
-
-async function withFallback<T>(operation: () => Promise<T>, fallback: () => Promise<T>): Promise<{ data: T; source: AiSource }> {
-  if (provider.name === 'mock') return { data: await fallback(), source: 'mock' };
-  try {
-    return { data: await operation(), source: 'real' };
-  } catch (err) {
-    console.warn(`[ai] Real provider call failed (${friendlyAiErrorMessage(err)}), falling back to mock output:`, (err as Error).message);
-    return { data: await fallback(), source: 'mock' };
-  }
 }
 
 export async function evaluateWriting(input: WritingEvalInput): Promise<WritingEvaluationResult> {
@@ -106,8 +96,17 @@ export async function evaluateSpeaking(input: SpeakingEvalInput): Promise<Speaki
 }
 
 export async function chatWithCoach(messages: ChatMessage[], context: CoachContext): Promise<ChatResult> {
-  const { data, source } = await withFallback(() => provider.chat(messages, context), () => mock.chat(messages, context));
-  return { reply: data, aiSource: source };
+  // Deliberately does NOT silently fall back to the mock's heuristic reply
+  // on a real-provider failure — same reasoning as evaluateWriting/
+  // evaluateSpeaking/transcribeAudio above. A real production incident
+  // showed exactly why: a coach reply that reads as a normal, plausible
+  // conversational response is far more convincing (and more dangerous to
+  // silently swap out) than a visibly-scored number — a user has no way to
+  // sanity-check "hi, here's some advice" the way they might question an
+  // out-of-place band score. Demo Mode (provider.name === 'mock') is
+  // unaffected — there is no real backend to fail there in the first place.
+  if (provider.name === 'mock') return { reply: await mock.chat(messages, context), aiSource: 'mock' };
+  return { reply: await provider.chat(messages, context), aiSource: 'real' };
 }
 
 export async function transcribeAudio(audioUri: string): Promise<string> {
@@ -124,6 +123,10 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
 }
 
 export async function suggestStudyPlanFocus(input: StudyPlanSuggestionInput): Promise<StudyPlanSuggestionResult> {
-  const { data, source } = await withFallback(() => provider.suggestStudyPlanFocus(input), () => mock.suggestStudyPlanFocus(input));
-  return { ...data, aiSource: source };
+  // Same reasoning as chatWithCoach: no silent mock substitution in real
+  // mode. The caller (Home's focus-note query) already treats a thrown
+  // error as "no note to show today" rather than a blank screen — see
+  // app/(tabs)/index.tsx's focusQuery.
+  if (provider.name === 'mock') return { ...(await mock.suggestStudyPlanFocus(input)), aiSource: 'mock' };
+  return { ...(await provider.suggestStudyPlanFocus(input)), aiSource: 'real' };
 }

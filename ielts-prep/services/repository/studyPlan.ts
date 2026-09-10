@@ -257,12 +257,14 @@ export async function generateStudyPlan(
 /** A short AI-written note (focus summary + motivational line) layered on
  * top of the deterministic plan above — this never changes which items are
  * in the plan or their order/duration/links, only adds a sentence of
- * framing. Uses the exact same real-AI-with-heuristic-fallback pattern as
- * Writing/Speaking eval and the AI Coach (services/ai's `withFallback`):
- * production AI when Supabase + a server-side AI key are configured, the
- * same local heuristic MockAiProvider uses otherwise, and the result's
- * `aiSource` tells the caller which one actually produced it so the UI can
- * show "Live AI" vs "Demo AI" rather than imply every plan is AI-written. */
+ * framing. In Demo Mode (no Supabase configured) this always runs the local
+ * heuristic MockAiProvider; with a real backend configured, a failure here
+ * surfaces as a thrown error rather than a silently-substituted mock note
+ * (see services/ai/index.ts's suggestStudyPlanFocus) — the caller (Home's
+ * focus-note query) already treats that as "no note today", not a blank
+ * screen. The result's `aiSource` tells the caller which one actually
+ * produced it so the UI can show "Live AI" vs "Demo AI" rather than imply
+ * every plan is AI-written. */
 export async function getStudyPlanFocusSuggestion(userId: string, context: CoachContext): Promise<StudyPlanSuggestionResult> {
   const [questionAttempts, testHistory, grammarAttempts] = await Promise.all([
     getQuestionAttempts(userId),

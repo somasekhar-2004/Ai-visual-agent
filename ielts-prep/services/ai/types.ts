@@ -20,13 +20,27 @@ export type SpeakingEvalInput = {
 export type CoachContext = {
   fullName: string | null;
   ieltsType: IeltsType;
-  targetBand: number;
+  /** null means the student has not set a target band yet — never fabricate
+   * a number here (this was a real production bug: a hardcoded `?? 7`
+   * fallback made the coach confidently state "Band 7" for an account whose
+   * real target was 7.5, simply because the client asked before its own
+   * goal had finished loading). Real Supabase mode also has this
+   * server-overridden with the authoritative value straight from
+   * `user_goals` — see supabase/functions/_shared/userContext.ts — so a
+   * stale/racy client read like that can no longer reach the model at all. */
+  targetBand: number | null;
   currentBand: number | null;
   examDate: string | null;
   weakestSkill: SkillKey | null;
   bandBySkill: Partial<Record<SkillKey, number>>;
   streakDays: number;
   dailyStudyMinutes: number;
+  /** Optional: real Supabase mode always overrides these server-side from
+   * `question_attempts` (see userContext.ts), so callers that can't cheaply
+   * compute them (e.g. a queryFn with no attempts query of its own) may omit
+   * them entirely rather than guessing. */
+  overallAccuracy?: number | null;
+  questionsCompleted?: number;
 };
 
 export type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string };

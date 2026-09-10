@@ -209,18 +209,22 @@ export class MockAiProvider implements AiProvider {
   async chat(messages: ChatMessage[], context: CoachContext): Promise<string> {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
     const q = lastUser.toLowerCase();
+    // No name/target/band on record must never become "there"-adjacent
+    // invented small talk or a guessed number — say plainly that it isn't
+    // set yet, the same distinction the real prompt (prompts.ts) enforces.
     const name = context.fullName ?? 'there';
     const weak = context.weakestSkill ?? 'writing';
     const weakBand = context.bandBySkill[weak];
+    const targetLabel = context.targetBand != null ? `Band ${context.targetBand}` : 'a target band (you haven\'t set one yet — let\'s do that first)';
 
     if (/\bband\s*7|\breach\s+band|\bhow.*(improve|get to)\b.*band/.test(q)) {
-      return `Hi ${name} — to move from your current overall estimate toward Band ${context.targetBand}, the fastest gains usually come from your weakest skill first. Right now that's ${weak}${weakBand ? ` (currently around Band ${weakBand})` : ''}. I'd suggest: 1) 20 minutes of focused ${weak} practice daily rather than spreading thin across all four skills, 2) one full timed ${weak} task every few days with feedback, and 3) reviewing your mistakes by type rather than just redoing similar questions. Want me to build today's plan around that?`;
+      return `Hi ${name} — to move from your current overall estimate toward ${targetLabel}, the fastest gains usually come from your weakest skill first. Right now that's ${weak}${weakBand ? ` (currently around Band ${weakBand})` : ''}. I'd suggest: 1) 20 minutes of focused ${weak} practice daily rather than spreading thin across all four skills, 2) one full timed ${weak} task every few days with feedback, and 3) reviewing your mistakes by type rather than just redoing similar questions. Want me to build today's plan around that?`;
     }
     if (/why.*(low|score|band).*(reading|listening|writing|speaking)/.test(q) || /reading score low/.test(q)) {
       return `A low Reading score usually comes from one of three places: running out of time, misreading True/False/Not Given traps, or vocabulary gaps that slow you down. Try this diagnostic: next time you practise, note whether wrong answers came from time pressure or genuine misunderstanding — that tells us which to fix first. Given your weakest skill is currently ${weak}, I'd prioritise short, timed passage drills before full-length tests.`;
     }
     if (/today'?s?\s+plan|what should i (study|do) today/.test(q)) {
-      return `Based on your goal (Band ${context.targetBand}, ${context.dailyStudyMinutes} minutes/day) and your weakest skill (${weak}), here's a focused plan: spend about 40% of your time on ${weak}, and split the rest across the other three skills. Check the Home tab — I've generated today's specific plan with exact exercises there.`;
+      return `Based on your goal (${targetLabel}, ${context.dailyStudyMinutes} minutes/day) and your weakest skill (${weak}), here's a focused plan: spend about 40% of your time on ${weak}, and split the rest across the other three skills. Check the Home tab — I've generated today's specific plan with exact exercises there.`;
     }
     if (/true\s*\/?\s*false\s*\/?\s*not given|tfng/.test(q)) {
       return `True/False/Not Given tests whether a statement agrees with the passage (TRUE), contradicts it (FALSE), or simply isn't mentioned precisely enough to judge either way (NOT GIVEN). The most common mistake is treating "not given" as "false" — remember, Not Given just means the passage is silent on that exact claim. Want a short practice set on this?`;
@@ -237,7 +241,7 @@ export class MockAiProvider implements AiProvider {
       return `For Task 2, the highest-impact fix is usually structure: a clear thesis in your introduction, one main idea per body paragraph with a specific example, and a conclusion that restates (not repeats) your position. Since your weakest skill is ${weak}, I'd also focus on ${weak === 'writing' ? 'expanding vocabulary range and reducing repeated words' : 'making sure your written English matches the fluency you already have in speaking'}.`;
     }
 
-    return `That's a great question, ${name}. Based on your profile — targeting Band ${context.targetBand}${context.examDate ? ` with your test on ${context.examDate}` : ''} and currently strongest outside of ${weak} — I'd suggest focusing today's session there. Ask me things like "give me today's plan", "explain True False Not Given", or "give me a speaking topic" and I'll tailor the answer to your progress.`;
+    return `That's a great question, ${name}. Based on your profile — targeting ${targetLabel}${context.examDate ? ` with your test on ${context.examDate}` : ''} and currently strongest outside of ${weak} — I'd suggest focusing today's session there. Ask me things like "give me today's plan", "explain True False Not Given", or "give me a speaking topic" and I'll tailor the answer to your progress.`;
   }
 
   async transcribeAudio(_audioUri: string): Promise<string> {
@@ -262,10 +266,15 @@ export class MockAiProvider implements AiProvider {
       focusSummary = 'No single weak area stands out yet — today keeps practice balanced across all four skills.';
     }
 
-    const gap = context.targetBand - (context.currentBand ?? context.targetBand);
+    // No target band on record means there is nothing to compute a gap
+    // against — null, never a guessed default, so this never fabricates
+    // "you're 1.0 bands away" for a student who hasn't set a target yet.
+    const gap = context.targetBand != null ? context.targetBand - (context.currentBand ?? context.targetBand) : null;
     let motivationalNote: string;
     if (context.streakDays >= 3) {
       motivationalNote = `${context.streakDays}-day streak — consistency like this is what actually moves a band score.`;
+    } else if (gap == null) {
+      motivationalNote = `Set a target band to see exactly how close today's session gets you.`;
     } else if (gap > 0) {
       motivationalNote = `You're roughly ${gap.toFixed(1)} band${gap === 1 ? '' : 's'} from your target — today's session is a real step toward it.`;
     } else {

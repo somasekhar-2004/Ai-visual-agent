@@ -2,15 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Chip, DailyLimitCard, DemoAiBadge, IconCircle, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { buildCoachContext } from '@/lib/coachContext';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_AI_MESSAGES } from '@/lib/entitlements';
-import { chatWithCoach, type AiSource, type CoachContext } from '@/services/ai';
-import { addMessage, addTestHistory, createConversation, getMessages, getTestHistory, listConversations } from '@/services/repository';
+import { chatWithCoach, type AiSource } from '@/services/ai';
+import { addMessage, addTestHistory, createConversation, getMessages, getQuestionAttempts, getTestHistory, listConversations } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
 const SUGGESTED_PROMPTS = [
@@ -28,19 +29,21 @@ export default function AiCoachScreen() {
   const queryClient = useQueryClient();
   const scrollRef = useRef<ScrollView>(null);
 
-  const { userId, profile, goal, bandScores, streak, isPremium } = useAppStore(useShallow((s) => ({
+  const { userId, profile, goal, bandScores, streak, isPremium, dataLoaded } = useAppStore(useShallow((s) => ({
     userId: s.userId,
     profile: s.profile,
     goal: s.goal,
     bandScores: s.bandScores,
     streak: s.streak,
     isPremium: s.subscription?.plan !== 'free',
+    dataLoaded: s.dataLoaded,
   })));
 
   const [conversationId, setConversationId] = useState<string | null>(params.conversationId ?? null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [lastReplySource, setLastReplySource] = useState<AiSource | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const conversationsQuery = useQuery({
     queryKey: ['ai-conversations', userId],
@@ -57,6 +60,16 @@ export default function AiCoachScreen() {
   const historyQuery = useQuery({
     queryKey: ['test-history', userId],
     queryFn: () => getTestHistory(userId!),
+    enabled: Boolean(userId),
+  });
+  // Same queryKey ProgressDashboard uses, so this is typically already
+  // cached — real accuracy/questions-completed for the coach's context
+  // (real Supabase mode overrides both server-side anyway; see
+  // supabase/functions/_shared/userContext.ts, but Demo Mode has no server
+  // to do that, so this is what makes those honest there too).
+  const attemptsQuery = useQuery({
+    queryKey: ['question-attempts', userId],
+    queryFn: () => getQuestionAttempts(userId!),
     enabled: Boolean(userId),
   });
   const usedToday = activityUsedToday(historyQuery.data ?? [], 'ai_chat');
@@ -84,33 +97,45 @@ export default function AiCoachScreen() {
   }
 
   async function send(text: string) {
-    if (!text.trim() || !userId || !conversationId || sending || !limitStatus.allowed) return;
+    // dataLoaded also gated: building context from the store before its
+    // initial load has settled is exactly how a real production bug sent
+    // the coach a hardcoded fallback target band instead of the real one —
+    // `goal` (and everything else read below) can still be sitting at its
+    // unloaded initial value at this point otherwise.
+    if (!text.trim() || !userId || !conversationId || sending || !limitStatus.allowed || !dataLoaded) return;
     setInput('');
     setSending(true);
+    setSendError(null);
     await addMessage(conversationId, 'user', text.trim());
     queryClient.invalidateQueries({ queryKey: ['ai-messages', conversationId] });
 
-    const context: CoachContext = {
-      fullName: profile?.fullName ?? null,
-      ieltsType: goal?.ieltsType ?? 'academic',
-      targetBand: goal?.targetBand ?? 7,
-      currentBand: goal?.currentBand ?? null,
-      examDate: goal?.examDate ?? null,
-      weakestSkill: goal?.weakestSkill ?? null,
-      bandBySkill: bandScores,
-      streakDays: streak.count,
-      dailyStudyMinutes: goal?.dailyStudyMinutes ?? 30,
-    };
+    try {
+      // Real Supabase mode also has this (and every other identity/goal/
+      // band field) re-fetched and overridden server-side by authenticated
+      // user id, not trusted from this client read at all — see
+      // supabase/functions/_shared/userContext.ts. buildCoachContext is
+      // still what enforces "never fabricate a missing value" here (and
+      // what Demo Mode, with no server to override anything, relies on).
+      const context = buildCoachContext({ profile, goal, bandScores, streak, attempts: attemptsQuery.data ?? [] });
 
-    const history = (await getMessages(conversationId)).map((m) => ({ role: m.role, content: m.content }));
-    const { reply, aiSource } = await chatWithCoach(history as any, context);
-    setLastReplySource(aiSource);
-    await addMessage(conversationId, 'assistant', reply);
-    await addTestHistory(userId, 'ai_chat', conversationId, null, {});
-    queryClient.invalidateQueries({ queryKey: ['ai-messages', conversationId] });
-    queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
-    setSending(false);
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      const history = (await getMessages(conversationId)).map((m) => ({ role: m.role, content: m.content }));
+      const { reply, aiSource } = await chatWithCoach(history as any, context);
+      setLastReplySource(aiSource);
+      await addMessage(conversationId, 'assistant', reply);
+      await addTestHistory(userId, 'ai_chat', conversationId, null, {});
+      queryClient.invalidateQueries({ queryKey: ['ai-messages', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+    } catch (err) {
+      // A failed real-provider call must surface as a visible, recoverable
+      // error — never a silently-substituted mock reply (see
+      // services/ai/index.ts's chatWithCoach). The user's own message is
+      // already saved above; only the coach's reply is missing, so they can
+      // just retry.
+      setSendError((err as Error).message || 'The coach is unavailable right now. Please try again.');
+    } finally {
+      setSending(false);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    }
   }
 
   const messages = messagesQuery.data ?? [];
@@ -140,7 +165,9 @@ export default function AiCoachScreen() {
               <Text variant="h3" align="center">
                 Ask me anything about your IELTS prep
               </Text>
-              {limitStatus.allowed ? (
+              {!dataLoaded ? (
+                <ActivityIndicator color={theme.colors.primary} />
+              ) : limitStatus.allowed ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, justifyContent: 'center' }}>
                   {SUGGESTED_PROMPTS.map((p) => (
                     <Chip key={p} label={p} onPress={() => send(p)} />
@@ -171,6 +198,11 @@ export default function AiCoachScreen() {
               <Text color="secondary">Coach is typing...</Text>
             </View>
           ) : null}
+          {sendError ? (
+            <View style={{ alignSelf: 'flex-start', backgroundColor: theme.colors.errorSoft, borderRadius: theme.radius.lg, padding: theme.spacing.sm, maxWidth: '85%' }}>
+              <Text color="error">{sendError}</Text>
+            </View>
+          ) : null}
         </ScrollView>
 
         {limitStatus.allowed ? (
@@ -180,7 +212,7 @@ export default function AiCoachScreen() {
             </View>
             <Pressable
               onPress={() => send(input)}
-              disabled={sending || !input.trim()}
+              disabled={sending || !input.trim() || !dataLoaded}
               style={{
                 width: 44,
                 height: 44,
@@ -188,7 +220,7 @@ export default function AiCoachScreen() {
                 backgroundColor: theme.colors.primary,
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: sending || !input.trim() ? 0.5 : 1,
+                opacity: sending || !input.trim() || !dataLoaded ? 0.5 : 1,
               }}
             >
               <Ionicons name="send" size={18} color={theme.colors.onPrimary} />

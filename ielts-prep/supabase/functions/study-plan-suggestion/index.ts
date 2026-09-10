@@ -15,6 +15,7 @@ import { checkRateLimit, recordUsage } from '../_shared/rateLimit.ts';
 import { errorResponse, jsonResponse } from '../_shared/responses.ts';
 import { StudyPlanSuggestionRequestSchema, StudyPlanSuggestionSchema } from '../_shared/schemas.ts';
 import { requireUser } from '../_shared/supabaseClient.ts';
+import { fetchAuthoritativeCoachContext } from '../_shared/userContext.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
@@ -45,7 +46,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const raw = await runStudyPlanSuggestion(provider, parsedInput.data.context, parsedInput.data.weakQuestionTypeBySkill, parsedInput.data.weakGrammarTopic);
+    const context = await fetchAuthoritativeCoachContext(supabase, user.id, parsedInput.data.context);
+    const raw = await runStudyPlanSuggestion(provider, context, parsedInput.data.weakQuestionTypeBySkill, parsedInput.data.weakGrammarTopic);
     const parsedOutput = StudyPlanSuggestionSchema.safeParse(JSON.parse(raw));
     if (!parsedOutput.success) {
       await recordUsage(supabase, user, 'study_plan_suggestion', provider, false);

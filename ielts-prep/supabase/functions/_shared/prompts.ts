@@ -80,21 +80,46 @@ Critical guardrails — the client already refuses to call you at all for a near
 - If the transcript is too short or fragmented to confidently judge a criterion at all, set "developmentNote" to say so explicitly rather than inventing a plausible-sounding score.`;
 }
 
+/** Renders CoachContext as clearly labeled sections — TARGET (the study
+ * goal the student picked), CURRENT/PREDICTED (actual recorded band
+ * scores), PER-SKILL, and ACTIVITY (real practice history) — so the model
+ * never conflates "what the student is aiming for" with "what they've
+ * actually achieved", and treats an explicit "not set yet" / "not enough
+ * data yet" as exactly that rather than guessing a plausible-sounding
+ * number. Every value here is the server's own authoritative read of this
+ * user's data (see userContext.ts) by the time this runs — never a
+ * client-supplied number taken on faith. */
+function renderStudentContext(context: CoachContext): string {
+  const skillLines = (['listening', 'reading', 'writing', 'speaking'] as const)
+    .map((skill) => `  - ${skill[0].toUpperCase()}${skill.slice(1)}: ${context.bandBySkill[skill] != null ? `Band ${context.bandBySkill[skill]}` : 'not enough data yet'}`)
+    .join('\n');
+
+  return `TARGET (from the student's study goal — "not set" means they have not chosen one yet; never assume a number here):
+- Exam type: IELTS ${context.ieltsType}
+- Target band: ${context.targetBand != null ? context.targetBand : 'not set'}
+- Exam date: ${context.examDate ?? 'not set'}
+- Daily study time available: ${context.dailyStudyMinutes} minutes
+
+CURRENT / PREDICTED (from the student's actual recorded band scores — "not enough data yet" means they have not completed enough scored practice/tests for this; never invent one):
+- Current estimated overall band: ${context.currentBand != null ? context.currentBand : 'not enough data yet'}
+- Weakest skill: ${context.weakestSkill ?? 'not enough data yet'}
+
+PER-SKILL BANDS:
+${skillLines}
+
+ACTIVITY / PROGRESS (from real completed practice — "no attempts yet" or "not enough data yet" mean exactly that, not zero performance):
+- Questions completed: ${context.questionsCompleted ?? 'unknown'}
+- Overall accuracy: ${context.overallAccuracy != null ? `${Math.round(context.overallAccuracy * 100)}%` : 'not enough data yet'}
+- Current streak: ${context.streakDays} day(s)
+- Name: ${context.fullName ?? 'not set — use a neutral greeting, do not invent a name'}`;
+}
+
 export function buildCoachSystemPrompt(context: CoachContext): string {
   return `You are the AI IELTS Coach inside the IELTS Prep app — a warm, knowledgeable, encouraging IELTS tutor. Keep replies concise (under ~150 words unless asked for detail), practical, and specific to this student.
 
-Student profile:
-- Name: ${context.fullName ?? 'the student'}
-- Exam type: IELTS ${context.ieltsType}
-- Target band: ${context.targetBand}
-- Current estimated band: ${context.currentBand ?? 'unknown'}
-- Exam date: ${context.examDate ?? 'not set'}
-- Weakest skill: ${context.weakestSkill ?? 'unknown'}
-- Band by skill: ${JSON.stringify(context.bandBySkill)}
-- Current streak: ${context.streakDays} day(s)
-- Daily study time available: ${context.dailyStudyMinutes} minutes
+${renderStudentContext(context)}
 
-Always ground advice in this profile when relevant. Never claim any score you give is an official IELTS result — you help with practice and preparation only. If asked something outside IELTS preparation, gently redirect back to studying.`;
+Always ground advice in this profile when relevant, and be explicit when a value above is "not set" or "not enough data yet" rather than treating it as zero or guessing a plausible number in its place — e.g. if the target band is not set, tell the student to set one instead of assuming a target. Never claim any score you give is an official IELTS result — you help with practice and preparation only. If asked something outside IELTS preparation, gently redirect back to studying.`;
 }
 
 export function buildStudyPlanSuggestionPrompt(
@@ -104,18 +129,15 @@ export function buildStudyPlanSuggestionPrompt(
 ): string {
   return `You are the AI IELTS Coach generating a short, personalized note for a student's daily study plan.
 
-Student profile:
-- Target band: ${context.targetBand}, current estimated band: ${context.currentBand ?? 'unknown'}
-- Exam date: ${context.examDate ?? 'not set'}
-- Weakest skill: ${context.weakestSkill ?? 'unknown'}
-- Band by skill: ${JSON.stringify(context.bandBySkill)}
+${renderStudentContext(context)}
+
+Additional signals:
 - Weak question types by skill: ${JSON.stringify(weakQuestionTypeBySkill ?? {})}
 - Weak grammar topic: ${weakGrammarTopic ?? 'none identified'}
-- Current streak: ${context.streakDays} day(s)
 
 Respond with ONLY a single valid JSON object matching exactly this shape (no markdown fences, no extra text):
 {
-  "focusSummary": string (one sentence naming today's single highest-priority focus area, referencing the actual weak signal above),
+  "focusSummary": string (one sentence naming today's single highest-priority focus area, referencing the actual weak signal above — if the target band is not set, that itself can be the focus, e.g. "Set a target band to get a personalized plan."),
   "motivationalNote": string (one short, warm, specific sentence of encouragement — not generic)
 }`;
 }

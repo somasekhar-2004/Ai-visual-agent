@@ -31,13 +31,21 @@ export const ChatMessageSchema = z.object({
 export const CoachContextSchema = z.object({
   fullName: z.string().nullable(),
   ieltsType: z.enum(['academic', 'general']),
-  targetBand: z.number(),
+  // null means "not set yet" — never fabricated as a default number. See
+  // services/ai/types.ts's CoachContext for the production incident this
+  // fixes. This function also never trusts these client-sent identity/goal/
+  // band fields anyway — fetchAuthoritativeCoachContext (userContext.ts)
+  // overwrites them from the database by the caller's own authenticated
+  // user id before they ever reach a prompt.
+  targetBand: z.number().nullable(),
   currentBand: z.number().nullable(),
   examDate: z.string().nullable(),
   weakestSkill: z.enum(['listening', 'reading', 'writing', 'speaking']).nullable(),
   bandBySkill: z.record(z.string(), z.number()),
   streakDays: z.number().int().min(0),
   dailyStudyMinutes: z.number().int().min(0),
+  overallAccuracy: z.number().min(0).max(1).nullable().optional(),
+  questionsCompleted: z.number().int().min(0).optional(),
 });
 export type CoachContext = z.infer<typeof CoachContextSchema>;
 

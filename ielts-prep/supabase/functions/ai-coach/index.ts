@@ -11,6 +11,7 @@ import { checkRateLimit, recordUsage } from '../_shared/rateLimit.ts';
 import { errorResponse, jsonResponse } from '../_shared/responses.ts';
 import { AiCoachRequestSchema } from '../_shared/schemas.ts';
 import { requireUser } from '../_shared/supabaseClient.ts';
+import { fetchAuthoritativeCoachContext } from '../_shared/userContext.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
@@ -41,7 +42,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const reply = await runChat(provider, parsedInput.data.messages, parsedInput.data.context);
+    const context = await fetchAuthoritativeCoachContext(supabase, user.id, parsedInput.data.context);
+    const reply = await runChat(provider, parsedInput.data.messages, context);
     await recordUsage(supabase, user, 'ai_coach', provider, true);
     return jsonResponse({ reply, provider });
   } catch (err) {
