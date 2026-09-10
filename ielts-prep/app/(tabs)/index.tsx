@@ -11,6 +11,7 @@ import { StudyPlanItemRow } from '@/components/home/StudyPlanItemRow';
 import { ProgressDashboard } from '@/components/dashboard/ProgressDashboard';
 import { Button, Card, DemoAiBadge, IconCircle, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { goalSetupRoute } from '@/lib/goalSetupNav';
 import { getHomeViewState } from '@/lib/homeViewState';
 import { studyPlanItemTarget } from '@/lib/studyPlanNav';
 import type { CoachContext } from '@/services/ai';
@@ -84,6 +85,16 @@ export default function HomeScreen() {
     }
   }
 
+  // See lib/goalSetupNav.ts for why this is never the unauthenticated
+  // onboarding wizard's account-creation step for a user already looking at
+  // Home. Routes to the same screen Settings → Edit profile & goals uses
+  // (app/profile-edit.tsx) — one goal-save implementation, not two — which
+  // already refreshes the store on save so Home and AI Coach see the new
+  // goal immediately.
+  function goToGoalSetup() {
+    router.push(goalSetupRoute(userId));
+  }
+
   // Home always shows the real dashboard once the initial fetch settles —
   // it must never be replaced by a full-screen "let's set up your goal"
   // state (that's now just one degraded card inside ProgressDashboard when
@@ -154,7 +165,7 @@ export default function HomeScreen() {
         </Card>
       ) : null}
 
-      <ProgressDashboard onSetGoal={() => router.push('/(onboarding)/ielts-type')} onUpgrade={() => router.push('/paywall')} />
+      <ProgressDashboard onSetGoal={goToGoalSetup} onUpgrade={() => router.push('/paywall')} />
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
         <Text variant="h3">Today’s Study Plan</Text>
@@ -199,7 +210,7 @@ export default function HomeScreen() {
       ) : (
         <Card style={{ marginBottom: theme.spacing.lg }}>
           <Text color="secondary">Set up your study goal to get a personalized daily study plan.</Text>
-          <Button label="Set up my goal" onPress={() => router.push('/(onboarding)/ielts-type')} style={{ marginTop: theme.spacing.sm }} />
+          <Button label="Set up my goal" onPress={goToGoalSetup} style={{ marginTop: theme.spacing.sm }} />
         </Card>
       )}
 

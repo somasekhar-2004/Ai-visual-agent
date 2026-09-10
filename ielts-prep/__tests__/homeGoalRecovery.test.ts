@@ -76,6 +76,41 @@ describe('saveOnboardingGoal — inserts the new goal before deactivating old on
       saveOnboardingGoal('user-1', { ieltsType: 'academic', currentBand: null, targetBand: 7, examDate: null, weakestSkill: null, dailyStudyMinutes: 30 })
     ).resolves.toMatchObject({ id: 'goal-3' });
   });
+
+  // Regression coverage for the "Home 'Set your goal' flow is broken/dummy"
+  // bug: Home's CTA and Settings → Edit profile & goals now both call this
+  // exact function to save an edit to an existing goal (see
+  // lib/goalSetupNav.ts + app/profile-edit.tsx) — never a second, separate
+  // implementation. This proves that path specifically never leaves two
+  // active goals: editing account "user-1"'s already-active goal-old
+  // inserts goal-new as active and deactivates everything else, so exactly
+  // one row ends up active regardless of which screen triggered the edit.
+  it('editing an account\'s already-active goal (the shared Home/Settings save path) ends with exactly one active goal, never two', async () => {
+    const insertBuilder = makeQueryBuilder({
+      data: { id: 'goal-new', user_id: 'user-1', ielts_type: 'academic', current_band: 6, target_band: 7.5, exam_date: null, weakest_skill: 'writing', daily_study_minutes: 45, is_active: true, created_at: '2026-02-01T00:00:00.000Z' },
+      error: null,
+    });
+    const deactivateBuilder = makeQueryBuilder({ data: null, error: null });
+    fromMock.mockReturnValueOnce(insertBuilder).mockReturnValueOnce(deactivateBuilder);
+
+    const goal = await saveOnboardingGoal('user-1', {
+      ieltsType: 'academic',
+      currentBand: 6,
+      targetBand: 7.5,
+      examDate: null,
+      weakestSkill: 'writing',
+      dailyStudyMinutes: 45,
+    });
+
+    expect(goal.id).toBe('goal-new');
+    expect(goal.targetBand).toBe(7.5);
+    // Deactivates every other row for this user (which includes the
+    // previously-active goal-old) except the one just inserted — so
+    // goal-old can never remain active alongside goal-new.
+    expect(deactivateBuilder.update).toHaveBeenCalledWith({ is_active: false });
+    expect(deactivateBuilder.eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(deactivateBuilder.neq).toHaveBeenCalledWith('id', 'goal-new');
+  });
 });
 
 describe('getActiveGoal — recovers an existing account\'s goal even if it ended up with no row marked active', () => {
