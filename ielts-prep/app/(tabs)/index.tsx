@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -11,6 +11,7 @@ import { SkillBandCard } from '@/components/home/SkillBandCard';
 import { StudyPlanItemRow } from '@/components/home/StudyPlanItemRow';
 import { Badge, Button, Card, DemoAiBadge, IconCircle, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { getHomeViewState } from '@/lib/homeViewState';
 import { studyPlanItemTarget } from '@/lib/studyPlanNav';
 import type { CoachContext } from '@/services/ai';
 import {
@@ -35,7 +36,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { userId, profile, goal, bandScores, streak, xp, homeError, refreshUserData } = useAppStore(useShallow((s) => ({
+  const { userId, profile, goal, bandScores, streak, xp, homeError, dataLoaded, refreshUserData } = useAppStore(useShallow((s) => ({
     userId: s.userId,
     profile: s.profile,
     goal: s.goal,
@@ -43,6 +44,7 @@ export default function HomeScreen() {
     streak: s.streak,
     xp: s.xp,
     homeError: s.homeError,
+    dataLoaded: s.dataLoaded,
     refreshUserData: s.refreshUserData,
   })));
   const [retrying, setRetrying] = React.useState(false);
@@ -88,27 +90,39 @@ export default function HomeScreen() {
     }
   }
 
-  // Home must always render real content, a meaningful empty state, or a
-  // recoverable error — never a blank screen. `!goal` alone doesn't say
-  // which of those two very different situations this is (a genuine
-  // Supabase/RLS failure looks identical to "no goal yet" from the data
-  // alone), so it's `homeError` — set by refreshUserData only when a query
-  // actually failed — that decides which one to show.
-  if (!goal) {
-    if (homeError) {
-      return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.xl, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
-          <IconCircle name="alert-circle-outline" size={64} backgroundColor={theme.colors.errorSoft} color={theme.colors.error} />
-          <Text variant="h3" align="center">
-            Couldn&apos;t load your data
-          </Text>
-          <Text color="secondary" align="center">
-            {homeError}
-          </Text>
-          <Button label="Retry" onPress={handleRetry} loading={retrying} />
-        </SafeAreaView>
-      );
-    }
+  // Home must always render real content, a meaningful empty state, a
+  // recoverable error, or a loading indicator — never a blank screen, and
+  // never conflate any of those four. `!goal` alone is ambiguous between
+  // three very different situations (still fetching; a genuine Supabase/RLS
+  // failure; genuinely no goal ever set up), so `dataLoaded`/`homeError` —
+  // both set only from real fetch outcomes, never inferred from missing
+  // data — decide which one to show. See lib/homeViewState.ts.
+  const viewState = getHomeViewState({ dataLoaded, goal, homeError });
+
+  if (viewState === 'loading') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  if (viewState === 'error') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.xl, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
+        <IconCircle name="alert-circle-outline" size={64} backgroundColor={theme.colors.errorSoft} color={theme.colors.error} />
+        <Text variant="h3" align="center">
+          Couldn&apos;t load your data
+        </Text>
+        <Text color="secondary" align="center">
+          {homeError}
+        </Text>
+        <Button label="Retry" onPress={handleRetry} loading={retrying} />
+      </SafeAreaView>
+    );
+  }
+
+  if (viewState === 'setup') {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, padding: theme.spacing.xl, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.md }}>
         <IconCircle name="flag-outline" size={64} />
@@ -122,6 +136,8 @@ export default function HomeScreen() {
       </SafeAreaView>
     );
   }
+
+  if (!goal) return null; // unreachable — viewState === 'ready' guarantees getHomeViewState saw a truthy goal
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';

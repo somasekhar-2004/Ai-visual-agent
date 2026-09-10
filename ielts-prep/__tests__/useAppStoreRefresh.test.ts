@@ -6,7 +6,9 @@
 // These tests mock @/services/repository directly (not Supabase) since the
 // store calls those functions by name.
 
-import { getActiveGoal, getLatestBandScores, getProfile, getStreak, getSubscription, getXp, saveOnboardingGoal } from '@/services/repository';
+import { getActiveGoal, getLatestBandScores, getProfile, getStreak, getSubscription, getXp, saveOnboardingGoal, syncSubscriptionEntitlement } from '@/services/repository';
+import { getCurrentUserId, hasCompletedOnboarding } from '@/services/auth';
+import { getHomeViewState } from '@/lib/homeViewState';
 import { useAppStore } from '@/store/useAppStore';
 
 jest.mock('@/services/auth', () => ({
@@ -36,6 +38,9 @@ const mockGetSubscription = getSubscription as jest.Mock;
 const mockGetStreak = getStreak as jest.Mock;
 const mockGetXp = getXp as jest.Mock;
 const mockSaveOnboardingGoal = saveOnboardingGoal as jest.Mock;
+const mockSyncSubscriptionEntitlement = syncSubscriptionEntitlement as jest.Mock;
+const mockGetCurrentUserId = getCurrentUserId as jest.Mock;
+const mockHasCompletedOnboarding = hasCompletedOnboarding as jest.Mock;
 
 const PROFILE = { id: 'user-1', fullName: 'Alex', avatarUrl: null, createdAt: '2026-01-01' };
 const GOAL = {
@@ -63,6 +68,7 @@ function resetStore() {
     streak: { count: 0, lastActiveDate: null },
     xp: 0,
     homeError: null,
+    dataLoaded: false,
   });
 }
 
@@ -91,6 +97,9 @@ describe('refreshUserData — partial-failure resilience', () => {
     expect(state.streak).toEqual({ count: 3, lastActiveDate: '2026-01-01' });
     expect(state.xp).toBe(120);
     expect(state.homeError).toMatch(/permission denied for table user_goals/);
+    // A failed refresh still counts as "settled" — Home must show the error
+    // screen, never a stuck loading spinner.
+    expect(state.dataLoaded).toBe(true);
   });
 
   it('clears homeError on a fully successful refresh after a previous failure', async () => {
@@ -106,6 +115,123 @@ describe('refreshUserData — partial-failure resilience', () => {
 
     expect(useAppStore.getState().homeError).toBeNull();
     expect(useAppStore.getState().goal).toEqual(GOAL);
+    expect(useAppStore.getState().dataLoaded).toBe(true);
+  });
+});
+
+// Regression coverage for the real-Android bug this session found: Home kept
+// showing "Let's set up your study goal" for an existing, already-onboarded
+// user. `isHydrated` flips true synchronously inside hydrate() *before*
+// refreshUserData (which populates `goal`) is even awaited, and Home read no
+// other signal — so a component gating on isHydrated alone could render with
+// `goal` still at its initial `null` and read that as "confirmed no goal",
+// identical to a genuinely new user. `dataLoaded` is the fix: it only
+// becomes true once the initial fetch has genuinely settled, one way or the
+// other. These tests exercise hydrate() end-to-end and feed the resulting
+// store state through lib/homeViewState.ts's getHomeViewState — the same
+// function app/(tabs)/index.tsx uses to decide what to render — so they
+// prove what Home would actually show, not just what fields got set.
+describe('hydrate — dataLoaded distinguishes "still fetching" from every settled outcome', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetStore();
+    mockGetCurrentUserId.mockResolvedValue('user-1');
+    mockHasCompletedOnboarding.mockResolvedValue(true);
+    mockSyncSubscriptionEntitlement.mockResolvedValue(undefined);
+  });
+
+  it('an existing user with an active goal: dataLoaded settles true and Home would show the real dashboard, not the setup screen', async () => {
+    mockGetProfile.mockResolvedValue(PROFILE);
+    mockGetActiveGoal.mockResolvedValue(GOAL);
+    mockGetLatestBandScores.mockResolvedValue({ overall: 6.5 });
+    mockGetSubscription.mockResolvedValue(null);
+    mockGetStreak.mockResolvedValue({ count: 3, lastActiveDate: '2026-01-01' });
+    mockGetXp.mockResolvedValue(120);
+
+    await useAppStore.getState().hydrate();
+
+    const state = useAppStore.getState();
+    expect(state.dataLoaded).toBe(true);
+    expect(getHomeViewState(state)).toBe('ready');
+  });
+
+  it('no signed-in user: dataLoaded still settles true (nothing left to wait for) instead of leaving Home stuck loading', async () => {
+    mockGetCurrentUserId.mockResolvedValueOnce(null);
+
+    await useAppStore.getState().hydrate();
+
+    const state = useAppStore.getState();
+    expect(state.dataLoaded).toBe(true);
+    expect(mockGetActiveGoal).not.toHaveBeenCalled();
+  });
+
+  it('a genuinely new user with no goal rows at all: Home shows the onboarding setup screen, not a permanent loading spinner', async () => {
+    mockGetProfile.mockResolvedValue(PROFILE);
+    mockGetActiveGoal.mockResolvedValue(null); // getActiveGoal already proved it checked for a historical row too — see homeGoalRecovery.test.ts
+    mockGetLatestBandScores.mockResolvedValue({});
+    mockGetSubscription.mockResolvedValue(null);
+    mockGetStreak.mockResolvedValue({ count: 0, lastActiveDate: null });
+    mockGetXp.mockResolvedValue(0);
+
+    await useAppStore.getState().hydrate();
+
+    const state = useAppStore.getState();
+    expect(state.dataLoaded).toBe(true);
+    expect(state.homeError).toBeNull();
+    expect(getHomeViewState(state)).toBe('setup');
+  });
+
+  it('a query failure during the initial load: Home shows the error/retry screen, never the onboarding setup screen', async () => {
+    mockGetProfile.mockResolvedValue(PROFILE);
+    mockGetActiveGoal.mockRejectedValue(new Error('permission denied for table user_goals'));
+    mockGetLatestBandScores.mockResolvedValue({});
+    mockGetSubscription.mockResolvedValue(null);
+    mockGetStreak.mockResolvedValue({ count: 0, lastActiveDate: null });
+    mockGetXp.mockResolvedValue(0);
+
+    await useAppStore.getState().hydrate();
+
+    const state = useAppStore.getState();
+    expect(state.dataLoaded).toBe(true);
+    expect(state.homeError).toMatch(/permission denied/);
+    expect(getHomeViewState(state)).toBe('error');
+  });
+
+  it('a failure before refreshUserData even runs (e.g. entitlement sync throwing) still settles dataLoaded, so Home shows the error screen instead of hanging on a spinner forever', async () => {
+    mockSyncSubscriptionEntitlement.mockRejectedValue(new Error('network unreachable'));
+
+    await useAppStore.getState().hydrate();
+
+    const state = useAppStore.getState();
+    expect(state.dataLoaded).toBe(true);
+    expect(state.homeError).toMatch(/network unreachable/);
+    expect(getHomeViewState(state)).toBe('error');
+    expect(mockGetActiveGoal).not.toHaveBeenCalled();
+  });
+
+  it('while the initial fetch is still in flight, dataLoaded stays false and Home would show a loading state, never the setup screen', async () => {
+    let resolveGoal!: (value: null) => void;
+    mockGetProfile.mockResolvedValue(PROFILE);
+    mockGetActiveGoal.mockReturnValue(new Promise((resolve) => { resolveGoal = resolve; }));
+    mockGetLatestBandScores.mockResolvedValue({});
+    mockGetSubscription.mockResolvedValue(null);
+    mockGetStreak.mockResolvedValue({ count: 0, lastActiveDate: null });
+    mockGetXp.mockResolvedValue(0);
+
+    const hydratePromise = useAppStore.getState().hydrate();
+    // Let every already-resolved microtask (getCurrentUserId, the sync
+    // entitlement call) flush, but getActiveGoal is still pending.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const midFlightState = useAppStore.getState();
+    expect(midFlightState.dataLoaded).toBe(false);
+    expect(getHomeViewState(midFlightState)).toBe('loading');
+
+    resolveGoal(null);
+    await hydratePromise;
+
+    expect(useAppStore.getState().dataLoaded).toBe(true);
   });
 });
 

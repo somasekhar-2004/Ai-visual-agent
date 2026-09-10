@@ -36,6 +36,15 @@ type AppState = {
   // since "no goal yet" and "the goal query failed" must render differently
   // (see app/(tabs)/index.tsx). Cleared on the next successful refresh.
   homeError: string | null;
+  // True once the initial post-sign-in data fetch (refreshUserData, or its
+  // absence when there's no signed-in user) has genuinely settled — either
+  // way, success or failure. `isHydrated` alone is NOT this: it flips true
+  // synchronously inside hydrate() before refreshUserData is even awaited,
+  // so a component gating on isHydrated alone can render with `goal` still
+  // at its initial `null` and mistake "haven't fetched yet" for "confirmed
+  // this user has no goal" — exactly the bug that sent an existing,
+  // already-onboarded user back to the "let's set up your goal" screen.
+  dataLoaded: boolean;
 
   hydrate: () => Promise<void>;
   refreshUserData: (userId: string) => Promise<void>;
@@ -57,6 +66,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   streak: { count: 0, lastActiveDate: null },
   xp: 0,
   homeError: null,
+  dataLoaded: false,
 
   hydrate: async () => {
     try {
@@ -65,13 +75,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (userId) {
         await syncSubscriptionEntitlement(userId);
         await get().refreshUserData(userId);
+      } else {
+        // No signed-in user — there is nothing for refreshUserData to fetch,
+        // so there's no "still loading" state left to wait out.
+        set({ dataLoaded: true });
       }
     } catch (err) {
       // Never let a startup failure leave isHydrated stuck at false (the
       // splash screen would then never hide) — surface it as a recoverable
-      // homeError instead of an unhandled rejection.
+      // homeError instead of an unhandled rejection. dataLoaded must also
+      // be set here: without it, a failure thrown before refreshUserData
+      // ever ran (e.g. syncSubscriptionEntitlement) would leave Home stuck
+      // showing a loading spinner forever instead of the error screen.
       console.warn('[app] hydrate failed:', (err as Error).message);
-      set({ isHydrated: true, homeError: (err as Error).message });
+      set({ isHydrated: true, dataLoaded: true, homeError: (err as Error).message });
     }
   },
 
@@ -111,6 +128,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       streak: streakR.status === 'fulfilled' ? streakR.value : current.streak,
       xp: xpR.status === 'fulfilled' ? xpR.value : current.xp,
       homeError: rejected.length ? ((rejected[0].reason as Error)?.message ?? 'Failed to load your data.') : null,
+      dataLoaded: true,
     });
   },
 
