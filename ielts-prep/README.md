@@ -203,7 +203,7 @@ npx supabase db push
 
 ### Applying the generated content seed to your live project (fixing "content/database drift")
 
-`supabase db push` applies **migrations only** (schema, RLS, grants — including the two migrations above) — it does **not** run anything in `supabase/seed/`. If you've ever seen `mock_attempts_mock_test_id_fkey` (foreign key violation, code `23503`) on a real device, this is almost always why: the schema is up to date, but the live database was never (re)seeded with the current content, so a mock test id the bundled app references doesn't exist as a row yet.
+`supabase db push` applies **migrations only** (schema, RLS, grants — including the migrations above and below) — it does **not** run anything in `supabase/seed/`. If you've ever seen `mock_attempts_mock_test_id_fkey` (foreign key violation, code `23503`) on a real device, this is almost always why: the schema is up to date, but the live database was never (re)seeded with the current content, so a mock test id the bundled app references doesn't exist as a row yet.
 
 **Getting `DATABASE_URL` safely (never paste this anywhere but your local `.env`):**
 1. [supabase.com](https://supabase.com) → open your project → the gear icon (Project Settings) → **Database**.
@@ -228,6 +228,20 @@ After seeding, verify the live database actually matches what the app can naviga
 npx tsx scripts/verify-content-in-db.ts
 ```
 This checks every `mock_tests`, `mock_sections`, and referenced `reading_passages`/`listening_tracks`/`writing_prompts`/`speaking_topics`/`questions` id the app can reach. For the strongest check — actually inserting a real `mock_attempts` row for one Academic and one General mock and confirming no FK violation, then deleting exactly that row — also set `SUPABASE_SERVICE_ROLE_KEY` in `.env` (a server-only secret, never the anon key, never committed); without it, that one check is clearly reported as `SKIP`, never silently treated as a pass.
+
+### `questions.id` was the wrong type — not a later seed file deleting rows
+
+A real seed run against a live project reported `FAIL questions — 800/800 referenced IDs missing` even though seeding had genuinely succeeded. The natural suspicion — a later legacy seed file (`0003_lessons.sql` through `0010_mock_test.sql`) deleting or replacing rows `0002_generated_content.sql` had just inserted — was checked directly and ruled out: every one of those files was read in full, and none contains a single `DELETE`/`TRUNCATE`/`INSERT` statement at all (they're empty legacy stubs, superseded when all content was consolidated into the generated seed).
+
+The real bug: `questions.id` was declared `uuid` in the schema, but **zero** of the app's 2,535 question ids are UUID-formatted — every one is a human-readable slug (`rq-p1-1`, `ast-ar-01-q1`, ...). `scripts/generate-seed-sql.ts` knew this and simply omitted `id` from the `INSERT` column list, so every question row got a random Postgres-generated uuid instead of the app's real id — the rows existed, just under ids nothing in the app ever asks for. This is a different, more serious situation than the analogous-looking `mock_sections.id` gap (see the GRANT section above): `question_attempts.question_id` and `bookmarks.question_id` are both real foreign keys to `questions.id`, and `services/repository/learning.ts` inserts the app's real (slug) question id directly into them — meaning **answering any question in Practice mode, or bookmarking one, could never have succeeded against a real database**, independent of anything seed-related.
+
+Fixed with two changes, both included in this batch and proven end-to-end against a real local Postgres database (all migrations + the full seed sequence applied in order, then a real `mock_attempts`, `question_attempts`, and `bookmarks` insert for both an Academic and a General mock — all passed with zero FK violations):
+- **`0009_question_id_text.sql`** — changes `questions.id`, `question_attempts.question_id`, and `bookmarks.question_id` from `uuid` to `text`, matching the identifier space the app has always actually used. Safe for this pre-launch project: no real `question_attempts`/`bookmarks` rows could have existed under a working id before this fix (the type mismatch made every such insert fail immediately), and content tables are deleted and reinserted by the seed regardless.
+- **`scripts/generate-seed-sql.ts`** now includes `id` in the `questions` insert (regenerating `0002_generated_content.sql`), the same pattern `reading_passages`/`listening_tracks`/`writing_prompts`/`speaking_topics`/`mock_tests` already used.
+
+`scripts/verify-content-in-db.ts`'s `mock_sections` check was also corrected — it used to compare `content.mockSections[].id` directly against the live `id` column, which is a fundamentally wrong comparison: `mock_sections.id` is intentionally Postgres-generated and never written by the seed (nothing looks a section up by it — only `mock_test_id` is a real, inserted foreign-key value, and the app navigates sections by `(mockTestId, skill, orderIndex)`). It now checks that every `(mock_test_id, skill)` pair the app expects actually exists as a row, which is what the app genuinely depends on.
+
+`__tests__/generateSeedSql.test.ts` now reads the real generated seed file from disk and asserts: the `questions` insert declares an explicit `id` column, every inserted id set-equals `content.allQuestions`'s ids, and every question id any mock section references resolves to a real bundled question — so this exact class of regression (an id column silently dropped again) fails a test immediately, without needing a live database to notice.
 
 ## AI provider setup
 

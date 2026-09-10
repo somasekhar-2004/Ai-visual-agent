@@ -122,10 +122,11 @@ function build(): string {
     insertBlock(
       'questions',
       [
-        'skill', 'question_type', 'topic', 'difficulty', 'estimated_band', 'prompt', 'passage_id', 'listening_track_id',
+        'id', 'skill', 'question_type', 'topic', 'difficulty', 'estimated_band', 'prompt', 'passage_id', 'listening_track_id',
         'options', 'correct_answer', 'explanation', 'strategy_note', 'tags', 'estimated_time_seconds', 'order_index', 'is_premium',
       ],
       content.allQuestions.map((q) => [
+        sqlStr(q.id),
         sqlStr(q.skill),
         sqlStr(q.questionType),
         sqlStr(q.topic),

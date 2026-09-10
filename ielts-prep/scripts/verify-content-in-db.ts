@@ -86,10 +86,37 @@ async function main() {
   // a real row, or starting that mock throws exactly this error.
   await checkIdsExist(supabase, 'mock_tests (every mock card the UI can show)', 'mock_tests', content.mockTests.map((t) => t.id));
 
-  // mock_sections: every section a mock test flow will actually try to
-  // load (lib/mockFlow.ts) must also exist, or a mock starts but a later
-  // step (e.g. moving from Reading to Listening) breaks the same way.
-  await checkIdsExist(supabase, 'mock_sections (every section within a mock)', 'mock_sections', content.mockSections.map((s) => s.id));
+  // mock_sections: checked structurally by (mock_test_id, skill), NOT by
+  // `id`. mock_sections.id is Postgres-gen_random_uuid()-generated — the
+  // seed's INSERT deliberately omits it (see scripts/generate-seed-sql.ts),
+  // and nothing in the schema or app ever looks up a mock_sections row by
+  // its TS-side `id` (that id is a purely client-side identifier; only
+  // `mock_test_id` is a real, inserted foreign-key value, and lib/mockFlow.ts
+  // navigates sections by `(mockTestId, skill, orderIndex)`, not by section
+  // id). Comparing `content.mockSections[].id` directly against the live
+  // `id` column — the previous version of this check — reported every
+  // single section as "missing" even when the correct number of rows
+  // existed, because a client-side slug id can never equal a database-
+  // generated uuid. This checks what the app actually depends on instead:
+  // that every (mock_test_id, skill) pair the app expects to be able to
+  // load really has a row.
+  {
+    const wantedPairs = content.mockSections.map((s) => `${s.mockTestId}::${s.skill}`);
+    const { data, error } = await supabase.from('mock_sections').select('mock_test_id, skill');
+    if (error) {
+      record('mock_sections (every mock_test_id+skill pair a mock flow will load)', 'FAIL', `query failed — ${error.message}`);
+    } else {
+      const present = new Set((data ?? []).map((r: any) => `${r.mock_test_id}::${r.skill}`));
+      const missing = wantedPairs.filter((p) => !present.has(p));
+      if (missing.length === 0) {
+        record('mock_sections (every mock_test_id+skill pair a mock flow will load)', 'PASS', `all ${wantedPairs.length} expected sections exist`);
+      } else {
+        record('mock_sections (every mock_test_id+skill pair a mock flow will load)', 'FAIL', `${missing.length}/${wantedPairs.length} expected (mock_test_id, skill) pairs missing`);
+        for (const p of missing.slice(0, 20)) console.error(`         ${p}`);
+        if (missing.length > 20) console.error(`         ...and ${missing.length - 20} more`);
+      }
+    }
+  }
 
   // Every contentRef a mock section points at — one level deeper than the
   // section itself existing: the section row can exist while a passage,
