@@ -2210,7 +2210,7 @@ From there, we''ll walk about ten minutes along the harbour wall to the Fish Mar
 
 Our final stop is the Grain Warehouse, a huge red-brick building that once stored grain shipped in from across Europe. It''s now the maritime museum, and entry is included in your tour ticket — normally it costs six pounds fifty for an adult ticket.
 
-A few practical notes: the tour is entirely outdoors, so please do wear comfortable shoes, and if it starts raining, we do have a covered shelter at the Fish Market where we can pause. Also, please stay together as a group, especially near the harbour wall, since the edge isn''t fenced in several places.
+A few practical notes — the tour is entirely outdoors, so please do wear comfortable shoes, and if it starts raining, we do have a covered shelter at the Fish Market where we can pause. Also, please stay together as a group, especially near the harbour wall, since the edge isn''t fenced in several places.
 
 If anyone needs the toilet at any point, the nearest public toilets are actually at the Fish Market, so do let me know if you need a short break there.
 

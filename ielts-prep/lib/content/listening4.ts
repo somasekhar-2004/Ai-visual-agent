@@ -8,6 +8,18 @@ export const listeningTracksSet4: ListeningTrack[] = [
   {
     id: '34000000-0000-0000-0000-000000000001',
     title: 'Signing Up for a Car Sharing Scheme',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Staff": "a friendly male staff member in his 20s-30s with a neutral British accent, helpful and clear tone — introduces themselves as Robbie in the call",
+      "Caller": "a polite adult female caller in her 30s with a neutral British accent, natural relaxed conversational tone — introduces themselves as Sandra in the call",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `STAFF: Good morning, GreenWheels Car Club, this is Robbie speaking, how can I help?
@@ -35,11 +47,49 @@ CALLER: Good to know, I'll keep that in mind. Last thing — can I ask for your 
 STAFF: Of course, it's GW, then four four two nine.
 CALLER: GW-4429, got it. Thanks very much for your help, Robbie.
 STAFF: You're welcome, Sandra — welcome to GreenWheels, we'll get your membership card in the post within a week.`,
+    turns: [
+      { speaker: "Staff", text: "Good morning, GreenWheels Car Club, this is Robbie speaking, how can I help?" },
+      { speaker: "Caller", text: "Hi Robbie, I'd like to sign up for membership, please. I've never used a car club before." },
+      { speaker: "Staff", text: "No problem at all, I'll talk you through it. Can I start with your full name?" },
+      { speaker: "Caller", text: "Yes, it's Sandra Whitlock. That's W-H-I-T-L-O-C-K." },
+      { speaker: "Staff", text: "Thanks, Sandra. And what's brought you to us — are you replacing a car you already own, or is this your first time driving regularly?" },
+      { speaker: "Caller", text: "I sold my car last month, so I'm mainly going to use it for weekly food shopping and the odd trip to visit family." },
+      { speaker: "Staff", text: "Great, that fits nicely with our Standard plan. That's fourteen pounds a month for membership, plus six pounds an hour when you actually book a car." },
+      { speaker: "Caller", text: "Is there a cheaper option if I don't drive very often?" },
+      { speaker: "Staff", text: "There is, actually — we also do a Pay As You Go plan with no monthly fee, but the hourly rate is a bit higher, at eight pounds fifty." },
+      { speaker: "Caller", text: "Given how often I'll use it, I think the Standard plan still works out better for me." },
+      { speaker: "Staff", text: "Sounds right based on what you've said. Now, where would you normally want to pick the car up from?" },
+      { speaker: "Caller", text: "Somewhere near Elm Avenue would be ideal, I live just round the corner." },
+      { speaker: "Staff", text: "Perfect, we've actually got a bay right outside number twelve, Elm Avenue — that's our nearest pickup point to you." },
+      { speaker: "Caller", text: "That's brilliant, really convenient." },
+      { speaker: "Staff", text: "Now, for your license — how many years have you been driving?" },
+      { speaker: "Caller", text: "Six years now, since I was twenty-two." },
+      { speaker: "Staff", text: "Good, that's well over our two-year minimum. I'll need to see your driving licence though — can you upload a photo of it through our app once you've registered?" },
+      { speaker: "Caller", text: "Yes, no problem. Is there a deposit required?" },
+      { speaker: "Staff", text: "Yes, a refundable deposit of seventy-five pounds, taken when you activate your first booking." },
+      { speaker: "Caller", text: "That's fine. And what happens if I bring the car back late?" },
+      { speaker: "Staff", text: "There's a late return charge — fifteen pounds for every fifteen minutes over your booked time, so it does add up quickly, best to extend the booking through the app if you think you'll run over." },
+      { speaker: "Caller", text: "Good to know, I'll keep that in mind. Last thing — can I ask for your reference number so I have something to quote if I call back?" },
+      { speaker: "Staff", text: "Of course, it's GW, then four four two nine." },
+      { speaker: "Caller", text: "GW-4429, got it. Thanks very much for your help, Robbie." },
+      { speaker: "Staff", text: "You're welcome, Sandra — welcome to GreenWheels, we'll get your membership card in the post within a week." },
+    ],
   },
   // ---------- MOCK 5 — Section 2 ----------
   {
     id: '34000000-0000-0000-0000-000000000002',
     title: 'Guided Tour of Hollow Bridge Wildlife Sanctuary',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Guide": "a friendly, energetic male guide in his 20s-30s with a neutral British accent, welcoming and upbeat but clear tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `GUIDE: Welcome, everyone, to Hollow Bridge Wildlife Sanctuary — my name's Fiona and I'll be leading today's walk. Before we set off, let me give you a quick overview of the site and a few practical points.
@@ -59,11 +109,35 @@ A quick word on photography — you're welcome to take photos throughout the wal
 Before we set off, does anyone need to visit the toilets? They're back at the visitor centre — there won't be another chance until we return, I'm afraid, as there are no facilities out on the trail itself.
 
 Right, if everyone's ready, let's head down towards the wetland zone — please do stay together as a group, as the sanctuary asks visitors not to wander off the marked trail.`,
+    turns: [
+      { speaker: "Guide", text: "Welcome, everyone, to Hollow Bridge Wildlife Sanctuary — my name's Fiona and I'll be leading today's walk. Before we set off, let me give you a quick overview of the site and a few practical points." },
+      { speaker: "Guide", text: "The sanctuary covers about sixty hectares, and it's split into four main zones. We'll start in the wetland zone, which is home to our reintroduced otter population — we've had otters breeding here again since two thousand and nineteen, after being absent from this stretch of river for almost forty years. From there we'll move to the woodland zone, then the meadow zone, and we'll finish today at the visitor hide overlooking the lake, which is the best spot for birdwatching." },
+      { speaker: "Guide", text: "A few safety notes before we begin. The paths through the wetland zone can get quite muddy, especially after rain, so please stay on the boardwalk at all times — it's there to protect both you and the fragile ground vegetation. In the woodland zone, please keep dogs on leads, as we have ground-nesting birds in that section during the spring months." },
+      { speaker: "Guide", text: "Now, timing — the full walk takes about ninety minutes, but if anyone needs to leave early, there's a shortcut back to the visitor centre from the meadow zone, cutting the walk down to roughly fifty minutes." },
+      { speaker: "Guide", text: "Let's talk about what you might see today. In the wetland, aside from otters, keep an eye out for kingfishers — they nest in the riverbank there, though they're quite shy, so stay quiet and still if you spot one. In the woodland, we have a healthy population of red squirrels, which is increasingly rare in this part of the country since the grey squirrel took over most other woodlands nearby." },
+      { speaker: "Guide", text: "At the lake hide, the sanctuary's real highlight is the wintering wildfowl — between November and February, we regularly get over two thousand ducks and geese on the water at once, including some quite unusual visitors that have travelled here from as far as Scandinavia." },
+      { speaker: "Guide", text: "A quick word on photography — you're welcome to take photos throughout the walk, but please, no flash photography near the otter holt, as it can seriously disturb them, particularly during breeding season." },
+      { speaker: "Guide", text: "Before we set off, does anyone need to visit the toilets? They're back at the visitor centre — there won't be another chance until we return, I'm afraid, as there are no facilities out on the trail itself." },
+      { speaker: "Guide", text: "Right, if everyone's ready, let's head down towards the wetland zone — please do stay together as a group, as the sanctuary asks visitors not to wander off the marked trail." },
+    ],
   },
   // ---------- MOCK 5 — Section 3 ----------
   {
     id: '34000000-0000-0000-0000-000000000003',
     title: 'Choosing a Dissertation Topic in Marine Biology',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Supervisor": "an experienced female academic supervisor in her 40s-50s with a neutral British accent, calm, encouraging, and authoritative tone",
+      "Jamal": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+      "Rosa": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `SUPERVISOR: Come in, Jamal, Rosa — thanks for coming to discuss your dissertation ideas together, since I understand you're both looking at similar areas.
@@ -88,11 +162,46 @@ JAMAL: We'll both submit by then.
 SUPERVISOR: Good. And for equipment — Jamal, you'll need to speak to the marine lab about borrowing dissection kits for the plastic analysis, while Rosa, the hydrophones are held by the acoustics department, not our own lab, so you'll need to email them directly to arrange access.
 ROSA: I'll email them this week.
 SUPERVISOR: Perfect. Let's meet again in three weeks to check on your ethics applications and initial fieldwork planning.`,
+    turns: [
+      { speaker: "Supervisor", text: "Come in, Jamal, Rosa — thanks for coming to discuss your dissertation ideas together, since I understand you're both looking at similar areas." },
+      { speaker: "Jamal", text: "Yes, we were hoping to compare notes before finalising anything, since our ideas overlap a bit." },
+      { speaker: "Rosa", text: "I was thinking about looking at the impact of boat traffic noise on dolphin communication in coastal waters." },
+      { speaker: "Supervisor", text: "That's a strong area — well studied enough that there's good background literature, but with plenty of room for original fieldwork. What method were you considering?" },
+      { speaker: "Rosa", text: "I was going to use hydrophone recordings, then analyse changes in call frequency when boats pass nearby." },
+      { speaker: "Supervisor", text: "Good. I'd suggest pairing that with GPS tracking of boat movements, though, so you can correlate exact distance and speed with any changes you record, rather than just noting boats were \"nearby.\"" },
+      { speaker: "Rosa", text: "That makes sense, I hadn't thought to log boat speed specifically." },
+      { speaker: "Supervisor", text: "And Jamal, what's your angle?" },
+      { speaker: "Jamal", text: "I was originally going to look at plastic ingestion in seabirds, but actually, hearing Rosa's idea, I wonder if I should shift to noise pollution too, but from the seabird side rather than dolphins." },
+      { speaker: "Supervisor", text: "That's an interesting pivot, but I'd actually advise against it — two students in the same cohort studying near-identical topics makes it harder for each of you to demonstrate original contribution. I'd rather you stick with the plastic ingestion angle, it's a genuinely different and equally valuable area." },
+      { speaker: "Jamal", text: "Fair point, I'll stay with plastics then." },
+      { speaker: "Supervisor", text: "For that, I'd recommend focusing on a single seabird species rather than several, so you can build a properly detailed dataset. Have you got a species in mind?" },
+      { speaker: "Jamal", text: "I was thinking fulmars, since they're known to ingest a lot of plastic." },
+      { speaker: "Supervisor", text: "Good choice, there's solid existing literature on fulmars as a plastic pollution indicator species, so you'll have a strong base to build on." },
+      { speaker: "Rosa", text: "Should I be worried mine overlaps too much with existing dolphin noise studies?" },
+      { speaker: "Supervisor", text: "Not especially — as long as your specific location hasn't been studied before. Where are you planning to do the fieldwork?" },
+      { speaker: "Rosa", text: "I was thinking the estuary near Port Neven." },
+      { speaker: "Supervisor", text: "That should work well, I'm not aware of any published studies there specifically. Now, both of you will need ethics approval before starting any fieldwork — that process usually takes about three weeks, so get your applications in early, ideally by the end of this month." },
+      { speaker: "Jamal", text: "We'll both submit by then." },
+      { speaker: "Supervisor", text: "Good. And for equipment — Jamal, you'll need to speak to the marine lab about borrowing dissection kits for the plastic analysis, while Rosa, the hydrophones are held by the acoustics department, not our own lab, so you'll need to email them directly to arrange access." },
+      { speaker: "Rosa", text: "I'll email them this week." },
+      { speaker: "Supervisor", text: "Perfect. Let's meet again in three weeks to check on your ethics applications and initial fieldwork planning." },
+    ],
   },
   // ---------- MOCK 5 — Section 4 ----------
   {
     id: '34000000-0000-0000-0000-000000000004',
     title: 'The Science of Bioluminescence',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate male university lecturer in his 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good morning. Today's lecture looks at bioluminescence — the ability of living organisms to produce their own light — a phenomenon found across an unexpectedly wide range of species, from bacteria to deep-sea fish to certain fungi.
@@ -112,6 +221,17 @@ One further area of interest is environmental monitoring. Certain bioluminescent
 Finally, I want to touch briefly on a phenomenon called a "milky sea," an extremely rare event where vast expanses of ocean, sometimes stretching over ten thousand square kilometres, glow uniformly at night due to a dense, evenly distributed population of bioluminescent bacteria. These events have been reported by sailors for centuries, but until satellite imagery confirmed several occurrences in the early two thousands, many scientists were sceptical they were anything more than nautical folklore.
 
 Next week, we'll move on to look at bioluminescence's evolutionary origins, and the surprising number of times it appears to have evolved independently across unrelated species.`,
+    turns: [
+      { speaker: "Lecturer", text: "Good morning. Today's lecture looks at bioluminescence — the ability of living organisms to produce their own light — a phenomenon found across an unexpectedly wide range of species, from bacteria to deep-sea fish to certain fungi." },
+      { speaker: "Lecturer", text: "Let's start with the basic chemistry. Bioluminescence results from a chemical reaction involving a light-emitting molecule called luciferin and an enzyme called luciferase. When luciferase acts on luciferin in the presence of oxygen, energy is released in the form of light rather than heat, which is why the process is often described as \"cold light\" — almost all of the energy produces light, with very little wasted as heat, unlike a conventional light bulb." },
+      { speaker: "Lecturer", text: "Now, where do we find bioluminescence in nature? It's most heavily concentrated in the deep ocean, where an estimated ninety percent of species living below two hundred metres are believed to produce light in some form. This isn't surprising when you consider that sunlight barely penetrates past that depth, so any light present is either produced biologically or entirely absent." },
+      { speaker: "Lecturer", text: "Organisms use bioluminescence for several distinct purposes. The most obvious is predation — the anglerfish, for instance, dangles a glowing lure above its mouth to attract smaller prey close enough to catch. A second purpose is defence: some species of squid release a cloud of glowing liquid when threatened, creating a bright distraction that allows the squid to escape while the predator is momentarily disoriented. A third and perhaps less obvious purpose is communication — certain species of ostracod, a tiny crustacean, produce distinctive light patterns specifically to attract mates, with each species apparently having its own recognisable \"signature\" flash pattern." },
+      { speaker: "Lecturer", text: "It's worth noting that bioluminescence isn't limited to the ocean. On land, the most familiar example is the firefly, which produces light from an organ near the tip of its abdomen, again for the purpose of attracting mates — different firefly species can even be distinguished by researchers based on the timing and pattern of their flashes alone." },
+      { speaker: "Lecturer", text: "Now, bioluminescence has practical applications beyond the natural world too. Researchers have adapted luciferase genes for use as what's called a \"reporter gene\" in laboratory experiments — by attaching the luciferase gene to another gene of interest, scientists can literally see, through light output, when and where that gene becomes active within a living cell. This technique has proven enormously useful in cancer research, where it allows scientists to track the growth of tumour cells in real time within laboratory animals, without needing to euthanise the animal at each stage to check tumour progress." },
+      { speaker: "Lecturer", text: "One further area of interest is environmental monitoring. Certain bioluminescent bacteria dim or stop glowing entirely when exposed to toxic substances, so their light output can actually serve as a rapid, low-cost indicator of water contamination — a useful early-warning tool, particularly in regions lacking access to more sophisticated laboratory testing equipment." },
+      { speaker: "Lecturer", text: "Finally, I want to touch briefly on a phenomenon called a \"milky sea,\" an extremely rare event where vast expanses of ocean, sometimes stretching over ten thousand square kilometres, glow uniformly at night due to a dense, evenly distributed population of bioluminescent bacteria. These events have been reported by sailors for centuries, but until satellite imagery confirmed several occurrences in the early two thousands, many scientists were sceptical they were anything more than nautical folklore." },
+      { speaker: "Lecturer", text: "Next week, we'll move on to look at bioluminescence's evolutionary origins, and the surprising number of times it appears to have evolved independently across unrelated species." },
+    ],
   },
 
   // ========================================================================
@@ -121,6 +241,18 @@ Next week, we'll move on to look at bioluminescence's evolutionary origins, and 
   {
     id: '34000000-0000-0000-0000-000000000005',
     title: 'Enquiring About a Language Exchange Programme',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Staff": "a friendly female staff member in her 20s-30s with a neutral British accent, helpful and clear tone",
+      "Caller": "a polite adult male caller in his 30s with a neutral British accent, natural relaxed conversational tone — introduces themselves as Owen in the call",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `STAFF: Good afternoon, Global Voices Language Centre, this is Priya.
@@ -146,11 +278,47 @@ CALLER: priya dot exchange at globalvoices dot org, got it. And is there a deadl
 STAFF: We run new intake matching every month, and this month's cutoff is the twenty-fifth, so if you register before then, you'll be matched within this cycle.
 CALLER: Great, I'll get my registration done today then. Thanks so much for your help, Priya.
 STAFF: You're welcome, Owen — looking forward to matching you soon.`,
+    turns: [
+      { speaker: "Staff", text: "Good afternoon, Global Voices Language Centre, this is Priya." },
+      { speaker: "Caller", text: "Hi, I'm calling about your language exchange programme — a friend mentioned it, but I don't know much about how it works." },
+      { speaker: "Staff", text: "Sure, happy to explain. First, could I take your name?" },
+      { speaker: "Caller", text: "Yes, it's Owen Kaczmarek. That's K-A-C-Z-M-A-R-E-K." },
+      { speaker: "Staff", text: "Thanks, Owen. So, the exchange programme pairs you with a native speaker of the language you want to learn, and in return, you help them practise English. Which language are you hoping to learn?" },
+      { speaker: "Caller", text: "I'd like to learn Portuguese, ideally Brazilian Portuguese rather than European." },
+      { speaker: "Staff", text: "That's actually one of our most requested languages, so we should be able to match you fairly quickly. Sessions are usually held once a week, either online or in person, whichever the pair prefers." },
+      { speaker: "Caller", text: "Online works better for me. How long does each session usually run?" },
+      { speaker: "Staff", text: "Sessions are typically one hour, split into thirty minutes of each language, though pairs can agree between themselves to adjust that if they want more of one than the other." },
+      { speaker: "Caller", text: "That sounds flexible, good. Is there a cost involved?" },
+      { speaker: "Staff", text: "The programme itself is free — we don't charge for the matching service — but there is a one-off registration fee of twelve pounds, which covers our admin costs and a background check for safety purposes." },
+      { speaker: "Caller", text: "That's reasonable. How long does matching usually take?" },
+      { speaker: "Staff", text: "On average, about two weeks, though for less common languages it can take up to six weeks. Portuguese, given the demand, should be quicker, maybe within ten days." },
+      { speaker: "Caller", text: "Perfect. What happens if the match doesn't work out — say, personality clash or scheduling issues?" },
+      { speaker: "Staff", text: "No problem at all, just let us know and we'll rematch you free of charge, no limit on how many times, actually, until you find someone who's a good fit." },
+      { speaker: "Caller", text: "Good to know. Do I need to bring anything to the first session?" },
+      { speaker: "Staff", text: "Nothing formal, though we do recommend preparing a short list of topics you'd like to talk about, just to avoid any awkward silences in that first meeting." },
+      { speaker: "Caller", text: "Makes sense. Could I take your email address, in case I need to follow up?" },
+      { speaker: "Staff", text: "Yes, it's priya, all lower case, dot exchange, at globalvoices dot org." },
+      { speaker: "Caller", text: "priya dot exchange at globalvoices dot org, got it. And is there a deadline to register this month?" },
+      { speaker: "Staff", text: "We run new intake matching every month, and this month's cutoff is the twenty-fifth, so if you register before then, you'll be matched within this cycle." },
+      { speaker: "Caller", text: "Great, I'll get my registration done today then. Thanks so much for your help, Priya." },
+      { speaker: "Staff", text: "You're welcome, Owen — looking forward to matching you soon." },
+    ],
   },
   // ---------- MOCK 6 — Section 2 ----------
   {
     id: '34000000-0000-0000-0000-000000000006',
     title: 'Induction Talk for New Allotment Holders',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Speaker": "an informative male speaker in his 30s-40s with a neutral British accent, clear and steady delivery",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `SPEAKER: Good evening, everyone, and congratulations on being offered a plot at Thistledown Allotments — I know some of you have been on the waiting list for quite a while, so welcome at last. I'm going to run through the site rules and a few practical points before you get your keys.
@@ -170,11 +338,35 @@ On pets — dogs are allowed on site but must be kept on a lead at all times, an
 Finally, the annual allotment show — that's held on the second Saturday of September this year, and it's a lovely event, with prizes for best vegetables, best flowers, and a few novelty categories too. Do put it in your diary, even if you're not planning to enter anything, it's a great way to meet your plot neighbours.
 
 Right, that's everything from me — if you head over to the table by the door, the committee will hand out your keys and plot maps.`,
+    turns: [
+      { speaker: "Speaker", text: "Good evening, everyone, and congratulations on being offered a plot at Thistledown Allotments — I know some of you have been on the waiting list for quite a while, so welcome at last. I'm going to run through the site rules and a few practical points before you get your keys." },
+      { speaker: "Speaker", text: "First, plot sizes. We have two standard sizes here — a full plot, which is two hundred and fifty square metres, and a half plot, at one hundred and twenty-five square metres. Most of you tonight have been allocated half plots, since that's what most new members start with, but you can apply to upgrade to a full plot once you've held your half plot for at least a year." },
+      { speaker: "Speaker", text: "Now, rent. A half plot costs forty-two pounds a year, and a full plot is seventy-eight pounds a year — that's not double the half-plot price, since there's a small fixed administration charge included in both, regardless of size. Rent is due annually, on the first of April, and the committee sends reminders about six weeks beforehand." },
+      { speaker: "Speaker", text: "On to site facilities. There's a communal water supply, but it's only turned on from the first of April through to the end of October — over winter, the pipes are drained to prevent frost damage, so do bring your own water if you need to visit before the tap goes back on. There's also a small tool-sharing shed near the main gate, where members can borrow larger equipment like rotavators, though you'll need to book those in advance on the sign-up sheet, as there's usually a waiting list in early spring." },
+      { speaker: "Speaker", text: "A few rules that catch new members out. You're required to keep at least seventy-five percent of your plot cultivated at any given time — an inspector visits twice a year, in June and September, and plots that fall below that level receive a warning letter, with a further six weeks to bring things up to standard before any action is taken." },
+      { speaker: "Speaker", text: "Bonfires are permitted, but only between October and February, and never on weekends, since that's when most people are on-site and we get complaints about smoke. Sheds and greenhouses are allowed, but they must not exceed two point five metres in height, and you'll need committee approval before erecting anything larger than a small storage box." },
+      { speaker: "Speaker", text: "On pets — dogs are allowed on site but must be kept on a lead at all times, and owners are responsible for cleaning up after them, obviously. No livestock of any kind is permitted, including chickens, I'm afraid, that's a rule that comes from our lease with the council, not something the committee itself decided." },
+      { speaker: "Speaker", text: "Finally, the annual allotment show — that's held on the second Saturday of September this year, and it's a lovely event, with prizes for best vegetables, best flowers, and a few novelty categories too. Do put it in your diary, even if you're not planning to enter anything, it's a great way to meet your plot neighbours." },
+      { speaker: "Speaker", text: "Right, that's everything from me — if you head over to the table by the door, the committee will hand out your keys and plot maps." },
+    ],
   },
   // ---------- MOCK 6 — Section 3 ----------
   {
     id: '34000000-0000-0000-0000-000000000007',
     title: 'Feedback Meeting on a Statistics Assignment',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Tutor": "an experienced female academic tutor in her 40s with a neutral British accent, calm, encouraging, and authoritative tone, measured pace",
+      "Nadia": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+      "Carl": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `TUTOR: Hi, both — thanks for coming in together. I thought it'd be efficient to go through your statistics assignment feedback jointly, since you worked as a pair on the data collection stage.
@@ -203,11 +395,50 @@ NADIA: We'll start on it this week.
 TUTOR: Great. One last thing — if you want a second opinion before resubmitting, the study skills centre runs statistics drop-in sessions every Wednesday afternoon, no booking needed, just turn up.
 CARL: We might do that, thanks.
 TUTOR: No problem — good luck with the revisions, and well done on the data collection stage, that part was genuinely strong.`,
+    turns: [
+      { speaker: "Tutor", text: "Hi, both — thanks for coming in together. I thought it'd be efficient to go through your statistics assignment feedback jointly, since you worked as a pair on the data collection stage." },
+      { speaker: "Nadia", text: "Sounds good, we were a bit unsure about a few of the marks we got." },
+      { speaker: "Carl", text: "Yeah, especially on the methodology section — we weren't sure what pulled it down." },
+      { speaker: "Tutor", text: "Right, let's start there then. Overall, the data collection itself was solid — good sample size, sensible sampling method. Where you lost marks was in how you handled the outliers in your dataset." },
+      { speaker: "Nadia", text: "We just removed them, didn't we, Carl?" },
+      { speaker: "Carl", text: "Yeah, we figured they were errors, so we took them out before running the analysis." },
+      { speaker: "Tutor", text: "That's actually the issue — you can't simply remove outliers without justifying why you believe they're genuine errors rather than real, if unusual, data points. You needed to either investigate each one individually or apply a recognised statistical method for handling them, and explain your reasoning in the write-up." },
+      { speaker: "Nadia", text: "Ah, I see, so it's not that we removed them, it's that we didn't explain why." },
+      { speaker: "Tutor", text: "Exactly, the decision itself might even have been reasonable, but unexplained decisions always cost marks in methodology." },
+      { speaker: "Carl", text: "That's fair, we'll know for next time." },
+      { speaker: "Tutor", text: "Now, on the results section, your graphs were clear, but I'd have liked to see confidence intervals included, not just the mean values. That would have strengthened your conclusions considerably." },
+      { speaker: "Nadia", text: "We can definitely add those in for the final version." },
+      { speaker: "Tutor", text: "Good. Let's talk about the discussion section, since that's where the biggest gap was. Carl, I believe you wrote that section largely on your own?" },
+      { speaker: "Carl", text: "Yes, that's right, Nadia focused more on the results write-up." },
+      { speaker: "Tutor", text: "Well, Carl, the discussion needed to engage more critically with the limitations of your study — you mentioned sample size briefly, but didn't discuss potential bias in how participants were recruited, which I think is actually a more significant limitation here." },
+      { speaker: "Carl", text: "We recruited through social media, so that's probably not representative of the wider population." },
+      { speaker: "Tutor", text: "Precisely — that's exactly the kind of point that should be front and centre in your limitations paragraph." },
+      { speaker: "Nadia", text: "Should we revise that section together then, even though Carl wrote the original draft?" },
+      { speaker: "Tutor", text: "Yes, I'd recommend that, actually — a joint revision often catches things one person alone might miss." },
+      { speaker: "Tutor", text: "For your resubmission, I want you to address three things: justify your outlier handling, add confidence intervals to your results, and strengthen the limitations discussion around recruitment bias." },
+      { speaker: "Carl", text: "Understood. When's the resubmission deadline?" },
+      { speaker: "Tutor", text: "You've got two weeks — that puts it at the fourteenth of the month. I'd suggest not leaving it until the last few days, since strengthening the limitations section properly usually takes longer than people expect." },
+      { speaker: "Nadia", text: "We'll start on it this week." },
+      { speaker: "Tutor", text: "Great. One last thing — if you want a second opinion before resubmitting, the study skills centre runs statistics drop-in sessions every Wednesday afternoon, no booking needed, just turn up." },
+      { speaker: "Carl", text: "We might do that, thanks." },
+      { speaker: "Tutor", text: "No problem — good luck with the revisions, and well done on the data collection stage, that part was genuinely strong." },
+    ],
   },
   // ---------- MOCK 6 — Section 4 ----------
   {
     id: '34000000-0000-0000-0000-000000000008',
     title: 'The Rise and Function of Urban Beekeeping',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate male university lecturer in his 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good afternoon. Today's lecture turns to a trend that's grown considerably over the last two decades: urban beekeeping — the practice of keeping honeybee colonies within cities, on rooftops, in gardens, and even on balconies.
@@ -227,6 +458,17 @@ Despite this ongoing debate, urban beekeeping continues to serve valuable purpos
 Looking ahead, most researchers in this field agree that the future of urban beekeeping likely lies in better regulation and coordination, rather than in unrestricted growth — ensuring hive density remains at a sustainable level relative to available forage, while continuing to capture the genuine educational and community benefits the practice has demonstrated over the past twenty years.
 
 That's all for today. Next week, we'll examine similar debates around urban tree planting schemes and their ecological trade-offs.`,
+    turns: [
+      { speaker: "Lecturer", text: "Good afternoon. Today's lecture turns to a trend that's grown considerably over the last two decades: urban beekeeping — the practice of keeping honeybee colonies within cities, on rooftops, in gardens, and even on balconies." },
+      { speaker: "Lecturer", text: "Let's begin with why this trend emerged in the first place. Beekeeping was traditionally a rural activity, closely tied to farmland and open countryside. However, from around the early two thousands, beekeeping associations began reporting a surge in interest from city residents, partly driven by growing public awareness of declining bee populations, and partly by a broader interest in local, sustainable food production." },
+      { speaker: "Lecturer", text: "Interestingly, research has shown that urban environments can actually offer certain advantages over rural ones for honeybee colonies. Cities tend to have a longer flowering season overall, because the mix of ornamental garden plants, street trees, and park vegetation provides a greater diversity of flowering species across more months of the year than a typical rural landscape dominated by a single crop. Some studies have found urban colonies producing comparable, and in some cases even higher, honey yields than rural colonies in the same region." },
+      { speaker: "Lecturer", text: "That said, urban beekeeping isn't without its challenges. Space is an obvious constraint — hives need to be positioned carefully to avoid flight paths crossing pavements or neighbouring gardens, and most cities now require some form of registration or notification before hives can be installed, partly for public safety and partly to allow local authorities to track disease outbreaks. Pesticide exposure is generally lower in cities than in agricultural areas, which is a benefit, but urban bees do face other risks, including higher exposure to certain types of air pollution, whose long-term effects on colony health are still being studied." },
+      { speaker: "Lecturer", text: "Now, one issue that's generated considerable academic debate is what researchers call colony density — essentially, how many hives a given urban area can sustainably support. Some cities have seen such a rapid rise in urban beekeeping that certain districts now have more honeybee colonies than the available flowering plants can realistically support. This creates competition, not just among honeybee colonies themselves, but crucially, with wild pollinator species — solitary bees, bumblebees, and various other insects — which conservationists argue are often overlooked in favour of the more visible, more easily managed honeybee." },
+      { speaker: "Lecturer", text: "This has led to a shift in how some cities approach the issue. Rather than simply encouraging more hives, several urban planning authorities have begun promoting what's called \"pollinator-friendly landscaping\" instead — increasing the overall availability of flowering plants throughout the city, benefiting all pollinator species collectively, rather than concentrating support on honeybees alone, which are, after all, just one of thousands of pollinator species worldwide." },
+      { speaker: "Lecturer", text: "Despite this ongoing debate, urban beekeeping continues to serve valuable purposes beyond honey production itself. Educational programmes built around urban hives have proven particularly effective, giving city schoolchildren direct, hands-on exposure to ecological concepts that might otherwise remain entirely abstract to them. Several city councils have also found that hosting hives on public buildings, such as libraries or town halls, generates significant positive publicity and public engagement around biodiversity issues more broadly." },
+      { speaker: "Lecturer", text: "Looking ahead, most researchers in this field agree that the future of urban beekeeping likely lies in better regulation and coordination, rather than in unrestricted growth — ensuring hive density remains at a sustainable level relative to available forage, while continuing to capture the genuine educational and community benefits the practice has demonstrated over the past twenty years." },
+      { speaker: "Lecturer", text: "That's all for today. Next week, we'll examine similar debates around urban tree planting schemes and their ecological trade-offs." },
+    ],
   },
 
   // ========================================================================
@@ -236,6 +478,18 @@ That's all for today. Next week, we'll examine similar debates around urban tree
   {
     id: '34000000-0000-0000-0000-000000000009',
     title: 'Reporting a Fault to a Broadband Provider',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Agent": "a professional male booking agent in his 30s with a neutral British accent, efficient and courteous tone",
+      "Caller": "a polite adult female caller in her 30s with a neutral British accent, natural relaxed conversational tone — introduces themselves as Bethany in the call",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `AGENT: Good morning, ClearLink Broadband, you're speaking with Dev, how can I help today?
@@ -263,11 +517,49 @@ CALLER: I'll do that now actually. Is there anything else I need to do in the me
 AGENT: No, nothing needed from your end, we'll send a text update once the fault's cleared. Is there anything else I can help with today?
 CALLER: No, that's everything, thanks so much, Dev.
 AGENT: You're welcome, Bethany, apologies again for the inconvenience — we'll be in touch soon.`,
+    turns: [
+      { speaker: "Agent", text: "Good morning, ClearLink Broadband, you're speaking with Dev, how can I help today?" },
+      { speaker: "Caller", text: "Hi, my internet's been dropping out constantly for the past two days, it's really frustrating." },
+      { speaker: "Agent", text: "Sorry to hear that, let's get it sorted. Could I first take your account holder's name?" },
+      { speaker: "Caller", text: "Yes, it's Bethany Okoro. That's O-K-O-R-O." },
+      { speaker: "Agent", text: "Thanks, Bethany. And could you describe exactly what's happening — is it disconnecting completely, or just running slowly?" },
+      { speaker: "Caller", text: "It disconnects completely, usually for about a minute, then comes back on its own, then drops again maybe twenty minutes later." },
+      { speaker: "Agent", text: "Okay, that pattern's helpful. Is it happening on all your devices, or just one?" },
+      { speaker: "Caller", text: "All of them, actually — my laptop, my phone, even the smart TV." },
+      { speaker: "Agent", text: "That does suggest it's the router or the line itself, rather than a single device issue. Have you tried restarting the router?" },
+      { speaker: "Caller", text: "Yes, twice, it didn't help." },
+      { speaker: "Agent", text: "Understood. I'm going to run a remote line test now — could you give me a moment... Right, I can see there is a fault registered on the line in your area, actually, several other customers nearby have reported the same thing this morning." },
+      { speaker: "Caller", text: "Oh, so it's not just me then." },
+      { speaker: "Agent", text: "No, it looks like a wider fault, likely something to do with the exchange or a shared cable fault. I'll log this as a confirmed area fault rather than an individual one." },
+      { speaker: "Caller", text: "How long until it's fixed?" },
+      { speaker: "Agent", text: "Our engineering team is already aware and working on it — the estimated fix time is by six p.m. tomorrow, though it's sometimes resolved sooner." },
+      { speaker: "Caller", text: "That's a relief, I was worried it'd take a week like last time." },
+      { speaker: "Agent", text: "I understand, and because it's a confirmed area fault, you're automatically entitled to compensation for each full day of lost service, which is five pounds and twenty pence per day, credited to your next bill." },
+      { speaker: "Caller", text: "Oh, that's good to know, I didn't realise that." },
+      { speaker: "Agent", text: "I'll also give you a reference number for this fault report, in case you need to call back — it's FL, then seven seven zero three." },
+      { speaker: "Caller", text: "FL-7703, got it, thank you." },
+      { speaker: "Agent", text: "I'd also recommend downloading our status app, it's called ClearLink Status, one word, so you can check for updates without needing to call in." },
+      { speaker: "Caller", text: "I'll do that now actually. Is there anything else I need to do in the meantime?" },
+      { speaker: "Agent", text: "No, nothing needed from your end, we'll send a text update once the fault's cleared. Is there anything else I can help with today?" },
+      { speaker: "Caller", text: "No, that's everything, thanks so much, Dev." },
+      { speaker: "Agent", text: "You're welcome, Bethany, apologies again for the inconvenience — we'll be in touch soon." },
+    ],
   },
   // ---------- MOCK 7 — Section 2 ----------
   {
     id: '34000000-0000-0000-0000-000000000010',
     title: 'Introduction to the Cedarfield Repair Café',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Host": "an articulate female host in her 30s-40s with a neutral British accent, friendly informative tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `HOST: Hello everyone, and welcome to your first visit to Cedarfield Repair Café — I'm Malcolm, one of the volunteer coordinators, and before you queue up with your broken items, I want to run through how the session works.
@@ -287,11 +579,35 @@ Safety-wise, children under twelve are welcome to attend with a parent, but for 
 We run every second Saturday of the month, from ten a.m. until one p.m., here at the community hall. If you can't get everything sorted today, do come back next month — some of our regulars bring the same tricky item back two or three times before we finally crack it.
 
 Right, if you'd like to head to the registration table now, we'll get you queued up at the right station.`,
+    turns: [
+      { speaker: "Host", text: "Hello everyone, and welcome to your first visit to Cedarfield Repair Café — I'm Malcolm, one of the volunteer coordinators, and before you queue up with your broken items, I want to run through how the session works." },
+      { speaker: "Host", text: "So, the basic idea behind a repair café is simple: instead of throwing away something broken, you bring it here, and one of our volunteer repairers tries to fix it with you, alongside you, rather than just doing it for you — that's an important distinction, since the goal is as much about teaching repair skills as it is about the repair itself." },
+      { speaker: "Host", text: "We run four repair stations today. The electrical station handles small appliances — toasters, lamps, that sort of thing — and is staffed by two volunteers this afternoon. The textiles station covers clothing repairs and alterations, sewing machine problems, that kind of thing. Then we've got the bicycle station, just outside in the courtyard due to space, dealing with punctures, brake adjustments, and gear issues. And finally, the electronics station, which handles small devices like radios and simple circuit boards, though I should say upfront, we can't take on laptops or smartphones — those need specialist tools we simply don't have here." },
+      { speaker: "Host", text: "In terms of timing, each item gets a maximum of forty-five minutes with a volunteer. If it's not fixed within that time, we'll give you advice on next steps rather than continuing indefinitely, since there's usually a queue building up behind you." },
+      { speaker: "Host", text: "A few practical points. There's no charge for the repair service itself — it's entirely free, run by volunteers — though we do ask for a small donation if you're able, which goes towards buying spare parts and tools for future sessions. If your item does need a replacement part, like a specific screw or a length of wiring, and we don't have it in stock, you may need to source that yourself and bring your item back another time." },
+      { speaker: "Host", text: "Please do sign in at the registration table before joining a station queue — this helps us track how many items we successfully repair each month, which is important data for our funding applications. And please bring your item already reasonably clean, particularly for the electrical and electronics stations, since our volunteers are giving their time for free and it's not fair to expect them to clean a greasy toaster before they can even start diagnosing the fault." },
+      { speaker: "Host", text: "Safety-wise, children under twelve are welcome to attend with a parent, but for safety reasons they shouldn't be at the bicycle or electrical stations directly, since there are sharp tools and, in the case of electrical items, exposed wiring involved during diagnosis." },
+      { speaker: "Host", text: "We run every second Saturday of the month, from ten a.m. until one p.m., here at the community hall. If you can't get everything sorted today, do come back next month — some of our regulars bring the same tricky item back two or three times before we finally crack it." },
+      { speaker: "Host", text: "Right, if you'd like to head to the registration table now, we'll get you queued up at the right station." },
+    ],
   },
   // ---------- MOCK 7 — Section 3 ----------
   {
     id: '34000000-0000-0000-0000-000000000011',
     title: 'Reviewing a Draft Business Plan',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Mentor": "an experienced male mentor in his 40s with a neutral British accent, calm, constructive, and authoritative tone",
+      "Kwame": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+      "Yulia": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `MENTOR: Right, Kwame, Yulia, thanks for sending over the draft business plan ahead of today. Since you're setting this bakery venture up together, I thought it made sense to review it with both of you present.
@@ -320,11 +636,50 @@ YULIA: The panel meets on the ninth of next month, so we'd need to submit by the
 MENTOR: That gives you just under three weeks from today — plenty of time if you start the revisions this week rather than leaving it. Let's meet again in ten days to check progress before the final push.
 KWAME: Sounds good, thank you, this has been really useful.
 MENTOR: You're welcome, and honestly, the core idea is strong — it's really just the numbers and a couple of sections that need tightening up.`,
+    turns: [
+      { speaker: "Mentor", text: "Right, Kwame, Yulia, thanks for sending over the draft business plan ahead of today. Since you're setting this bakery venture up together, I thought it made sense to review it with both of you present." },
+      { speaker: "Kwame", text: "Sure, we're keen to hear your thoughts, especially on the financial projections section." },
+      { speaker: "Yulia", text: "Yes, that's the part we're least confident about, if I'm honest." },
+      { speaker: "Mentor", text: "Let's start with the strengths, actually — your market research section is genuinely thorough, the local competitor analysis in particular is well done." },
+      { speaker: "Kwame", text: "Thanks, that took us a while, we visited every bakery within about two miles." },
+      { speaker: "Mentor", text: "It shows. Now, the financial projections — your first-year revenue estimate seems optimistic to me. You've projected forty-five thousand pounds in year one, but based on the sales volumes you're assuming, and the average price point you've listed, I'm getting closer to thirty-two thousand." },
+      { speaker: "Yulia", text: "Oh, we must have made an error somewhere in the calculation." },
+      { speaker: "Mentor", text: "I think you may have used the year-two customer footfall figure by mistake, rather than a more realistic year-one figure, which is normally lower as you're still building a customer base." },
+      { speaker: "Kwame", text: "That would explain it, we probably copied the wrong row across." },
+      { speaker: "Mentor", text: "I'd recommend redoing that calculation carefully, and I'd actually suggest being conservative for year one specifically — investors and lenders generally trust a business plan more when the first-year figures look achievable rather than best-case." },
+      { speaker: "Yulia", text: "That makes sense, we'll revise it down." },
+      { speaker: "Mentor", text: "Now, on staffing — you've budgeted for two full-time staff from day one. Is that necessary immediately, or could you start with one and yourself covering extra hours?" },
+      { speaker: "Kwame", text: "We were worried about being short-staffed during the morning rush." },
+      { speaker: "Mentor", text: "That's a fair concern, but I'd suggest starting with one part-time member of staff for the first three months, then reviewing whether a second hire is genuinely needed, based on actual footfall rather than an assumption." },
+      { speaker: "Yulia", text: "That would help our early cash flow quite a bit, actually." },
+      { speaker: "Mentor", text: "Exactly. Let's talk about your funding request — you're asking for a fifteen thousand pound loan. Have you broken that down by category anywhere?" },
+      { speaker: "Kwame", text: "Not in detail, no, we've just given the total figure so far." },
+      { speaker: "Mentor", text: "I'd want to see it broken down — equipment, initial stock, shopfitting, and a contingency amount, ideally around ten percent of the total, set aside for unexpected costs. Lenders respond much better to a detailed breakdown than a single lump sum." },
+      { speaker: "Yulia", text: "We can put that together this week." },
+      { speaker: "Mentor", text: "Good. One more thing — your plan doesn't currently mention any online or delivery sales channel, only the physical shop. Given how much bakery revenue now comes through delivery apps in this area, I'd strongly recommend adding at least a brief section addressing that, even if you don't plan to launch it immediately." },
+      { speaker: "Kwame", text: "We hadn't really considered that, we'll add a section on it." },
+      { speaker: "Mentor", text: "When's your revised draft due for the funding panel?" },
+      { speaker: "Yulia", text: "The panel meets on the ninth of next month, so we'd need to submit by the second, giving them a week to review beforehand." },
+      { speaker: "Mentor", text: "That gives you just under three weeks from today — plenty of time if you start the revisions this week rather than leaving it. Let's meet again in ten days to check progress before the final push." },
+      { speaker: "Kwame", text: "Sounds good, thank you, this has been really useful." },
+      { speaker: "Mentor", text: "You're welcome, and honestly, the core idea is strong — it's really just the numbers and a couple of sections that need tightening up." },
+    ],
   },
   // ---------- MOCK 7 — Section 4 ----------
   {
     id: '34000000-0000-0000-0000-000000000012',
     title: 'The Development of Early Writing Systems',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate female university lecturer in her 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good morning, everyone. Today's lecture continues our survey of early human civilisation by looking at the development of writing systems, one of the most significant technological developments in human history.
@@ -342,6 +697,16 @@ Interestingly, a fourth system, this one in Mesoamerica, developed among the May
 So what allowed writing to develop independently in such geographically separated regions? Most scholars point to a shared underlying driver: the administrative demands of increasingly complex societies. As populations grew and trade networks expanded, the need to reliably record transactions, laws, and historical events across time and distance created strong pressure toward some form of permanent, transferable record-keeping — pressure that appears to have pushed multiple unrelated civilisations toward broadly similar technological solutions, even though the actual scripts that resulted look nothing alike.
 
 In our next session, we'll examine how the spread of writing systems through trade and conquest gradually reduced this early diversity, as some scripts were adapted and adopted by neighbouring cultures while others fell out of use entirely.`,
+    turns: [
+      { speaker: "Lecturer", text: "Good morning, everyone. Today's lecture continues our survey of early human civilisation by looking at the development of writing systems, one of the most significant technological developments in human history." },
+      { speaker: "Lecturer", text: "Let's start with the earliest known system, cuneiform, which developed in ancient Mesopotamia, in the region of present-day Iraq, around three thousand four hundred BCE. Cuneiform began not as a way of recording language in the way we think of writing today, but as a system for tracking economic transactions — quantities of grain, livestock, and trade goods. Early symbols were pictographic, meaning they visually resembled the object being recorded, but over several centuries, these pictographs gradually became more abstract and stylised, eventually forming the wedge-shaped marks that give cuneiform its name, from the Latin word for \"wedge.\"" },
+      { speaker: "Lecturer", text: "Now, at roughly the same period, a separate and apparently independent writing system was developing in ancient Egypt: hieroglyphics. Unlike cuneiform's evolution from pictographic to abstract, Egyptian hieroglyphics retained their pictorial style throughout most of their long history, remaining recognisably image-based even in later, more complex forms of the script. For centuries, hieroglyphics were something of a mystery to modern scholars, since the knowledge of how to read them had been lost, until the discovery of the Rosetta Stone in seventeen ninety-nine, which contained the same text written in three different scripts, allowing scholars to finally decode the hieroglyphic system by comparing it against the other two, more familiar, versions." },
+      { speaker: "Lecturer", text: "A third major writing system emerged independently in China, with the earliest confirmed examples dating to around one thousand two hundred BCE, found inscribed on what are known as oracle bones — animal bones and turtle shells used in divination practices. What's particularly notable about the Chinese writing system is its remarkable continuity: many of the fundamental principles established in this early script can still be recognised in modern Chinese characters today, representing one of the longest continuously used writing traditions in human history." },
+      { speaker: "Lecturer", text: "Now, an important question scholars have long debated is whether all early writing systems developed from a shared common source, or whether they emerged independently in different regions. The current academic consensus strongly favours independent development, at least for Mesopotamian, Egyptian, and Chinese writing — the differences in structure and evolution between these systems are considered too significant to be easily explained by direct cultural transmission from one region to another." },
+      { speaker: "Lecturer", text: "Interestingly, a fourth system, this one in Mesoamerica, developed among the Maya civilisation, likely independently once again, with early forms appearing by around three hundred BCE. Maya writing combined both logographic elements, where a single symbol represents an entire word or concept, and syllabic elements, where symbols represent sounds, making it a particularly sophisticated hybrid system for its time, comparable in complexity to many writing systems still in use today." },
+      { speaker: "Lecturer", text: "So what allowed writing to develop independently in such geographically separated regions? Most scholars point to a shared underlying driver: the administrative demands of increasingly complex societies. As populations grew and trade networks expanded, the need to reliably record transactions, laws, and historical events across time and distance created strong pressure toward some form of permanent, transferable record-keeping — pressure that appears to have pushed multiple unrelated civilisations toward broadly similar technological solutions, even though the actual scripts that resulted look nothing alike." },
+      { speaker: "Lecturer", text: "In our next session, we'll examine how the spread of writing systems through trade and conquest gradually reduced this early diversity, as some scripts were adapted and adopted by neighbouring cultures while others fell out of use entirely." },
+    ],
   },
 ];
 

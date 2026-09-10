@@ -5,6 +5,18 @@ export const listeningTracksSet5: ListeningTrack[] = [
   {
     id: '35000000-0000-0000-0000-000000000001',
     title: 'Booking a Car for a Weekend Road Trip',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Agent": "a professional male booking agent in his 30s with a neutral British accent, efficient and courteous tone — introduces themselves as Daniel in the call",
+      "Customer": "a polite adult female customer in her 30s with a neutral British accent, natural relaxed conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `AGENT: Good afternoon, Coastline Car Hire, this is Daniel speaking, how can I help?
@@ -30,10 +42,46 @@ CUSTOMER: Yes please, one child seat.
 AGENT: Great, I will get that added and email you a confirmation.
 CUSTOMER: Thank you so much for your help.
 AGENT: You are welcome, have a lovely trip.`,
+    turns: [
+      { speaker: "Agent", text: "Good afternoon, Coastline Car Hire, this is Daniel speaking, how can I help?" },
+      { speaker: "Customer", text: "Hi, I would like to hire a car for a weekend, please." },
+      { speaker: "Agent", text: "Of course. What dates did you have in mind?" },
+      { speaker: "Customer", text: "Friday the second of October to Monday the fifth." },
+      { speaker: "Agent", text: "Right, so that is three nights, four days including pick-up and drop-off. What type of car would you like? We have compact, saloon, or estate." },
+      { speaker: "Customer", text: "We are a family of four with a lot of luggage, so probably the estate." },
+      { speaker: "Agent", text: "Good choice for that. The estate is forty-two pounds a day — oh, sorry, let me check that again — the estate is actually forty-eight pounds a day; forty-two is the saloon." },
+      { speaker: "Customer", text: "OK, forty-eight then, that is fine." },
+      { speaker: "Agent", text: "Does that include insurance? Basic cover is included, but there is an excess of three hundred pounds unless you add reduced-excess cover for an extra nine pounds a day." },
+      { speaker: "Customer", text: "I will add that, just for peace of mind." },
+      { speaker: "Agent", text: "Good idea. Can I take your surname, please?" },
+      { speaker: "Customer", text: "It is Bennett — B-E-N-N-E-T-T." },
+      { speaker: "Agent", text: "Got it. And will you be picking the car up from our main branch?" },
+      { speaker: "Customer", text: "Actually, could you deliver it? We are staying at a cottage out near Thornbury." },
+      { speaker: "Agent", text: "We can deliver for a flat fee of fifteen pounds, as long as it is within twenty miles of the branch." },
+      { speaker: "Customer", text: "Thornbury is about twelve miles, so that should work." },
+      { speaker: "Agent", text: "Perfect, I will note that down. What time would you like it delivered on the Friday?" },
+      { speaker: "Customer", text: "Ideally by nine in the morning, if that is possible." },
+      { speaker: "Agent", text: "That is fine. Finally, will you need a child seat? We can provide one for six pounds for the whole rental." },
+      { speaker: "Customer", text: "Yes please, one child seat." },
+      { speaker: "Agent", text: "Great, I will get that added and email you a confirmation." },
+      { speaker: "Customer", text: "Thank you so much for your help." },
+      { speaker: "Agent", text: "You are welcome, have a lovely trip." },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000002',
     title: 'A Guide to the New Riverside Recycling and Reuse Centre',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Manager": "a knowledgeable female facility manager in her 30s-40s with a neutral British accent, informative and approachable tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `MANAGER: Good morning, and welcome to the new Riverside Recycling and Reuse Centre. My name is Grace, and I manage the site, so I just want to run through how everything works before you head off to drop off your items.
@@ -53,10 +101,34 @@ Parking is free for the first thirty minutes, but after that there is a charge o
 And finally, if you would like updates about special collection days, such as our upcoming electronics amnesty day on the fourteenth of November, you can sign up to our newsletter at the front desk, or follow us online.
 
 That is everything — thank you for recycling responsibly, and enjoy your visit.`,
+    turns: [
+      { speaker: "Manager", text: "Good morning, and welcome to the new Riverside Recycling and Reuse Centre. My name is Grace, and I manage the site, so I just want to run through how everything works before you head off to drop off your items." },
+      { speaker: "Manager", text: "Let us start with opening hours. We are open every day except Wednesdays, from eight a.m. until six p.m. in summer, and eight a.m. until four p.m. once we move to winter hours in November." },
+      { speaker: "Manager", text: "Now, the layout. As you drive in, the general waste and garden waste skips are on your left, and directly ahead you will find the recycling bays for glass, paper, and plastic, each clearly labelled by colour. Household electricals — things like kettles, toasters and small appliances — go to the far end, in the covered bay next to the office." },
+      { speaker: "Manager", text: "We also have a reuse shop, which is new this year. If you have furniture, books, or working electrical items you no longer need, you can drop them at the reuse shop instead of the skips, and the small team here will resell them cheaply, with all proceeds going to the local hospice." },
+      { speaker: "Manager", text: "A few rules to keep in mind. Rubble and building waste, such as bricks or tiles, are not accepted here at all — for that, you need the trade centre on Filton Road. We also ask that vehicles are limited to a maximum of six visits per month, mainly to prevent trade waste being dumped here instead of at proper commercial sites." },
+      { speaker: "Manager", text: "If you are not sure which category something falls into, just ask one of our site assistants, who wear bright green vests, and they will point you in the right direction." },
+      { speaker: "Manager", text: "Parking is free for the first thirty minutes, but after that there is a charge of one pound for every fifteen minutes, mainly to keep the turnover of vehicles moving on busy Saturdays." },
+      { speaker: "Manager", text: "And finally, if you would like updates about special collection days, such as our upcoming electronics amnesty day on the fourteenth of November, you can sign up to our newsletter at the front desk, or follow us online." },
+      { speaker: "Manager", text: "That is everything — thank you for recycling responsibly, and enjoy your visit." },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000003',
     title: 'Discussing a Group Assignment on Sleep and Memory',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Dr Patel": "an experienced male academic in his 40s-50s with a neutral British accent, calm, authoritative, and constructive tone",
+      "Ryan": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+      "Zoe": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `DR PATEL: Come in, Ryan, Zoe — let us talk through your assignment on sleep and memory before the deadline.
@@ -82,10 +154,46 @@ RYAN: Understood. Should we send you a draft beforehand?
 DR PATEL: Yes please, send me a draft by the twenty-fifth of November, as a PDF rather than a Word document, so nothing shifts formatting.
 ZOE: Great, thank you, that is really helpful.
 DR PATEL: No problem — good luck with the ethics application.`,
+    turns: [
+      { speaker: "Dr Patel", text: "Come in, Ryan, Zoe — let us talk through your assignment on sleep and memory before the deadline." },
+      { speaker: "Ryan", text: "Thanks. So we have decided to focus specifically on how sleep deprivation affects short-term memory recall." },
+      { speaker: "Zoe", text: "We are planning to compare two groups — one that sleeps a full eight hours, and one restricted to four hours, over a single night." },
+      { speaker: "Dr Patel", text: "Sensible design. How many participants are you aiming to recruit?" },
+      { speaker: "Ryan", text: "We are hoping for twenty in each group, so forty in total, mostly recruited from the psychology department." },
+      { speaker: "Dr Patel", text: "That should give you reasonable statistical power. What test will you use to measure memory recall?" },
+      { speaker: "Zoe", text: "We will use a word-list recall test — participants see a list of thirty words for two minutes, then recall as many as possible after a delay." },
+      { speaker: "Dr Patel", text: "Good, that is a well-established method. Who is doing which part of the write-up?" },
+      { speaker: "Ryan", text: "I am covering the introduction and literature review, and Zoe is doing the methodology and results." },
+      { speaker: "Zoe", text: "And we are splitting the discussion section between us, same as last time." },
+      { speaker: "Dr Patel", text: "Have you thought about how you will control for caffeine intake, since that could easily skew memory performance?" },
+      { speaker: "Ryan", text: "Good point — we had not actually thought of that. We could ask participants to avoid caffeine for twelve hours before the test." },
+      { speaker: "Dr Patel", text: "That would work well; make sure you mention that as a controlled variable in your methodology." },
+      { speaker: "Zoe", text: "We will. One thing we are unsure about — do we need formal ethical approval, since this involves depriving people of sleep?" },
+      { speaker: "Dr Patel", text: "Yes, definitely — sleep deprivation studies always require full ethics approval, even a mild version like this. You will need to submit an application." },
+      { speaker: "Ryan", text: "When is the deadline for submitting that?" },
+      { speaker: "Dr Patel", text: "Submit it by the ninth of November, so there is enough time for the committee to review it before your data collection date." },
+      { speaker: "Zoe", text: "And when is the assignment itself due?" },
+      { speaker: "Dr Patel", text: "The final report is due on the third of December, in your two p.m. seminar slot." },
+      { speaker: "Ryan", text: "Understood. Should we send you a draft beforehand?" },
+      { speaker: "Dr Patel", text: "Yes please, send me a draft by the twenty-fifth of November, as a PDF rather than a Word document, so nothing shifts formatting." },
+      { speaker: "Zoe", text: "Great, thank you, that is really helpful." },
+      { speaker: "Dr Patel", text: "No problem — good luck with the ethics application." },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000004',
     title: 'The Physiology of Circadian Rhythms',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate female university lecturer in her 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good morning, everyone. Today's lecture looks at circadian rhythms — the roughly twenty-four-hour internal cycles that regulate sleep, alertness, body temperature, and hormone release in almost every living organism, from bacteria to humans.
@@ -103,12 +211,34 @@ Disruption to circadian rhythms has been linked to a range of health consequence
 Finally, I want to mention chronotype — the natural tendency of an individual toward either an earlier or a later sleep-wake pattern, commonly described using the informal terms "morning lark" and "night owl." Chronotype appears to be substantially influenced by genetics, and research increasingly suggests that forcing a late chronotype into an early schedule, such as an early school or work start time, can produce a kind of chronic, low-grade sleep deprivation.
 
 Next week, we'll examine how circadian research has begun to influence shift-scheduling policy in hospitals and other twenty-four-hour industries.`,
+    turns: [
+      { speaker: "Lecturer", text: "Good morning, everyone. Today's lecture looks at circadian rhythms — the roughly twenty-four-hour internal cycles that regulate sleep, alertness, body temperature, and hormone release in almost every living organism, from bacteria to humans." },
+      { speaker: "Lecturer", text: "At the centre of the human circadian system is a tiny cluster of around twenty thousand neurons in the hypothalamus called the suprachiasmatic nucleus, often abbreviated to the SCN. The SCN acts as the body's master clock, synchronising countless smaller clocks found in individual organs and tissues throughout the body." },
+      { speaker: "Lecturer", text: "So how does the SCN know what time it is? The primary cue, or what scientists call a \"zeitgeber\" — a German term meaning \"time giver\" — is light. Specialised cells in the retina detect ambient light levels and send that information directly to the SCN via a pathway that is separate from the visual system used for seeing images. This is why even people who are completely blind, but whose retinas still detect light, can maintain a roughly normal circadian rhythm." },
+      { speaker: "Lecturer", text: "One of the clearest hormonal outputs of the circadian system is melatonin, sometimes called the \"hormone of darkness.\" The pineal gland begins releasing melatonin in the evening as light levels fall, and levels typically peak somewhere between two and four in the morning before declining again toward dawn. Crucially, exposure to bright light — including the blue-toned light emitted by many phone and computer screens — can suppress melatonin release, which is one reason researchers recommend limiting screen use in the hour or two before bedtime." },
+      { speaker: "Lecturer", text: "Circadian rhythms don't just govern sleep, though. Body temperature also follows a predictable daily pattern, typically reaching its lowest point in the early hours of the morning and its highest point in the late afternoon or early evening. Athletic performance tends to track this temperature curve fairly closely, which is part of the reason many world records in track and field have historically been set in late-afternoon competition sessions rather than early morning ones." },
+      { speaker: "Lecturer", text: "Disruption to circadian rhythms has been linked to a range of health consequences. Shift workers, who are required to be alert during hours when their internal clock expects them to be asleep, show elevated rates of several conditions, including cardiovascular disease and certain metabolic disorders, when studied over long careers. Jet lag is a more temporary, though still uncomfortable, example of the same underlying mismatch — the internal clock remains set to the departure time zone for several days after arrival, gradually shifting by roughly one hour per day until it catches up with local time." },
+      { speaker: "Lecturer", text: "Finally, I want to mention chronotype — the natural tendency of an individual toward either an earlier or a later sleep-wake pattern, commonly described using the informal terms \"morning lark\" and \"night owl.\" Chronotype appears to be substantially influenced by genetics, and research increasingly suggests that forcing a late chronotype into an early schedule, such as an early school or work start time, can produce a kind of chronic, low-grade sleep deprivation." },
+      { speaker: "Lecturer", text: "Next week, we'll examine how circadian research has begun to influence shift-scheduling policy in hospitals and other twenty-four-hour industries." },
+    ],
   },
 
   // ---------- MOCK 9 ----------
   {
     id: '35000000-0000-0000-0000-000000000005',
     title: 'Booking a Removal Company for a House Move',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Agent": "a professional female booking agent in her 30s with a neutral British accent, efficient and courteous tone — introduces themselves as Chloe in the call",
+      "Customer": "a polite adult male customer in his 30s with a neutral British accent, natural relaxed conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `AGENT: Good afternoon, Swift Removals, this is Chloe speaking, how can I help?
@@ -133,10 +263,45 @@ AGENT: We need a deposit of seventy-five pounds to confirm the booking, with the
 CUSTOMER: Perfect, I will transfer that today.
 AGENT: Lovely, I will email you the confirmation and our terms and conditions.
 CUSTOMER: Thank you so much for your help.`,
+    turns: [
+      { speaker: "Agent", text: "Good afternoon, Swift Removals, this is Chloe speaking, how can I help?" },
+      { speaker: "Customer", text: "Hi, I am moving house next month and I would like a quote, please." },
+      { speaker: "Agent", text: "Of course. Whereabouts are you moving from and to?" },
+      { speaker: "Customer", text: "From a two-bedroom flat in Leeds to a house in Harrogate." },
+      { speaker: "Agent", text: "That is about eighteen miles, so it falls within our standard local rate. Do you know roughly the size of the move — number of rooms, any large furniture?" },
+      { speaker: "Customer", text: "Two bedrooms and a living room, plus a large wardrobe and a piano, actually." },
+      { speaker: "Agent", text: "A piano changes things slightly — we will need to send a two-person team instead of one, along with special piano straps. Are you flexible on your moving date?" },
+      { speaker: "Customer", text: "Fairly, yes — I was hoping for the fourteenth of next month, but the following week works too." },
+      { speaker: "Agent", text: "Let me check... the fourteenth is fully booked, but we do have the fifteenth free." },
+      { speaker: "Customer", text: "The fifteenth is fine." },
+      { speaker: "Agent", text: "Great. Based on what you have described, the cost would be three hundred and eighty pounds — oh, sorry, let me recalculate with the piano surcharge — that actually brings it to four hundred and twenty pounds." },
+      { speaker: "Customer", text: "OK, four hundred and twenty it is. Is packing included in that?" },
+      { speaker: "Agent", text: "No, that is just for the move itself. We do offer a packing service for an extra one hundred and ten pounds, where our team packs everything the day before." },
+      { speaker: "Customer", text: "I think I will pack myself, thanks. Do you sell boxes separately?" },
+      { speaker: "Agent", text: "Yes, boxes are one pound twenty each, or you can hire fifty reusable plastic crates for thirty-five pounds, which most people find works out cheaper." },
+      { speaker: "Customer", text: "I will go with the crates, then. Can I take your address to send a cheque?" },
+      { speaker: "Agent", text: "Actually, we only take card or bank transfer now, no cheques. Our office is at forty-one, Grenville Road — that is G-R-E-N-V-I-L-L-E." },
+      { speaker: "Customer", text: "Got it, Grenville Road. How much is the deposit?" },
+      { speaker: "Agent", text: "We need a deposit of seventy-five pounds to confirm the booking, with the balance due on the day." },
+      { speaker: "Customer", text: "Perfect, I will transfer that today." },
+      { speaker: "Agent", text: "Lovely, I will email you the confirmation and our terms and conditions." },
+      { speaker: "Customer", text: "Thank you so much for your help." },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000006',
     title: 'A Talk Introducing the Local Repair Café Scheme',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Host": "an articulate female host in her 30s-40s with a neutral British accent, friendly informative tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `HOST: Hello everyone, and thanks for coming along today. I want to tell you a bit about our new Repair Café scheme, which we are launching here at the Millfield Community Centre.
@@ -156,10 +321,34 @@ We are also always looking for volunteer menders, particularly anyone with exper
 One final note — parking near the centre is limited on Saturdays because of the farmers' market next door, so we would really encourage you to walk, cycle, or take the number eleven bus, which stops right outside.
 
 Thanks again for coming, and I hope to see plenty of broken toasters and torn trousers next month!`,
+    turns: [
+      { speaker: "Host", text: "Hello everyone, and thanks for coming along today. I want to tell you a bit about our new Repair Café scheme, which we are launching here at the Millfield Community Centre." },
+      { speaker: "Host", text: "So what actually is a Repair Café? It is a free monthly event where volunteer menders help you fix broken items instead of throwing them away — everything from toasters and lamps to torn clothing and wobbly furniture." },
+      { speaker: "Host", text: "We will be running four different repair stations. The electrical station handles small appliances like kettles, radios, and lamps. The textiles station deals with clothing repairs, replacing zips, and mending tears. The furniture station is for wobbly chairs, sticking drawers, and similar wooden repairs. And finally, the bike station, which is outdoors under the gazebo, covers punctures, brakes, and gears." },
+      { speaker: "Host", text: "Sessions run on the first Saturday of every month, from ten a.m. until one p.m. There is no need to book — just turn up with your item and one of our volunteers will have a look." },
+      { speaker: "Host", text: "Now, a few things to know before you come. First, this is not a professional repair service — our volunteers do their best, but we cannot guarantee every item will be fixable, and safety-critical items like gas appliances are not something we can touch. Second, while the repairs themselves are free, we do ask for a small donation, whatever you can afford, which goes toward buying spare parts and tools." },
+      { speaker: "Host", text: "If your item cannot be fixed on the day, some of our volunteers are happy to take it away and have another go, returning it to you the following month." },
+      { speaker: "Host", text: "We are also always looking for volunteer menders, particularly anyone with experience in electronics or sewing. If that is you, please speak to Marcus, who is coordinating the volunteer side of things — he is over by the entrance in the blue jumper." },
+      { speaker: "Host", text: "One final note — parking near the centre is limited on Saturdays because of the farmers' market next door, so we would really encourage you to walk, cycle, or take the number eleven bus, which stops right outside." },
+      { speaker: "Host", text: "Thanks again for coming, and I hope to see plenty of broken toasters and torn trousers next month!" },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000007',
     title: 'Discussing a Group Project on Consumer Behaviour Surveys',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Dr Okafor": "an experienced male academic in his 40s-50s with a neutral British accent, calm, authoritative, and constructive tone",
+      "Leo": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+      "Hannah": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `DR OKAFOR: Leo, Hannah — good to see you both. How is the consumer behaviour survey project shaping up?
@@ -186,10 +375,47 @@ DR OKAFOR: That is the twenty-ninth of April, in your usual Thursday afternoon s
 HANNAH: Should we send a draft beforehand?
 DR OKAFOR: Yes, please send me a draft by the fifteenth of April, as a Word document this time, actually, since I want to leave comments directly in the file.
 LEO: Understood, thank you, that is really helpful.`,
+    turns: [
+      { speaker: "Dr Okafor", text: "Leo, Hannah — good to see you both. How is the consumer behaviour survey project shaping up?" },
+      { speaker: "Leo", text: "Pretty well, I think. We have decided to focus on how packaging colour influences perceived product quality." },
+      { speaker: "Hannah", text: "We are planning to survey shoppers about three product categories — coffee, cereal, and shampoo." },
+      { speaker: "Dr Okafor", text: "Interesting choice. How many responses are you aiming for?" },
+      { speaker: "Leo", text: "We are hoping for at least one hundred and fifty responses, ideally split evenly across the three categories." },
+      { speaker: "Dr Okafor", text: "That should give you a decent sample. Where are you planning to collect responses?" },
+      { speaker: "Hannah", text: "We will be doing it in two ways — an online survey shared through social media, and in person outside the Union shop on campus." },
+      { speaker: "Dr Okafor", text: "Good, having both should help avoid sampling bias. What is your incentive for people to take part?" },
+      { speaker: "Leo", text: "We are offering entry into a prize draw for a twenty-pound gift voucher." },
+      { speaker: "Dr Okafor", text: "Sensible. Now, who is responsible for which part of the analysis?" },
+      { speaker: "Hannah", text: "I am handling the statistical analysis, since I did the stats module last term, and Leo is writing up the literature review." },
+      { speaker: "Leo", text: "And we are both contributing to the discussion and conclusion together." },
+      { speaker: "Dr Okafor", text: "Have you thought about which statistical test you will use to compare the three categories?" },
+      { speaker: "Hannah", text: "We are planning to use a one-way ANOVA, since we are comparing three independent groups." },
+      { speaker: "Dr Okafor", text: "Good choice. Just make sure your data meets the assumptions before running it — check it is normally distributed first." },
+      { speaker: "Leo", text: "We will. One thing we wanted to ask — do we need ethical approval, since we are surveying members of the public?" },
+      { speaker: "Dr Okafor", text: "Yes, you will need standard ethical approval, but because it is an anonymous survey with no sensitive questions, it should be a quick, low-risk application." },
+      { speaker: "Hannah", text: "That is a relief. When should we submit that?" },
+      { speaker: "Dr Okafor", text: "Submit the ethics form by the eleventh of March, so it can be approved before you start collecting data." },
+      { speaker: "Leo", text: "And the final report deadline?" },
+      { speaker: "Dr Okafor", text: "That is the twenty-ninth of April, in your usual Thursday afternoon seminar." },
+      { speaker: "Hannah", text: "Should we send a draft beforehand?" },
+      { speaker: "Dr Okafor", text: "Yes, please send me a draft by the fifteenth of April, as a Word document this time, actually, since I want to leave comments directly in the file." },
+      { speaker: "Leo", text: "Understood, thank you, that is really helpful." },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000008',
     title: 'The Engineering of Suspension Bridges',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate female university lecturer in her 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good morning. Today's lecture turns to a piece of engineering many of us cross every day without thinking about how it actually works: the suspension bridge.
@@ -207,12 +433,34 @@ However, this flexibility caused one of the most famous engineering failures in 
 Today, modern suspension bridges incorporate advanced technology to monitor their condition continuously. Many now have sensors embedded directly into the cables and deck, which measure stress, vibration, and temperature in real time, transmitting the data to engineers who can spot early signs of fatigue long before they become visible to the naked eye.
 
 Looking ahead, researchers are exploring the use of carbon fibre composite cables as a lighter, stronger alternative to traditional steel, which could allow future suspension bridges to span even greater distances than is currently possible.`,
+    turns: [
+      { speaker: "Lecturer", text: "Good morning. Today's lecture turns to a piece of engineering many of us cross every day without thinking about how it actually works: the suspension bridge." },
+      { speaker: "Lecturer", text: "At its core, a suspension bridge works by transferring the weight of the deck — the roadway itself — up through vertical cables to two large main cables, which run over tall towers and are anchored firmly into the ground at each end. This design allows suspension bridges to span far greater distances than traditional beam or arch bridges, without needing supports in the middle of the gap being crossed." },
+      { speaker: "Lecturer", text: "Let us look at the key components in more detail. The towers bear most of the compressive load, pushing straight down into the foundations beneath them. The main cables, by contrast, are under enormous tension, and are typically made from thousands of individual steel wires bundled together — a single main cable on a large bridge might contain over twenty thousand individual wires." },
+      { speaker: "Lecturer", text: "One of the most famous early examples is the Clifton Suspension Bridge in England, designed by the engineer Isambard Kingdom Brunel, though it was not actually completed until after his death, in eighteen sixty-four." },
+      { speaker: "Lecturer", text: "Now, suspension bridges face a particular engineering challenge that shorter bridges do not: they must be designed to flex. Unlike a rigid structure, a suspension bridge is expected to sway slightly in strong wind and even shift under heavy traffic loads — engineers describe this flexibility as a feature, not a fault, because a completely rigid structure of that length would be far more likely to crack under stress." },
+      { speaker: "Lecturer", text: "However, this flexibility caused one of the most famous engineering failures in history: the collapse of the Tacoma Narrows Bridge in the United States, in nineteen forty. In that case, wind caused the bridge deck to twist violently in a phenomenon known as aeroelastic flutter, ultimately tearing the structure apart. This disaster fundamentally changed how engineers approach bridge design, leading to much more rigorous wind-tunnel testing for every major suspension bridge built since." },
+      { speaker: "Lecturer", text: "Today, modern suspension bridges incorporate advanced technology to monitor their condition continuously. Many now have sensors embedded directly into the cables and deck, which measure stress, vibration, and temperature in real time, transmitting the data to engineers who can spot early signs of fatigue long before they become visible to the naked eye." },
+      { speaker: "Lecturer", text: "Looking ahead, researchers are exploring the use of carbon fibre composite cables as a lighter, stronger alternative to traditional steel, which could allow future suspension bridges to span even greater distances than is currently possible." },
+    ],
   },
 
   // ---------- MOCK 10 ----------
   {
     id: '35000000-0000-0000-0000-000000000009',
     title: 'Arranging a Home Broadband Installation',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Agent": "a professional female booking agent in her 30s with a neutral British accent, efficient and courteous tone — introduces themselves as Sophie in the call",
+      "Customer": "a polite adult male customer in his 30s with a neutral British accent, natural relaxed conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `AGENT: Good afternoon, NetLink Broadband, this is Sophie speaking, how can I help?
@@ -237,10 +485,45 @@ AGENT: And finally, can I take your surname for the account?
 CUSTOMER: It is Delaney — D-E-L-A-N-E-Y.
 AGENT: Got it, Ms Delaney. I will email your confirmation and contract details shortly.
 CUSTOMER: Thank you so much for your help.`,
+    turns: [
+      { speaker: "Agent", text: "Good afternoon, NetLink Broadband, this is Sophie speaking, how can I help?" },
+      { speaker: "Customer", text: "Hi, I would like to set up a new broadband connection at my flat, please." },
+      { speaker: "Agent", text: "Of course, I can help with that. Can I start with your postcode?" },
+      { speaker: "Customer", text: "Yes, it is BR3, then 7-L-N." },
+      { speaker: "Agent", text: "Great, let me check availability... yes, fibre broadband is available at your address. We have two packages: Standard Fibre at thirty-five megabits per second, or Superfast Fibre at seventy megabits." },
+      { speaker: "Customer", text: "I work from home and do a lot of video calls, so probably the superfast one." },
+      { speaker: "Agent", text: "Good choice. Superfast Fibre is thirty-two pounds a month on an eighteen-month contract, or thirty-eight pounds a month with no contract, if you prefer flexibility." },
+      { speaker: "Customer", text: "I will take the eighteen-month contract, that is fine." },
+      { speaker: "Agent", text: "Great. There is also a one-off setup fee of forty-five pounds, although that is often waived — let me check... yes, it looks like we are currently running a promotion, so that fee will be waived for you." },
+      { speaker: "Customer", text: "Excellent, thank you. When could someone come to install it?" },
+      { speaker: "Agent", text: "Our next available slot is Thursday the eleventh, between eight a.m. and midday, or, if that does not suit, the following Tuesday, all day." },
+      { speaker: "Customer", text: "Thursday morning works for me." },
+      { speaker: "Agent", text: "Perfect, I will book that in. Will you need a new router, or do you already have a compatible one?" },
+      { speaker: "Customer", text: "I will need a new one, please." },
+      { speaker: "Agent", text: "No problem, that is included free with your package. Can I also take a contact number in case the engineer needs to reach you on the day?" },
+      { speaker: "Customer", text: "Sure, it is oh-seven-seven-one-four, double-two-six, three-nine-zero." },
+      { speaker: "Agent", text: "Let me read that back — oh-seven-seven-one-four, two-two-six, three-nine-zero." },
+      { speaker: "Customer", text: "That is correct." },
+      { speaker: "Agent", text: "And finally, can I take your surname for the account?" },
+      { speaker: "Customer", text: "It is Delaney — D-E-L-A-N-E-Y." },
+      { speaker: "Agent", text: "Got it, Ms Delaney. I will email your confirmation and contract details shortly." },
+      { speaker: "Customer", text: "Thank you so much for your help." },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000010',
     title: 'A Local Radio Announcement About the City Winter Festival',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Host": "an articulate male host in his 30s-40s with a neutral British accent, friendly informative tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `HOST: Good afternoon, and welcome back to Riverside FM. This week I want to give you all the details about the Millbrook Winter Festival, which returns to the town square from the fifth to the eighth of December.
@@ -258,10 +541,33 @@ This year there is also a special event on the opening evening — a lantern par
 If you would like to book an ice rink slot in advance, which is recommended, especially for weekend evenings, you can do that through the council website, or by calling the box office directly on three-three-one-eight, double-nine-two.
 
 That is all the details for this year's Millbrook Winter Festival — I will be back after the break with the weather.`,
+    turns: [
+      { speaker: "Host", text: "Good afternoon, and welcome back to Riverside FM. This week I want to give you all the details about the Millbrook Winter Festival, which returns to the town square from the fifth to the eighth of December." },
+      { speaker: "Host", text: "The festival opens each day at eleven in the morning, and runs until nine in the evening, except on the final day, Sunday, when everything closes earlier, at six p.m., to allow time for the stalls to pack down." },
+      { speaker: "Host", text: "There will be four main areas this year. The market area, right in the centre of the square, will have around forty stalls selling crafts, food, and gifts. Next to that, the ice rink returns for its third year, and this year it has been made twenty percent bigger to reduce queuing. Over toward the church, there will be a food and drink village, with a heated marquee for those cold evenings. And finally, down by the fountain, there is a children's area, with a small funfair and a grotto." },
+      { speaker: "Host", text: "Entry to the festival itself is free, though the ice rink does have a charge — six pounds for adults, and four pounds for under-sixteens, which includes skate hire." },
+      { speaker: "Host", text: "If you are planning to drive, be aware that the main car park on Church Street will be closed for the full four days, so visitors are encouraged to use the multi-storey on Silver Street instead, or take advantage of the free shuttle bus running every fifteen minutes from the train station." },
+      { speaker: "Host", text: "This year there is also a special event on the opening evening — a lantern parade starting at six p.m. from the library, ending at the main stage in the square, where the mayor will officially switch on the festival lights." },
+      { speaker: "Host", text: "If you would like to book an ice rink slot in advance, which is recommended, especially for weekend evenings, you can do that through the council website, or by calling the box office directly on three-three-one-eight, double-nine-two." },
+      { speaker: "Host", text: "That is all the details for this year's Millbrook Winter Festival — I will be back after the break with the weather." },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000011',
     title: 'Planning a Class Field Trip to a Wetland Nature Reserve',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Mr Harding": "an experienced male academic in his 40s-50s with a neutral British accent, calm, authoritative, and constructive tone",
+      "Amelia": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+      "Toby": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `MR HARDING: Right, Amelia, Toby — thanks for staying behind to help plan the field trip to Fenwick Wetland Reserve.
@@ -283,10 +589,42 @@ AMELIA: We were thinking the twenty-second of April, so there is time to chase a
 MR HARDING: That works. One last thing — do we need wellies, given it is a wetland?
 TOBY: The ranger recommended wellies or waterproof boots, especially for the pond activity, since the ground can get quite muddy.
 MR HARDING: I will add that to the letter home. Thanks both, this has been really helpful.`,
+    turns: [
+      { speaker: "Mr Harding", text: "Right, Amelia, Toby — thanks for staying behind to help plan the field trip to Fenwick Wetland Reserve." },
+      { speaker: "Amelia", text: "No problem. So we are thinking the whole class goes on the ninth of May, weather permitting." },
+      { speaker: "Toby", text: "Yes, and we have checked, the reserve can host up to thirty-five visitors at once, which covers our class of twenty-eight easily." },
+      { speaker: "Mr Harding", text: "Good, that gives us plenty of room. What activities have you planned once we arrive?" },
+      { speaker: "Amelia", text: "We are splitting into two sessions — first, a guided walk around the reed beds with a ranger, focusing on bird identification." },
+      { speaker: "Toby", text: "And after lunch, a water-sampling activity at the reserve's small pond, where we will test pH and oxygen levels." },
+      { speaker: "Mr Harding", text: "Sounds like a solid structure. How long is the guided walk?" },
+      { speaker: "Amelia", text: "The ranger said ninety minutes, so we should be back for lunch by half past twelve." },
+      { speaker: "Mr Harding", text: "Good. Now, what about transport — coach or minibus?" },
+      { speaker: "Toby", text: "We got a quote for a coach, which is one hundred and eighty pounds for the return trip, or two minibuses, which would be two hundred and ten pounds total." },
+      { speaker: "Mr Harding", text: "Let us go with the coach then, cheaper and simpler with one driver. Have you sorted risk assessment forms?" },
+      { speaker: "Amelia", text: "Yes, I have drafted one, mainly around the pond edges and uneven ground near the reed beds." },
+      { speaker: "Mr Harding", text: "Good, make sure that is approved before the deposit is paid. What is the cost per student?" },
+      { speaker: "Toby", text: "Entry plus the ranger session works out at seven pounds fifty per student." },
+      { speaker: "Mr Harding", text: "And when do we need consent forms back by?" },
+      { speaker: "Amelia", text: "We were thinking the twenty-second of April, so there is time to chase anyone who forgets." },
+      { speaker: "Mr Harding", text: "That works. One last thing — do we need wellies, given it is a wetland?" },
+      { speaker: "Toby", text: "The ranger recommended wellies or waterproof boots, especially for the pond activity, since the ground can get quite muddy." },
+      { speaker: "Mr Harding", text: "I will add that to the letter home. Thanks both, this has been really helpful." },
+    ],
   },
   {
     id: '35000000-0000-0000-0000-000000000012',
     title: 'The Science of Glacier Formation and Retreat',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate male university lecturer in his 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good morning, everyone. Today I want to look at glaciers — how they form, how they move, and why so many of them are retreating so rapidly around the world.
@@ -304,6 +642,16 @@ Why does this matter beyond the mountains themselves? For one, many major rivers
 To track these changes, researchers increasingly rely on satellite gravimetry, a technique that measures tiny changes in Earth's gravitational field caused by shifting ice mass, allowing scientists to estimate ice loss across an entire glacier or even an entire mountain range without needing to physically visit every site.
 
 Looking ahead, most climate models predict that, without significant emissions reductions, a large proportion of the world's smaller glaciers could disappear entirely within this century, fundamentally reshaping water availability in many mountainous regions.`,
+    turns: [
+      { speaker: "Lecturer", text: "Good morning, everyone. Today I want to look at glaciers — how they form, how they move, and why so many of them are retreating so rapidly around the world." },
+      { speaker: "Lecturer", text: "Let us start with formation. Glaciers begin as ordinary snow, which accumulates faster than it melts, year after year, in regions where temperatures remain cold for most of the year. As new snow falls on top, the weight compresses the layers beneath, gradually squeezing out air pockets and transforming loose snow first into a granular substance called firn, and eventually, after enough compression, into dense glacial ice, a process that can take anywhere from a few decades to several centuries depending on the climate." },
+      { speaker: "Lecturer", text: "Once formed, glaciers do not just sit still — they move, flowing slowly downhill under their own weight, rather like an extremely slow-moving river. This movement happens through two main mechanisms: internal deformation, where the ice crystals themselves slowly slide past one another, and basal sliding, where the entire glacier slides over a thin layer of meltwater at its base. Basal sliding tends to happen faster, especially in warmer glaciers where meltwater is more plentiful." },
+      { speaker: "Lecturer", text: "Now, glaciers are often described as having two zones. The upper zone, called the accumulation zone, is where snowfall exceeds melting, and the glacier gains mass. The lower zone, the ablation zone, is where melting exceeds snowfall, and the glacier loses mass. The boundary between these two zones is called the equilibrium line, and its position shifts from year to year depending on the weather." },
+      { speaker: "Lecturer", text: "In recent decades, scientists have observed that the equilibrium line on many glaciers has been shifting steadily upslope, meaning the ablation zone is expanding relative to the accumulation zone. This is one of the clearest signs of overall glacier retreat, and it is happening at an alarming pace in many parts of the world — the European Alps, for example, have lost around sixty percent of their glacial ice volume since eighteen fifty." },
+      { speaker: "Lecturer", text: "Why does this matter beyond the mountains themselves? For one, many major rivers are fed substantially by glacial meltwater, particularly during the dry summer months, so shrinking glaciers threaten water supplies for millions of people downstream. There is also the issue of sea level rise — while glaciers hold far less water than the polar ice sheets, their combined melt currently contributes a measurable percentage of annual global sea level rise, and that contribution is expected to grow." },
+      { speaker: "Lecturer", text: "To track these changes, researchers increasingly rely on satellite gravimetry, a technique that measures tiny changes in Earth's gravitational field caused by shifting ice mass, allowing scientists to estimate ice loss across an entire glacier or even an entire mountain range without needing to physically visit every site." },
+      { speaker: "Lecturer", text: "Looking ahead, most climate models predict that, without significant emissions reductions, a large proportion of the world's smaller glaciers could disappear entirely within this century, fundamentally reshaping water availability in many mountainous regions." },
+    ],
   },
 ];
 

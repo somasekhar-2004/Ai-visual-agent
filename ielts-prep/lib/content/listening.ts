@@ -13,8 +13,8 @@ export const listeningTracks: ListeningTrack[] = [
         'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
     },
     speakerPersonas: {
-      Receptionist: 'a warm, professional receptionist in her 30s with a neutral British accent, clear diction, patient and helpful tone',
-      Caller: 'a polite adult customer with a neutral British accent, natural relaxed conversational tone',
+      Receptionist: 'a warm, professional female receptionist in her 30s with a neutral British accent, clear diction, patient and helpful tone',
+      Caller: 'a polite adult male customer in his 30s with a neutral British accent, natural relaxed conversational tone — deliberately a contrasting voice to the Receptionist, not just a different ID (see the Listening overhaul report: two near-identical-sounding IDs were the root cause of this track failing real-device QA)',
     },
     audioUrl: null,
     sectionNumber: 1,

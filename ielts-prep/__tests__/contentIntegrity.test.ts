@@ -4,6 +4,7 @@ import path from 'node:path';
 import { allListeningTracks, allSpeakingTopics, content } from '@/lib/content';
 import { validateAudioSource } from '@/lib/content/audioLicense';
 import { audioRegistry } from '@/lib/content/audioRegistry';
+import { assignSpeakerCategories, genderOf } from '@/lib/content/audioVoiceAssignment';
 import { PACE_BY_SECTION } from '@/lib/content/listeningPace';
 
 function duplicateIds(items: { id: string }[]): string[] {
@@ -288,12 +289,65 @@ describe('listening — production audio coverage (no silent regressions to devi
   // locally pip-installed `piper` + a downloaded voice model, neither of
   // which this CI/sandbox environment has. This list must only ever
   // shrink: remove an id the moment you've run `npm run audio:generate`
-  // locally and committed its .mp3 — as of the 4 proof-of-concept tracks
-  // (generated on the developer's Mac, commit a517120), it's empty. If
-  // it's ever wrong in the other direction (a track here already has
-  // audio, or a track NOT here is missing audio), a test below fails on
-  // purpose.
-  const PENDING_AUDIO_GENERATION = new Set<string>([]);
+  // locally and committed its .mp3. The 4 proof-of-concept tracks (commit
+  // a517120) are already generated, hence not listed. The 44 ids below are
+  // the rest of the 48-track production Listening library (see the
+  // Listening rollout report) — migrated to `turns`/`audioSource` in this
+  // batch, awaiting generation on the developer's Mac. If this list is ever
+  // wrong in either direction (a track here already has audio, or a track
+  // NOT here is missing audio), a test below fails on purpose.
+  const PENDING_AUDIO_GENERATION = new Set<string>([
+    // "Booking a Self-Storage Unit" — real-device QA found its two voices
+    // sounded almost identical; its old .mp3 was deleted after fixing the
+    // speaker assignment (see audioVoiceAssignment.ts/the Listening rollout
+    // report) so the Mac generation run produces genuinely distinct voices
+    // instead of silently keeping the old, bad-sounding file.
+    '30000000-0000-0000-0000-000000000001',
+    '31000000-0000-0000-0000-000000000003',
+    '31000000-0000-0000-0000-000000000004',
+    '31000000-0000-0000-0000-000000000005',
+    '31000000-0000-0000-0000-000000000006',
+    '32000000-0000-0000-0000-000000000001',
+    '32000000-0000-0000-0000-000000000002',
+    '32000000-0000-0000-0000-000000000003',
+    '32000000-0000-0000-0000-000000000004',
+    '33000000-0000-0000-0000-000000000001',
+    '33000000-0000-0000-0000-000000000002',
+    '33000000-0000-0000-0000-000000000003',
+    '33000000-0000-0000-0000-000000000004',
+    '34000000-0000-0000-0000-000000000001',
+    '34000000-0000-0000-0000-000000000002',
+    '34000000-0000-0000-0000-000000000003',
+    '34000000-0000-0000-0000-000000000004',
+    '34000000-0000-0000-0000-000000000005',
+    '34000000-0000-0000-0000-000000000006',
+    '34000000-0000-0000-0000-000000000007',
+    '34000000-0000-0000-0000-000000000008',
+    '34000000-0000-0000-0000-000000000009',
+    '34000000-0000-0000-0000-000000000010',
+    '34000000-0000-0000-0000-000000000011',
+    '34000000-0000-0000-0000-000000000012',
+    '35000000-0000-0000-0000-000000000001',
+    '35000000-0000-0000-0000-000000000002',
+    '35000000-0000-0000-0000-000000000003',
+    '35000000-0000-0000-0000-000000000004',
+    '35000000-0000-0000-0000-000000000005',
+    '35000000-0000-0000-0000-000000000006',
+    '35000000-0000-0000-0000-000000000007',
+    '35000000-0000-0000-0000-000000000008',
+    '35000000-0000-0000-0000-000000000009',
+    '35000000-0000-0000-0000-000000000010',
+    '35000000-0000-0000-0000-000000000011',
+    '35000000-0000-0000-0000-000000000012',
+    '36000000-0000-0000-0000-000000000001',
+    '36000000-0000-0000-0000-000000000002',
+    '36000000-0000-0000-0000-000000000003',
+    '36000000-0000-0000-0000-000000000004',
+    '36000000-0000-0000-0000-000000000005',
+    '36000000-0000-0000-0000-000000000006',
+    '36000000-0000-0000-0000-000000000007',
+    '36000000-0000-0000-0000-000000000008',
+  ]);
 
   const withTurns = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
 
@@ -311,6 +365,77 @@ describe('listening — production audio coverage (no silent regressions to devi
     const turnsIds = new Set(withTurns.map((t) => t.id));
     const stale = Array.from(PENDING_AUDIO_GENERATION).filter((id) => !turnsIds.has(id));
     expect(stale).toEqual([]);
+  });
+});
+
+describe('listening — 48-track production library (12 complete IELTS-style Listening tests)', () => {
+  // The production set is exactly the tracks migrated to structured `turns`
+  // — currently the 48 originally Claude-authored tracks (ids '30xxxxxx'
+  // through '36xxxxxx'); the 74 Astra-sourced tracks are deliberately not
+  // part of this set yet (see the Listening rollout report on why their
+  // pre-existing bundled audio is NOT reused as-is).
+  const productionTracks = content.listeningTracks.filter((t) => t.turns && t.turns.length > 0);
+
+  it('has exactly 48 production-quality listening sections', () => {
+    expect(productionTracks.length).toBe(48);
+  });
+
+  it('is exactly 12 Section 1 + 12 Section 2 + 12 Section 3 + 12 Section 4 (12 complete mock listening tests)', () => {
+    const counts = [1, 2, 3, 4].map((n) => productionTracks.filter((t) => t.sectionNumber === n).length);
+    expect(counts).toEqual([12, 12, 12, 12]);
+  });
+
+  it('every production track has a real audioSource (never left implicitly on-device-TTS)', () => {
+    const missing = productionTracks.filter((t) => !t.audioSource).map((t) => t.id);
+    expect(missing).toEqual([]);
+  });
+
+  it('a multi-speaker production track gets >=2 distinct curated voice categories, not just >=2 distinct IDs (the actual Self-Storage root cause)', () => {
+    const problems: string[] = [];
+    for (const track of productionTracks) {
+      const speakers = Array.from(new Set(track.turns!.map((t) => t.speaker)));
+      if (speakers.length < 2) continue;
+      const categories = assignSpeakerCategories(track, (speaker) => genderOf(track, speaker));
+      const distinctCategories = new Set(Object.values(categories)).size;
+      if (distinctCategories !== speakers.length) problems.push(`${track.id} "${track.title}": ${speakers.length} speakers but only ${distinctCategories} distinct categories`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('"Booking a Self-Storage Unit" specifically assigns the Receptionist and Caller contrasting genders (the real-device QA fix)', () => {
+    const track = productionTracks.find((t) => t.id === '30000000-0000-0000-0000-000000000001')!;
+    expect(track).toBeDefined();
+    const genders = Object.fromEntries(Array.from(new Set(track.turns!.map((t) => t.speaker))).map((s) => [s, genderOf(track, s)]));
+    expect(genders.Receptionist).not.toBe(genders.Caller);
+  });
+
+  it('speaker category assignment is deterministic — the same track always resolves the same way', () => {
+    for (const track of productionTracks) {
+      const a = assignSpeakerCategories(track, (speaker) => genderOf(track, speaker));
+      const b = assignSpeakerCategories(track, (speaker) => genderOf(track, speaker));
+      expect(a).toEqual(b);
+    }
+  });
+
+  it('no turn\'s spoken text leaks a "Speaker:" label into what actually gets synthesized/read aloud', () => {
+    const problems: string[] = [];
+    for (const track of productionTracks) {
+      for (const turn of track.turns!) {
+        if (/^[A-Z][A-Z .]*:\s/.test(turn.text)) problems.push(`${track.id}: turn text still has a leaked label: "${turn.text.slice(0, 40)}"`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('no more than 3 same-gender speakers in one track (the curated pool has exactly 3 categories per gender)', () => {
+    const problems: string[] = [];
+    for (const track of productionTracks) {
+      const speakers = Array.from(new Set(track.turns!.map((t) => t.speaker)));
+      const counts = { male: 0, female: 0 };
+      for (const s of speakers) counts[genderOf(track, s)]++;
+      if (counts.male > 3 || counts.female > 3) problems.push(`${track.id}: ${counts.male} male + ${counts.female} female speakers exceeds the 3-per-gender curated pool`);
+    }
+    expect(problems).toEqual([]);
   });
 });
 

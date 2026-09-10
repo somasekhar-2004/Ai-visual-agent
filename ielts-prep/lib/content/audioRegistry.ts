@@ -5,7 +5,6 @@
 // regenerated this time. Metro requires local asset paths to be static
 // string literals, so this file is rewritten in full on every run.
 export const audioRegistry: Record<string, number> = {
-  '30000000-0000-0000-0000-000000000001': require('../../assets/audio/30000000-0000-0000-0000-000000000001.mp3'),
   '30000000-0000-0000-0000-000000000002': require('../../assets/audio/30000000-0000-0000-0000-000000000002.mp3'),
   '31000000-0000-0000-0000-000000000001': require('../../assets/audio/31000000-0000-0000-0000-000000000001.mp3'),
   '31000000-0000-0000-0000-000000000002': require('../../assets/audio/31000000-0000-0000-0000-000000000002.mp3'),

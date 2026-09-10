@@ -5,6 +5,18 @@ export const listeningTracksSet3: ListeningTrack[] = [
   {
     id: '32000000-0000-0000-0000-000000000001',
     title: 'Enrolling in an Evening Pottery Class',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Staff": "a friendly female staff member in her 20s-30s with a neutral British accent, helpful and clear tone — introduces themselves as Priya in the call",
+      "Caller": "a polite adult male caller in his 30s with a neutral British accent, natural relaxed conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `STAFF: Good afternoon, Riverside Arts Centre, this is Priya speaking, how can I help you?
@@ -26,10 +38,42 @@ CALLER: I'll do it online tonight, then. Last thing — is there a limit on clas
 STAFF: Yes, we cap it at twelve students so everyone gets enough attention from the tutor.
 CALLER: Perfect, thank you so much for your help.
 STAFF: You're welcome, enjoy the course!`,
+    turns: [
+      { speaker: "Staff", text: "Good afternoon, Riverside Arts Centre, this is Priya speaking, how can I help you?" },
+      { speaker: "Caller", text: "Oh hi, um, I saw a flyer about evening pottery classes and I wanted to find out a bit more, please." },
+      { speaker: "Staff", text: "Of course. We currently run two pottery courses — Beginners' Wheel Throwing on Tuesdays, and Hand-Building for all levels on Thursdays." },
+      { speaker: "Caller", text: "I've never done pottery before, so probably the beginners one." },
+      { speaker: "Staff", text: "Great, that's the Wheel Throwing course. It runs from seven to nine p.m., starting the sixteenth of September, for eight weeks." },
+      { speaker: "Caller", text: "And how much does that cost?" },
+      { speaker: "Staff", text: "The full course is one hundred and twenty pounds, or — sorry, let me correct that — if you book before the end of this month, there's an early-bird rate of ninety-five pounds." },
+      { speaker: "Caller", text: "Oh brilliant, I'll definitely book before then. Do I need to bring anything?" },
+      { speaker: "Staff", text: "Just an apron, really — we provide the clay and all the tools. Although some people like to bring their own sponge." },
+      { speaker: "Caller", text: "Okay, noted. Can I ask where the centre actually is? I'm not from round here." },
+      { speaker: "Staff", text: "We're at twenty-seven Hollyfield Road — that's H-O-L-L-Y-F-I-E-L-D — just next to the library." },
+      { speaker: "Caller", text: "Got it. Is there parking?" },
+      { speaker: "Staff", text: "There's a small car park behind the building, but it only holds about ten cars, so a lot of people cycle or take the bus instead." },
+      { speaker: "Caller", text: "That's fine, I'll probably walk actually. Can I take your name again, and how do I actually enrol?" },
+      { speaker: "Staff", text: "It's Priya — P-R-I-Y-A. You can enrol online through our website, or call this number back with your card details." },
+      { speaker: "Caller", text: "I'll do it online tonight, then. Last thing — is there a limit on class size?" },
+      { speaker: "Staff", text: "Yes, we cap it at twelve students so everyone gets enough attention from the tutor." },
+      { speaker: "Caller", text: "Perfect, thank you so much for your help." },
+      { speaker: "Staff", text: "You're welcome, enjoy the course!" },
+    ],
   },
   {
     id: '32000000-0000-0000-0000-000000000002',
     title: 'Orientation Talk for New Residents at Ashgrove Halls',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Warden": "a welcoming male residence warden in his 30s-40s with a neutral British accent, calm and informative tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `WARDEN: Hello everyone, and welcome to Ashgrove Halls. My name's Tom, and I'm the warden here, so if you ever have any problems, I'm the person to come and find. I just want to run through a few practical things before you all head off to unpack.
@@ -49,10 +93,34 @@ Bin collection is every Tuesday morning, so please have your rubbish out by eigh
 And finally, if anything in your room breaks or stops working, don't come and find me first — email the maintenance team directly at repairs at ashgrove dot ac dot uk, and they'll usually sort it within forty-eight hours.
 
 That's everything for now — welcome again, and enjoy your first year!`,
+    turns: [
+      { speaker: "Warden", text: "Hello everyone, and welcome to Ashgrove Halls. My name's Tom, and I'm the warden here, so if you ever have any problems, I'm the person to come and find. I just want to run through a few practical things before you all head off to unpack." },
+      { speaker: "Warden", text: "Let's start with the building itself. We've got four floors. On the ground floor you'll find the laundry room and the common room — that's also where the vending machines are. The first floor has two study rooms, which are open twenty-four hours, and my office is also on the first floor, room one-oh-four, in case you ever need me. The second and third floors are just bedrooms, nothing else up there." },
+      { speaker: "Warden", text: "Now, a few practical details. Your key card also works as your ID for the library, so don't lose it — if you do, replacing it costs fifteen pounds. Speaking of costs, the laundry machines are coin-operated, and one wash costs two pounds fifty." },
+      { speaker: "Warden", text: "For internet, the wifi network is called Ashgrove-Res, and the password is all lowercase — it's \"riverside24\", no spaces. That's R-I-V-E-R-S-I-D-E, then the number two-four." },
+      { speaker: "Warden", text: "We do ask that you observe quiet hours, which run from eleven p.m. to seven a.m., mainly out of respect for people who have early lectures." },
+      { speaker: "Warden", text: "In terms of safety, if the fire alarm goes off, the assembly point is the car park at the front of the building, not the courtyard round the back — people often get that wrong, so do remember it's the front car park." },
+      { speaker: "Warden", text: "Bin collection is every Tuesday morning, so please have your rubbish out by eight a.m." },
+      { speaker: "Warden", text: "And finally, if anything in your room breaks or stops working, don't come and find me first — email the maintenance team directly at repairs at ashgrove dot ac dot uk, and they'll usually sort it within forty-eight hours." },
+      { speaker: "Warden", text: "That's everything for now — welcome again, and enjoy your first year!" },
+    ],
   },
   {
     id: '32000000-0000-0000-0000-000000000003',
     title: 'Planning a Group Presentation on Renewable Energy',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Dr Allen": "an experienced female academic in her 40s-50s with a neutral British accent, calm, authoritative, and constructive tone",
+      "Megan": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+      "Jason": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `DR ALLEN: So, Megan, Jason — thanks for coming in. How's the group presentation on renewable energy coming along?
@@ -75,10 +143,43 @@ JASON: Will do. One more thing — is there a word limit on the handout we're su
 DR ALLEN: Keep it to one side of A4 per section, so three sides total.
 MEGAN: Great, that's really helpful, thank you.
 DR ALLEN: No problem — good luck, and I'll see that draft on the seventh.`,
+    turns: [
+      { speaker: "Dr Allen", text: "So, Megan, Jason — thanks for coming in. How's the group presentation on renewable energy coming along?" },
+      { speaker: "Megan", text: "Good progress, I think. We've decided to split it into three parts — solar, wind, and, um, geothermal." },
+      { speaker: "Jason", text: "Yeah, and I've been assigned wind, Megan's doing solar, and Priya, who couldn't make it today, is covering geothermal." },
+      { speaker: "Dr Allen", text: "Sounds sensible. How long is each section meant to be?" },
+      { speaker: "Megan", text: "We're aiming for six minutes each, so eighteen minutes total, plus time for questions afterwards." },
+      { speaker: "Dr Allen", text: "Good. Now, have you thought about visuals? A presentation on energy really benefits from diagrams." },
+      { speaker: "Jason", text: "I was going to make a diagram showing how a wind turbine converts kinetic energy into electricity." },
+      { speaker: "Dr Allen", text: "Excellent idea. Megan, what about you?" },
+      { speaker: "Megan", text: "I want to include a graph comparing the cost of solar panels now versus ten years ago — I think it shows a really dramatic drop." },
+      { speaker: "Dr Allen", text: "That'll work well. Just make sure you cite your source for that data — the International Energy Agency publishes exactly that kind of figure." },
+      { speaker: "Megan", text: "Oh good, I'll look them up instead of the website I was using before." },
+      { speaker: "Dr Allen", text: "When's the presentation actually due?" },
+      { speaker: "Jason", text: "The fourteenth of November, in the two p.m. seminar." },
+      { speaker: "Dr Allen", text: "Right, that gives you about three weeks. I'd suggest you send me a draft of your slides by the seventh, so I can give feedback before the final version." },
+      { speaker: "Megan", text: "That works for us. Should we email it, or bring a printed copy?" },
+      { speaker: "Dr Allen", text: "Email is fine — just send it as a PDF, not PowerPoint, in case the formatting shifts on a different computer." },
+      { speaker: "Jason", text: "Will do. One more thing — is there a word limit on the handout we're supposed to give the class?" },
+      { speaker: "Dr Allen", text: "Keep it to one side of A4 per section, so three sides total." },
+      { speaker: "Megan", text: "Great, that's really helpful, thank you." },
+      { speaker: "Dr Allen", text: "No problem — good luck, and I'll see that draft on the seventh." },
+    ],
   },
   {
     id: '32000000-0000-0000-0000-000000000004',
     title: 'Urban Heat Islands: Causes and Solutions',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate male university lecturer in his 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good morning. Today's lecture looks at a phenomenon many of you will have experienced without realising it has a name: the urban heat island effect. Simply put, this is the tendency for cities to be significantly warmer than the surrounding rural areas, sometimes by as much as seven degrees Celsius on a still summer evening.
@@ -90,11 +191,30 @@ Now, this isn't just an issue of comfort. Urban heat islands have measurable con
 Fortunately, urban planners have developed several strategies to reduce the effect. One widely adopted solution is the green roof, where rooftops are covered with vegetation instead of standard roofing material; this both insulates buildings and cools the surrounding air through a process called evapotranspiration. Another approach, gaining popularity in Mediterranean cities, is the use of reflective, light-coloured paving, sometimes referred to as "cool pavement," which can reduce surface temperatures by up to twenty degrees Celsius compared with standard dark asphalt. Increasing urban tree cover is a third strategy — beyond providing shade, trees also release moisture that cools the surrounding air.
 
 Researchers are now trying to quantify exactly how effective these interventions are at a city-wide scale. One recent study modelling a mid-sized European city found that increasing tree cover by just ten percent could lower average summer temperatures by around one degree Celsius across the whole urban area — a small-sounding figure, but one that translates into a meaningful reduction in heat-related energy demand and hospital admissions. Ongoing research is now looking at whether combining several of these strategies together — green roofs, reflective paving, and expanded tree cover — might compound these benefits even further.`,
+    turns: [
+      { speaker: "Lecturer", text: "Good morning. Today's lecture looks at a phenomenon many of you will have experienced without realising it has a name: the urban heat island effect. Simply put, this is the tendency for cities to be significantly warmer than the surrounding rural areas, sometimes by as much as seven degrees Celsius on a still summer evening." },
+      { speaker: "Lecturer", text: "So what causes this temperature difference? The main culprit is materials. Concrete, asphalt, and dark roofing absorb solar radiation during the day and release it slowly as heat overnight, unlike vegetation and soil in rural areas, which reflect more sunlight and cool down faster after sunset. A second factor is the sheer density of buildings, which restricts airflow and traps warm air between structures — engineers sometimes call this the \"canyon effect,\" because narrow streets lined with tall buildings behave a little like canyons trapping heat. A third contributor, often overlooked, is simply the heat generated directly by human activity — vehicle engines, air conditioning units, and industrial machinery all release waste heat into the surrounding air." },
+      { speaker: "Lecturer", text: "Now, this isn't just an issue of comfort. Urban heat islands have measurable consequences. Energy demand rises sharply in summer as more people run air conditioning, which in turn increases carbon emissions, creating something of a feedback loop. There are also serious health implications — a well-documented rise in heat-related illness, particularly among elderly residents, during prolonged hot spells in built-up areas." },
+      { speaker: "Lecturer", text: "Fortunately, urban planners have developed several strategies to reduce the effect. One widely adopted solution is the green roof, where rooftops are covered with vegetation instead of standard roofing material; this both insulates buildings and cools the surrounding air through a process called evapotranspiration. Another approach, gaining popularity in Mediterranean cities, is the use of reflective, light-coloured paving, sometimes referred to as \"cool pavement,\" which can reduce surface temperatures by up to twenty degrees Celsius compared with standard dark asphalt. Increasing urban tree cover is a third strategy — beyond providing shade, trees also release moisture that cools the surrounding air." },
+      { speaker: "Lecturer", text: "Researchers are now trying to quantify exactly how effective these interventions are at a city-wide scale. One recent study modelling a mid-sized European city found that increasing tree cover by just ten percent could lower average summer temperatures by around one degree Celsius across the whole urban area — a small-sounding figure, but one that translates into a meaningful reduction in heat-related energy demand and hospital admissions. Ongoing research is now looking at whether combining several of these strategies together — green roofs, reflective paving, and expanded tree cover — might compound these benefits even further." },
+    ],
   },
   // ---------- MOCK 4 ----------
   {
     id: '33000000-0000-0000-0000-000000000001',
     title: 'Booking a Weekend Anniversary Trip',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Agent": "a professional female booking agent in her 30s with a neutral British accent, efficient and courteous tone — introduces themselves as Karen in the call",
+      "Customer": "a polite adult male customer in his 30s with a neutral British accent, natural relaxed conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `AGENT: Good morning, Sunrise Travel, this is Karen speaking. How can I help you today?
@@ -119,10 +239,45 @@ AGENT: And finally, would you like to pay a full deposit now, or settle the whol
 CUSTOMER: I'll pay the deposit for now — how much is that?
 AGENT: The deposit is fifty pounds, and the remaining balance is due four weeks before you travel.
 CUSTOMER: Perfect, let's go ahead with that.`,
+    turns: [
+      { speaker: "Agent", text: "Good morning, Sunrise Travel, this is Karen speaking. How can I help you today?" },
+      { speaker: "Customer", text: "Hi Karen, I'm hoping to book a weekend trip for my anniversary — somewhere with a coastal view, if possible." },
+      { speaker: "Agent", text: "Lovely, congratulations. We actually have a package to Brightsea Bay that might suit you — three days, two nights, including breakfast." },
+      { speaker: "Customer", text: "That sounds perfect. What dates are available?" },
+      { speaker: "Agent", text: "We have availability from Friday the ninth of October, or the following weekend, the sixteenth." },
+      { speaker: "Customer", text: "Let's go with the ninth, then." },
+      { speaker: "Agent", text: "Great. That package is two hundred and ten pounds per person, based on two people sharing a room." },
+      { speaker: "Customer", text: "Sounds reasonable. Does that include transport?" },
+      { speaker: "Agent", text: "Not the transport itself, no — you'd drive or take the train — but it does include a welcome bottle of wine and a late check-out at midday." },
+      { speaker: "Customer", text: "That's a nice touch. What's the hotel called?" },
+      { speaker: "Agent", text: "It's the Marbeck Hotel — that's M-A-R-B-E-C-K — right on the seafront." },
+      { speaker: "Customer", text: "Is breakfast the only meal included?" },
+      { speaker: "Agent", text: "Yes, but you can add an evening meal package for an extra thirty-five pounds per person, which covers a three-course dinner on the Saturday night." },
+      { speaker: "Customer", text: "We'll add that, actually — it is a special occasion." },
+      { speaker: "Agent", text: "No problem, I'll note that down. Can I take a contact number in case we need to reach you?" },
+      { speaker: "Customer", text: "Sure, it's oh-seven-nine-oh-three, double-four-one, two-two-six." },
+      { speaker: "Agent", text: "Let me just check that back — oh-seven-nine-oh-three, four-four-one, two-two-six." },
+      { speaker: "Customer", text: "That's right." },
+      { speaker: "Agent", text: "And finally, would you like to pay a full deposit now, or settle the whole balance?" },
+      { speaker: "Customer", text: "I'll pay the deposit for now — how much is that?" },
+      { speaker: "Agent", text: "The deposit is fifty pounds, and the remaining balance is due four weeks before you travel." },
+      { speaker: "Customer", text: "Perfect, let's go ahead with that." },
+    ],
   },
   {
     id: '33000000-0000-0000-0000-000000000002',
     title: 'The Community Roots Volunteering Scheme',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Host": "an articulate female host in her 30s-40s with a neutral British accent, friendly informative tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `HOST: Welcome back to Local Voices, the podcast about what's happening in our community. Today I want to tell you about a new scheme called Community Roots, which is looking for volunteers across four different projects.
@@ -144,10 +299,35 @@ One thing people often ask about is whether volunteering counts toward anything 
 Finally, a quick note on safety: all the outdoor projects — so that's the garden and the litter-picking group — ask volunteers to wear closed-toe shoes, and in colder months, the organisers recommend bringing your own gloves as well, just in case supplies run low.
 
 That's Community Roots — have a look at the website if you're interested, and I'll be back next week with another local story.`,
+    turns: [
+      { speaker: "Host", text: "Welcome back to Local Voices, the podcast about what's happening in our community. Today I want to tell you about a new scheme called Community Roots, which is looking for volunteers across four different projects." },
+      { speaker: "Host", text: "The first project is the community garden on Elm Street, where volunteers help with planting and weeding — that one runs every Wednesday morning. No experience is needed, just enthusiasm and a willingness to get a bit muddy." },
+      { speaker: "Host", text: "The second project is the book exchange at the old train station, which runs every Saturday afternoon. Volunteers there sort donated books and help organise a small lending library for commuters." },
+      { speaker: "Host", text: "Third, there's a befriending scheme, where volunteers visit elderly residents once a week for a chat and a cup of tea — this one does require a background check, since it involves visiting people in their own homes." },
+      { speaker: "Host", text: "And finally, the litter-picking group meets every second Sunday of the month, down by the river, and provides all the equipment you need — gloves, bags, and litter pickers." },
+      { speaker: "Host", text: "If you're interested in any of these, sign-up is easy. You can register through the website, communityroots-dot-org, or call the coordinator, whose name is Ben, directly on nine-two-one-five, double-six-three." },
+      { speaker: "Host", text: "There's no minimum time commitment, although the organisers do ask that once you commit to a slot, you try to give at least a month's notice if you need to stop." },
+      { speaker: "Host", text: "One thing people often ask about is whether volunteering counts toward anything official — and yes, Community Roots provides a certificate after fifty hours of volunteering, which a lot of people use for university applications or on their CV." },
+      { speaker: "Host", text: "Finally, a quick note on safety: all the outdoor projects — so that's the garden and the litter-picking group — ask volunteers to wear closed-toe shoes, and in colder months, the organisers recommend bringing your own gloves as well, just in case supplies run low." },
+      { speaker: "Host", text: "That's Community Roots — have a look at the website if you're interested, and I'll be back next week with another local story." },
+    ],
   },
   {
     id: '33000000-0000-0000-0000-000000000003',
     title: 'Planning a Microplastics Research Project',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Dr Fielding": "an experienced male academic in his 40s-50s with a neutral British accent, calm, authoritative, and constructive tone",
+      "Olivia": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+      "Sam": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `DR FIELDING: Right, Olivia, Sam — let's talk through your research project on microplastics before the deadline creeps up on us.
@@ -170,10 +350,43 @@ DR FIELDING: No, you won't need full ethics approval, but you will need a simple
 SAM: We can submit that alongside the proposal, then?
 DR FIELDING: Yes, please have it in by the eighteenth, so I can sign it off before your fieldwork date.
 OLIVIA: Perfect, thank you — that's really helpful.`,
+    turns: [
+      { speaker: "Dr Fielding", text: "Right, Olivia, Sam — let's talk through your research project on microplastics before the deadline creeps up on us." },
+      { speaker: "Olivia", text: "Yes, so we've decided to focus on comparing microplastic levels at three different sites along the River Aldwick." },
+      { speaker: "Sam", text: "We're calling them low-density, medium-density, and high-density sites, based on how built-up the surrounding area is." },
+      { speaker: "Dr Fielding", text: "Good framework. How will you actually be collecting your samples?" },
+      { speaker: "Olivia", text: "We'll use a fine mesh net to filter one litre of water from each site, then dry the residue and examine it under a microscope." },
+      { speaker: "Dr Fielding", text: "And how many samples per site?" },
+      { speaker: "Sam", text: "We're planning five samples per site, so fifteen in total, so that one unusual reading doesn't skew the results." },
+      { speaker: "Dr Fielding", text: "Sensible. When are you planning to collect the samples?" },
+      { speaker: "Olivia", text: "We were thinking the twenty-third of this month, weather permitting, since we need calm conditions for consistent flow rates." },
+      { speaker: "Dr Fielding", text: "Good thinking. Now, who's responsible for which part of the write-up?" },
+      { speaker: "Sam", text: "I'll write the methodology and results sections, and Olivia's doing the introduction and literature review." },
+      { speaker: "Olivia", text: "And we're splitting the discussion section between the two of us." },
+      { speaker: "Dr Fielding", text: "That works. Have you settled on a method for counting the particles once you're under the microscope?" },
+      { speaker: "Sam", text: "We're going to use a grid-counting method, where we divide the slide into squares and count particles per square before scaling up." },
+      { speaker: "Dr Fielding", text: "That's a solid, recognised method. Just make sure you take photos as you go, in case anyone questions your counts later." },
+      { speaker: "Olivia", text: "Will do. One thing we're unsure about — do we need ethical approval for this, since it's environmental rather than involving people?" },
+      { speaker: "Dr Fielding", text: "No, you won't need full ethics approval, but you will need a simple risk assessment for the fieldwork, since you'll be working near open water." },
+      { speaker: "Sam", text: "We can submit that alongside the proposal, then?" },
+      { speaker: "Dr Fielding", text: "Yes, please have it in by the eighteenth, so I can sign it off before your fieldwork date." },
+      { speaker: "Olivia", text: "Perfect, thank you — that's really helpful." },
+    ],
   },
   {
     id: '33000000-0000-0000-0000-000000000004',
     title: 'How Scientists Predict Volcanic Eruptions',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate female university lecturer in her 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: This morning I'd like to move from geology in the abstract to something with real, practical stakes: how scientists actually predict volcanic eruptions, and why, despite decades of research, prediction remains so difficult.
@@ -189,6 +402,15 @@ Despite these tools, predicting the exact timing of an eruption remains extremel
 One particularly well-studied case is Mount St Helens in the United States, where, prior to its major eruption in 1980, scientists observed a dramatic bulge forming on the volcano's north face, growing at a rate of around one and a half metres per day in the weeks before the eruption. This case became a landmark in volcanology, demonstrating just how valuable ground deformation monitoring could be.
 
 Looking ahead, researchers are increasingly combining multiple types of data — seismic, deformation, and gas measurements — using computer models that attempt to integrate all three data streams simultaneously. Early results suggest that this multi-parameter approach improves forecasting accuracy considerably compared with relying on any single indicator alone, although scientists are always careful to stress that no method can currently guarantee an exact eruption date.`,
+    turns: [
+      { speaker: "Lecturer", text: "This morning I'd like to move from geology in the abstract to something with real, practical stakes: how scientists actually predict volcanic eruptions, and why, despite decades of research, prediction remains so difficult." },
+      { speaker: "Lecturer", text: "Let's start with the warning signs volcanologists look for. The most reliable indicator is seismic activity — as magma forces its way upward through cracks in the rock, it generates small earthquakes, often too weak to be felt by people nearby but easily detected by sensitive seismometers placed around a volcano. A sudden increase in the frequency of these tiny earthquakes is often the first sign that something is changing beneath the surface." },
+      { speaker: "Lecturer", text: "A second key indicator is ground deformation. As magma accumulates in a chamber beneath a volcano, it can literally push the surrounding rock outward, causing the ground surface to swell, sometimes by several centimetres. Scientists monitor this using GPS instruments and a satellite-based technique called InSAR, which can detect ground movement of just a few millimetres from space." },
+      { speaker: "Lecturer", text: "A third method involves gas monitoring. Before an eruption, volcanoes typically release increasing amounts of sulphur dioxide gas, which rises from the magma as pressure builds. Specialised instruments can measure this gas remotely, and a sharp spike in sulphur dioxide emissions is treated as a serious warning sign." },
+      { speaker: "Lecturer", text: "Despite these tools, predicting the exact timing of an eruption remains extremely challenging. Some volcanoes show all the warning signs and then don't erupt for months, or even years, while others erupt with comparatively little warning. Because of this uncertainty, scientists generally avoid making precise predictions and instead issue what's called a hazard alert level, usually on a colour-coded scale, which reflects the overall likelihood of an eruption rather than a specific date." },
+      { speaker: "Lecturer", text: "One particularly well-studied case is Mount St Helens in the United States, where, prior to its major eruption in 1980, scientists observed a dramatic bulge forming on the volcano's north face, growing at a rate of around one and a half metres per day in the weeks before the eruption. This case became a landmark in volcanology, demonstrating just how valuable ground deformation monitoring could be." },
+      { speaker: "Lecturer", text: "Looking ahead, researchers are increasingly combining multiple types of data — seismic, deformation, and gas measurements — using computer models that attempt to integrate all three data streams simultaneously. Early results suggest that this multi-parameter approach improves forecasting accuracy considerably compared with relying on any single indicator alone, although scientists are always careful to stress that no method can currently guarantee an exact eruption date." },
+    ],
   },
 ];
 

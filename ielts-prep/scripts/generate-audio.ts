@@ -57,13 +57,22 @@
 //      turn's spoken words — never a "Speaker:" label (turns.speaker is
 //      structural metadata, not something that gets read aloud).
 //   2. en_GB-vctk-medium is a multi-speaker model (~109 speaker ids, one
-//      .onnx file) trained on the VCTK Corpus, which deliberately spans
-//      many different British/Irish English accents and both genders — so
-//      distinct speaker ids sound genuinely different. This script reads
-//      the model's own config (.onnx.json) to find how many speakers it
-//      has, then picks an evenly-spread subset and assigns one to each
-//      unique speaker in a track deterministically
-//      (lib/content/audioVoiceAssignment.ts), so re-runs are stable.
+//      .onnx file) trained on the VCTK Corpus, which deliberately spans many
+//      different English/Scottish/Irish/international accents and both
+//      genders — but two arbitrary ids are NOT guaranteed to sound
+//      distinguishable (real-device QA on "Booking a Self-Storage Unit"
+//      found two ids that sounded almost identical). So this script doesn't
+//      just avoid reusing an id: it works from a small curated set of named
+//      VCTK speakers, deliberately spread across documented genders and
+//      accent groups, modelled as 6 categories (femaleA/B/C, maleA/B/C —
+//      see lib/content/audioVoiceAssignment.ts). Each track's speakers are
+//      assigned to categories deterministically (by gender, inferred from
+//      that speaker's persona text, with contrasting genders preferred for
+//      a 2-person dialogue); each category is then resolved to a real
+//      numeric Piper speaker id from THIS installed model's own
+//      speaker_id_map (see resolveSpeakerCategories below), so re-runs are
+//      stable and the curation stays correct even if the exact ordinal id
+//      for a given VCTK speaker differs between voice-pack versions.
 //   3. Pace (Piper's --length_scale) and the silence gap between turns both
 //      come from lib/content/listeningPace.ts, keyed by sectionNumber —
 //      Section 1 is slower with longer pauses, Section 4 is denser and more
@@ -106,7 +115,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { content } from '../lib/content';
-import { assignVoices } from '../lib/content/audioVoiceAssignment';
+import { assignSpeakerCategories, CURATED_VCTK_SPEAKERS, genderOf, SPEAKER_CATEGORIES, type SpeakerCategory, type SpeakerGender } from '../lib/content/audioVoiceAssignment';
 import { paceForSection } from '../lib/content/listeningPace';
 import type { ListeningTrack } from '../types/models';
 
@@ -119,7 +128,6 @@ const SAMPLE_RATE = 22050; // piper-voices/en_GB/vctk's native rate
 
 const PIPER_VOICE = process.env.PIPER_VOICE || 'en_GB-vctk-medium';
 const PIPER_VOICE_DIR = process.env.PIPER_VOICE_DIR || path.join(ROOT, '.piper-voices');
-const MAX_SPEAKERS_TO_USE = 12; // an evenly-spread subset of the model's full speaker range
 
 function hasFfmpeg(): boolean {
   try {
@@ -139,20 +147,54 @@ function hasPiper(): boolean {
   }
 }
 
-/** Reads the voice model's own config to find how many speakers it has,
- * rather than hardcoding a number that could silently go stale if the
- * model file is swapped. Returns a small, evenly-spread subset of speaker
- * ids as strings (e.g. ['0','9','18',...]) — we can't listen to samples
- * from this script, so rather than guess which ones "sound best," this
- * spreads picks across the full range, and VCTK's own deliberate accent/
- * gender diversity does the rest. */
-function loadSpeakerPool(configPath: string): string[] {
+/** Resolves each of the 6 curated speaker categories (femaleA/B/C,
+ * maleA/B/C — see audioVoiceAssignment.ts) to an actual numeric Piper
+ * speaker id, for THIS specific installed voice model. Three sources are
+ * tried in order, so an imprecise curated guess never breaks generation:
+ *   1. An explicit override: `PIPER_SPEAKER_<CATEGORY_SNAKE_UPPER>` (e.g.
+ *      `PIPER_SPEAKER_FEMALE_A=p228`), for after you've actually listened
+ *      and want to swap one category's voice without touching code.
+ *   2. The curated VCTK speaker *name* for that category, looked up in this
+ *      model's own `speaker_id_map` (name -> numeric id) — correct for
+ *      whatever exact voice-pack build is actually installed, regardless of
+ *      whether the curated name/accent documentation is 100% precise.
+ *   3. A safe fallback: an evenly-spread numeric id, so every category still
+ *      resolves to *something* even if this model's config has no named
+ *      map at all (older/smaller Piper voice packs sometimes don't) or the
+ *      curated name isn't present in it. Prints a warning either way, since
+ *      the deliberate cross-accent contrast this pipeline exists for is
+ *      weaker in the fallback case. */
+function resolveSpeakerCategories(configPath: string): Record<SpeakerCategory, string> {
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  const numSpeakers: number = config.num_speakers ?? (config.speaker_id_map ? Object.keys(config.speaker_id_map).length : 1);
-  if (numSpeakers <= 1) return ['0'];
-  const count = Math.min(numSpeakers, MAX_SPEAKERS_TO_USE);
-  const step = numSpeakers / count;
-  return Array.from({ length: count }, (_, i) => String(Math.floor(i * step)));
+  const speakerIdMap: Record<string, number> | undefined = config.speaker_id_map;
+  const numSpeakers: number = config.num_speakers ?? (speakerIdMap ? Object.keys(speakerIdMap).length : 1);
+
+  const envVarName = (category: SpeakerCategory) => `PIPER_SPEAKER_${category.replace(/([a-z])([A-Z])/, '$1_$2').toUpperCase()}`;
+
+  const resolved = {} as Record<SpeakerCategory, string>;
+  SPEAKER_CATEGORIES.forEach((category, i) => {
+    const override = process.env[envVarName(category)];
+    if (override) {
+      resolved[category] = speakerIdMap?.[override] !== undefined ? String(speakerIdMap[override]) : override;
+      console.log(`  ${category}: using override ${envVarName(category)}=${override} -> speaker id ${resolved[category]}`);
+      return;
+    }
+    const curatedName = CURATED_VCTK_SPEAKERS[category];
+    if (speakerIdMap && speakerIdMap[curatedName] !== undefined) {
+      resolved[category] = String(speakerIdMap[curatedName]);
+      console.log(`  ${category}: curated VCTK speaker ${curatedName} -> speaker id ${resolved[category]}`);
+      return;
+    }
+    // Fallback: evenly spread across the model's real speaker count, one
+    // slot per category, so distinct categories are at least maximally far
+    // apart in id-space even without named/accent curation.
+    const fallbackId = numSpeakers <= 1 ? 0 : Math.floor((i * numSpeakers) / SPEAKER_CATEGORIES.length);
+    resolved[category] = String(fallbackId);
+    console.log(
+      `  ${category}: curated speaker "${curatedName}" not found in this model's speaker_id_map${speakerIdMap ? '' : ' (model has no named speaker map)'} — falling back to evenly-spread speaker id ${fallbackId}. Listen carefully; override with ${envVarName(category)}=<name-or-id> if needed.`,
+    );
+  });
+  return resolved;
 }
 
 function synthesizePiper(text: string, modelPath: string, speakerId: string, lengthScale: number, outPath: string): void {
@@ -184,9 +226,16 @@ function concatWithFfmpeg(segmentPaths: string[], outPath: string, gapSeconds: n
   execFileSync('ffmpeg', ['-y', ...inputArgs, '-filter_complex', filter, '-map', '[out]', '-c:a', 'libmp3lame', '-b:a', '64k', outPath], { stdio: 'ignore' });
 }
 
-function generateTrack(track: ListeningTrack, modelPath: string, speakerPool: string[]): void {
+function speakerIdsForTrack(track: ListeningTrack, categoryToSpeakerId: Record<SpeakerCategory, string>): Record<string, string> {
+  const categories = assignSpeakerCategories(track, (speaker) => genderOf(track, speaker));
+  const speakers: Record<string, string> = {};
+  for (const [speaker, category] of Object.entries(categories)) speakers[speaker] = categoryToSpeakerId[category];
+  return speakers;
+}
+
+function generateTrack(track: ListeningTrack, modelPath: string, categoryToSpeakerId: Record<SpeakerCategory, string>): void {
   const turns = track.turns!;
-  const speakers = assignVoices(track, speakerPool);
+  const speakers = speakerIdsForTrack(track, categoryToSpeakerId);
   const pace = paceForSection(track.sectionNumber);
   fs.mkdirSync(TMP_DIR, { recursive: true });
   const segmentPaths: string[] = [];
@@ -251,8 +300,8 @@ function main() {
     return;
   }
 
-  const speakerPool = loadSpeakerPool(configPath);
-  console.log(`Using voice "${PIPER_VOICE}" with ${speakerPool.length} speaker id(s): ${speakerPool.join(', ')}`);
+  console.log(`Using voice "${PIPER_VOICE}" — resolving curated speaker categories:`);
+  const categoryToSpeakerId = resolveSpeakerCategories(configPath);
 
   fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
@@ -274,15 +323,17 @@ function main() {
       continue;
     }
     const speakerNames = Array.from(new Set(track.turns!.map((t) => t.speaker)));
-    if (speakerNames.length > speakerPool.length) {
+    const perGenderCount = speakerNames.reduce<Record<SpeakerGender, number>>((acc, s) => ({ ...acc, [genderOf(track, s)]: acc[genderOf(track, s)] + 1 }), { male: 0, female: 0 });
+    if (perGenderCount.male > 3 || perGenderCount.female > 3) {
       failed++;
-      console.error(`  Failed "${track.title}": needs ${speakerNames.length} distinct voices but only ${speakerPool.length} are configured (MAX_SPEAKERS_TO_USE).`);
+      console.error(`  Failed "${track.title}": needs ${perGenderCount.male} male + ${perGenderCount.female} female distinct voices, but only 3 curated categories exist per gender.`);
       continue;
     }
-    const speakers = assignVoices(track, speakerPool);
-    console.log(`Generating "${track.title}" (${track.turns!.length} turns) — ${speakerNames.map((s) => `${s}: speaker ${speakers[s]}`).join(', ')}`);
+    const speakers = speakerIdsForTrack(track, categoryToSpeakerId);
+    const categories = assignSpeakerCategories(track, (speaker) => genderOf(track, speaker));
+    console.log(`Generating "${track.title}" (${track.turns!.length} turns) — ${speakerNames.map((s) => `${s}: ${categories[s]} (speaker id ${speakers[s]})`).join(', ')}`);
     try {
-      generateTrack(track, modelPath, speakerPool);
+      generateTrack(track, modelPath, categoryToSpeakerId);
       generated++;
       console.log(`  Saved ${path.relative(ROOT, outPath)}`);
     } catch (err) {

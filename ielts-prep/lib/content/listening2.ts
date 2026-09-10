@@ -167,6 +167,18 @@ TUTOR: No problem — good luck with it, and come and see me again if anything c
   {
     id: '31000000-0000-0000-0000-000000000003',
     title: 'Booking a Community Hall for a Party',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Staff": "a friendly female staff member in her 20s-30s with a neutral British accent, helpful and clear tone — introduces themselves as Grace in the call",
+      "Caller": "a polite adult male caller in his 30s with a neutral British accent, natural relaxed conversational tone — introduces themselves as Marcus in the call",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `STAFF: Good afternoon, Riverside Community Hall, this is Grace speaking.
@@ -198,11 +210,53 @@ CALLER: Yes, it's marcus dot feldman, all one word, at mailhub dot com.
 STAFF: Perfect, I'll send that over within the hour. Anything else I can help with?
 CALLER: No, that covers it, thanks very much for your help.
 STAFF: You're welcome, Marcus, we'll see you on the seventeenth.`,
+    turns: [
+      { speaker: "Staff", text: "Good afternoon, Riverside Community Hall, this is Grace speaking." },
+      { speaker: "Caller", text: "Oh hi, I'm calling to ask about hiring one of your rooms for a birthday party." },
+      { speaker: "Staff", text: "Sure, happy to help. Can I take your name first?" },
+      { speaker: "Caller", text: "Yes, it's Marcus Feldman. That's F-E-L-D-M-A-N." },
+      { speaker: "Staff", text: "Thanks, Marcus. And roughly how many guests are you expecting?" },
+      { speaker: "Caller", text: "Around thirty-five people, so I think I'd need the medium-sized room." },
+      { speaker: "Staff", text: "That'll be the Willow Room then, that holds up to forty comfortably. It's available on quite a few dates this month — did you have one in mind?" },
+      { speaker: "Caller", text: "We were hoping for Saturday the seventeenth, in the evening." },
+      { speaker: "Staff", text: "Let me just check... yes, that's free. Evening hire runs from six p.m. to eleven p.m. Would that work for you?" },
+      { speaker: "Caller", text: "Perfect, that's exactly the slot we need." },
+      { speaker: "Staff", text: "Great. The cost for that room, that time slot, is one hundred and twenty pounds, and that includes tables and chairs already set up." },
+      { speaker: "Caller", text: "Does that include use of the kitchen as well? We wanted to bring in some food." },
+      { speaker: "Staff", text: "The kitchen's a separate add-on, actually, it's an extra twenty-five pounds, but it does give you a fridge, an oven, and a kettle, so most people find it worth it if they're catering themselves." },
+      { speaker: "Caller", text: "I'll add that on then, so one forty-five total." },
+      { speaker: "Staff", text: "That's right. Now, we do also require a security deposit of fifty pounds, which is fully refunded within a week after the event, assuming there's no damage." },
+      { speaker: "Caller", text: "That's fine. What about parking? Is there space for guests?" },
+      { speaker: "Staff", text: "Yes, there's a car park just behind the building with space for about twenty cars, and it's free for hall users, you just need to leave your booking confirmation on the dashboard." },
+      { speaker: "Caller", text: "Great, I'll mention that to people. Can I ask about decorations — are there any rules?" },
+      { speaker: "Staff", text: "Balloons and banners are fine, but we don't allow confetti or anything with glitter, I'm afraid, it gets into the floor fittings and is a nightmare to clean. Candles are okay as long as they're in a proper holder." },
+      { speaker: "Caller", text: "Understood, no confetti. How do I actually confirm the booking?" },
+      { speaker: "Staff", text: "You'll need to pay a twenty-five pound non-refundable booking fee to secure the date — that comes off your final total — and then the rest is due one week before the event." },
+      { speaker: "Caller", text: "Can I pay the booking fee by card over the phone now?" },
+      { speaker: "Staff", text: "Yes, I can take that now if you like. Could I get your contact number as well, in case we need to reach you before the seventeenth?" },
+      { speaker: "Caller", text: "Sure, it's oh-seven-nine-two-two, four-four-one, three-three-zero." },
+      { speaker: "Staff", text: "Got that, thank you. And one last thing — could I get an email address to send the confirmation to?" },
+      { speaker: "Caller", text: "Yes, it's marcus dot feldman, all one word, at mailhub dot com." },
+      { speaker: "Staff", text: "Perfect, I'll send that over within the hour. Anything else I can help with?" },
+      { speaker: "Caller", text: "No, that covers it, thanks very much for your help." },
+      { speaker: "Staff", text: "You're welcome, Marcus, we'll see you on the seventeenth." },
+    ],
   },
   // ---------- MOCK 2 — Section 2 ----------
   {
     id: '31000000-0000-0000-0000-000000000004',
     title: 'Announcement About Brambledown Park',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Announcer": "a clear, engaging female radio announcer in her 30s-40s with a neutral British accent, warm broadcast delivery",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `ANNOUNCER: Good morning, listeners, and thanks for tuning in. This week's local update is all about Brambledown Park, which reopens to the public this Saturday after eight months of redevelopment work, so let me run through what's changed.
@@ -220,11 +274,35 @@ Dogs are welcome throughout most of the park as before, but they must be kept on
 Finally, there'll be an official opening event this Saturday starting at ten a.m., with free face painting for children, a brass band performance at midday, and a ribbon-cutting ceremony at two p.m. performed by the mayor. Entry to the park, as always, remains completely free, though donations toward the park's upkeep fund are welcomed at collection points near each entrance.
 
 That's all for this week's park update — next week we'll be covering changes to the library's opening hours, so do join us again then.`,
+    turns: [
+      { speaker: "Announcer", text: "Good morning, listeners, and thanks for tuning in. This week's local update is all about Brambledown Park, which reopens to the public this Saturday after eight months of redevelopment work, so let me run through what's changed." },
+      { speaker: "Announcer", text: "The biggest addition is the new adventure playground, which replaces the old play area that closed back in January. It's aimed mainly at children aged five to twelve, and it includes a large climbing structure, a zip line, and a sensory garden section for younger children who prefer quieter play. There's also a smaller toddler area, fenced off separately, for children under four." },
+      { speaker: "Announcer", text: "For adults and older visitors, the park now has an outdoor gym area near the north entrance, with eight pieces of resistance equipment that use your own body weight rather than added weights, so it's suitable for most fitness levels. Next to that is a new running track circling the perimeter of the park — it's exactly one point two kilometres per lap, and there are distance markers every two hundred metres if you want to track your progress." },
+      { speaker: "Announcer", text: "The park café, which many of you will remember was quite small before, has been completely rebuilt and roughly doubled in size. It'll now seat sixty people indoors, with additional outdoor seating for another forty when the weather allows. The café will open daily from eight a.m. to six p.m., though this may be extended to seven p.m. in the summer months once they see how demand looks." },
+      { speaker: "Announcer", text: "A few things to be aware of before you visit. Car parking has actually been reduced slightly during this first phase, down to eighty spaces rather than the previous hundred, because part of the old car park has been turned into the new sensory garden. The council recommends arriving by bike or on foot where possible, and there's now covered bicycle parking for thirty bikes near the main entrance." },
+      { speaker: "Announcer", text: "Dogs are welcome throughout most of the park as before, but they must be kept on leads within fifty metres of the new playground areas — this is a new rule introduced specifically because of the redevelopment, so regular visitors should take note." },
+      { speaker: "Announcer", text: "Finally, there'll be an official opening event this Saturday starting at ten a.m., with free face painting for children, a brass band performance at midday, and a ribbon-cutting ceremony at two p.m. performed by the mayor. Entry to the park, as always, remains completely free, though donations toward the park's upkeep fund are welcomed at collection points near each entrance." },
+      { speaker: "Announcer", text: "That's all for this week's park update — next week we'll be covering changes to the library's opening hours, so do join us again then." },
+    ],
   },
   // ---------- MOCK 2 — Section 3 ----------
   {
     id: '31000000-0000-0000-0000-000000000005',
     title: 'Discussing a Group Presentation on Renewable Energy',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Tutor": "an experienced male academic tutor in his 40s with a neutral British accent, calm, encouraging, and authoritative tone, measured pace",
+      "Elena": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+      "Tomas": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+      "Aisha": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `TUTOR: Afternoon, all three of you made it — good. So, Elena, Tomas, and Aisha, you're presenting on renewable energy policy next month. How's the planning going?
@@ -252,11 +330,49 @@ TOMAS: Understood, we'll book the seminar room for next Tuesday.
 TUTOR: Perfect. Send me your slides by the Friday before the presentation so I can give feedback with enough time for you to make changes.
 AISHA: Will do. Thanks, this has really helped clarify the structure.
 TUTOR: Glad to hear it — good luck, and come find me if anything else comes up before then.`,
+    turns: [
+      { speaker: "Tutor", text: "Afternoon, all three of you made it — good. So, Elena, Tomas, and Aisha, you're presenting on renewable energy policy next month. How's the planning going?" },
+      { speaker: "Elena", text: "We've made a start. We've decided to split it into three parts — I'm covering solar, Tomas is doing wind, and Aisha's looking at government subsidies." },
+      { speaker: "Tutor", text: "Sounds sensible on the surface, but I want to check something — is there a clear thread tying the three parts together, or is it just three separate mini-talks back to back?" },
+      { speaker: "Tomas", text: "That's actually something we were unsure about ourselves." },
+      { speaker: "Tutor", text: "Right, well my advice would be to frame it around a single question — something like \"which policy approach delivers the fastest growth in renewable capacity\" — and have each of you answer that question from your own angle, rather than just describing your technology in isolation." },
+      { speaker: "Aisha", text: "That would definitely tie it together better. So my subsidies section could actually respond directly to what Elena and Tomas find, rather than being separate." },
+      { speaker: "Tutor", text: "Exactly. Now, in terms of sources — what have you been using so far?" },
+      { speaker: "Elena", text: "Mostly government reports and a couple of industry websites." },
+      { speaker: "Tutor", text: "Industry websites can be useful for current figures, but be cautious — they often have a commercial interest in the numbers looking a certain way. I'd want to see at least two independent academic sources per section, not just industry data." },
+      { speaker: "Tomas", text: "We can add those in for the wind section certainly, there's plenty of research there." },
+      { speaker: "Tutor", text: "Good. Let's talk timing. How long is the whole presentation meant to run?" },
+      { speaker: "Aisha", text: "Twenty minutes total, plus five minutes for questions." },
+      { speaker: "Tutor", text: "So that's roughly six minutes each if it's split evenly, though I'd actually suggest giving Aisha's subsidies section a bit longer, maybe eight minutes, since it needs to synthesise what the other two have said. That'd leave Elena and Tomas with six minutes each." },
+      { speaker: "Elena", text: "That works for us, solar doesn't need much more than that anyway." },
+      { speaker: "Tutor", text: "Now, what about visuals — are you doing slides?" },
+      { speaker: "Tomas", text: "Yes, we were going to do one slide deck between the three of us." },
+      { speaker: "Tutor", text: "Good idea for consistency. I'd recommend no more than one slide per minute of talking, so around twenty slides total, and keep text minimal — mostly graphs and images, with you doing the explaining verbally." },
+      { speaker: "Aisha", text: "We can definitely trim it down, our draft has more text than that right now." },
+      { speaker: "Tutor", text: "One more important thing — rehearsal. I strongly recommend you do at least one full run-through together, out loud, before the real thing, ideally with someone timing you, because presentations almost always run longer than people expect once you're actually speaking rather than just reading through slides in your head." },
+      { speaker: "Elena", text: "We were going to just each practise our own part separately." },
+      { speaker: "Tutor", text: "I'd really push back on that — practising separately means you won't catch the handover moments between sections, which is often where presentations feel disjointed. Book a room and run it together at least once." },
+      { speaker: "Tomas", text: "Understood, we'll book the seminar room for next Tuesday." },
+      { speaker: "Tutor", text: "Perfect. Send me your slides by the Friday before the presentation so I can give feedback with enough time for you to make changes." },
+      { speaker: "Aisha", text: "Will do. Thanks, this has really helped clarify the structure." },
+      { speaker: "Tutor", text: "Glad to hear it — good luck, and come find me if anything else comes up before then." },
+    ],
   },
   // ---------- MOCK 2 — Section 4 ----------
   {
     id: '31000000-0000-0000-0000-000000000006',
     title: 'The Development of Coral Reef Ecosystems',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate female university lecturer in her 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good morning. Today's lecture continues our unit on marine ecosystems, and I want to focus on coral reefs — specifically, how they form, why they're so biologically rich, and the pressures they currently face.
@@ -276,6 +392,17 @@ Given these pressures, conservation efforts have expanded considerably in the la
 Marine protected areas are another key strategy, restricting fishing and anchoring in reef zones to reduce additional stress on already-weakened ecosystems. Studies comparing protected and unprotected reefs consistently show faster recovery after bleaching events in the protected zones, suggesting that reducing local pressures — even where global warming itself can't be controlled locally — meaningfully improves a reef's resilience.
 
 In our next lecture, we'll look specifically at the economic value of reef tourism and fisheries, and how that shapes conservation policy in different coastal nations. For now, are there any questions on today's material?`,
+    turns: [
+      { speaker: "Lecturer", text: "Good morning. Today's lecture continues our unit on marine ecosystems, and I want to focus on coral reefs — specifically, how they form, why they're so biologically rich, and the pressures they currently face." },
+      { speaker: "Lecturer", text: "Let's begin with formation. Coral reefs are built by tiny animals called coral polyps, which live in large colonies and secrete a hard calcium carbonate skeleton around themselves for protection. Over long periods — often many thousands of years — the accumulated skeletons of countless generations of polyps form the rocky reef structure we recognise. What's crucial to understand is that the coral polyp itself isn't what gives reefs their vivid colour. That comes from a microscopic algae called zooxanthellae, which lives inside the polyp's tissue in what's called a symbiotic relationship — the algae photosynthesises and shares the resulting nutrients with the coral, while the coral provides the algae with a protected home and access to sunlight." },
+      { speaker: "Lecturer", text: "This relationship is remarkably productive. Despite covering less than one percent of the ocean floor, coral reefs support an estimated twenty-five percent of all known marine species at some point in their life cycle, which is an extraordinary concentration of biodiversity for such a small area. This is largely because reefs provide complex physical structure — crevices, overhangs, and surfaces — that create countless microhabitats, along with a reliable and abundant food source." },
+      { speaker: "Lecturer", text: "Now, reefs are generally classified into three main types based on their formation relative to land. Fringing reefs grow directly from the shoreline, with little or no lagoon separating them from the coast. Barrier reefs, by contrast, are separated from the shore by a deeper, wider lagoon — the Great Barrier Reef being the most famous example. The third type, atolls, are ring-shaped reefs that form around a central lagoon, typically where a volcanic island has gradually subsided beneath the sea, leaving the surrounding reef in a roughly circular formation." },
+      { speaker: "Lecturer", text: "Unfortunately, reefs face several serious threats today. The most significant is what's known as coral bleaching. When water temperatures rise even slightly above the coral's normal tolerance range, the coral expels its zooxanthellae as a stress response. Since the algae provide both colour and a major food source, the coral turns white — hence \"bleaching\" — and becomes highly vulnerable to starvation and disease. If temperatures return to normal quickly, some corals can recover and reabsorb algae, but prolonged heat stress usually results in coral death." },
+      { speaker: "Lecturer", text: "A second major threat is ocean acidification. As the ocean absorbs increasing amounts of atmospheric carbon dioxide, seawater becomes slightly more acidic. This reduces the availability of the carbonate ions that coral polyps need to build their calcium carbonate skeletons, meaning reefs grow more slowly and become structurally weaker, making them more vulnerable to storm damage." },
+      { speaker: "Lecturer", text: "Given these pressures, conservation efforts have expanded considerably in the last two decades. One promising approach is coral gardening, where fragments of healthy, heat-resistant coral are grown in nurseries — often on suspended frames in open water — before being transplanted onto damaged sections of reef. Early results from several pilot projects have been encouraging, with transplanted fragments showing survival rates above seventy percent in some locations, though scientists caution that gardening alone cannot offset the scale of bleaching events if ocean temperatures keep rising." },
+      { speaker: "Lecturer", text: "Marine protected areas are another key strategy, restricting fishing and anchoring in reef zones to reduce additional stress on already-weakened ecosystems. Studies comparing protected and unprotected reefs consistently show faster recovery after bleaching events in the protected zones, suggesting that reducing local pressures — even where global warming itself can't be controlled locally — meaningfully improves a reef's resilience." },
+      { speaker: "Lecturer", text: "In our next lecture, we'll look specifically at the economic value of reef tourism and fisheries, and how that shapes conservation policy in different coastal nations. For now, are there any questions on today's material?" },
+    ],
   },
 ];
 

@@ -5,6 +5,18 @@ export const listeningTracksSet6: ListeningTrack[] = [
   {
     id: '36000000-0000-0000-0000-000000000001',
     title: 'Booking a Bicycle Service',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Staff": "a friendly male staff member in his 20s-30s with a neutral British accent, helpful and clear tone — introduces themselves as Dan in the call",
+      "Customer": "a polite adult male customer in his 30s with a neutral British accent, natural relaxed conversational tone — introduces themselves as Nathan in the call",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `STAFF: Good morning, Wheelwise Cycles, this is Dan speaking, how can I help?
@@ -36,10 +48,52 @@ CUSTOMER: I don't, actually.
 STAFF: We're at nine Kettering Lane — that's K-E-T-T-E-R-I-N-G — just behind the post office.
 CUSTOMER: Great, thank you very much.
 STAFF: You're welcome, see you Tuesday!`,
+    turns: [
+      { speaker: "Staff", text: "Good morning, Wheelwise Cycles, this is Dan speaking, how can I help?" },
+      { speaker: "Customer", text: "Hi Dan, I'd like to book my bike in for a service, please." },
+      { speaker: "Staff", text: "No problem. We offer three service levels — Basic, Standard, and Full. Could you tell me what kind of bike you have?" },
+      { speaker: "Customer", text: "It's a hybrid, I use it mostly for commuting." },
+      { speaker: "Staff", text: "Good, that's a sensible choice for a hybrid. The Standard service should suit commuting bikes well — it includes gear adjustment, brake check, and a full safety inspection." },
+      { speaker: "Customer", text: "How much is that one?" },
+      { speaker: "Staff", text: "The Standard service is forty-five pounds. The Basic is twenty-eight pounds but only covers a safety check, and the Full service is seventy-nine pounds, which also includes new brake pads and cables if needed." },
+      { speaker: "Customer", text: "I'll go with the Standard, I think." },
+      { speaker: "Staff", text: "Great choice. When would you like to bring it in?" },
+      { speaker: "Customer", text: "Is next Tuesday possible?" },
+      { speaker: "Staff", text: "Let me check... yes, Tuesday the fifteenth, we've got a slot at nine-thirty a.m." },
+      { speaker: "Customer", text: "That works for me." },
+      { speaker: "Staff", text: "Great, I'll pencil that in. Could I take your name, please?" },
+      { speaker: "Customer", text: "It's Nathan Ogilvie — that's O-G-I-L-V-I-E." },
+      { speaker: "Staff", text: "Got it, thanks Nathan. And a contact number in case we need to reach you?" },
+      { speaker: "Customer", text: "Sure, it's oh-seven-seven-one-two, double-five-eight, three-nine-zero." },
+      { speaker: "Staff", text: "Let me read that back — oh-seven-seven-one-two, five-five-eight, three-nine-zero." },
+      { speaker: "Customer", text: "That's right." },
+      { speaker: "Staff", text: "Perfect. We ask for a ten-pound deposit to secure the slot, refundable if you cancel more than twenty-four hours in advance." },
+      { speaker: "Customer", text: "That's fine. How long will the service take?" },
+      { speaker: "Staff", text: "Usually we can turn it around the same day — it should be ready for collection by five p.m." },
+      { speaker: "Customer", text: "Brilliant. Oh, one more thing — could you also check the brakes? They've been squeaking a bit." },
+      { speaker: "Staff", text: "Of course, I'll add a note. If the brake pads need replacing, that's an extra twelve pounds on top of the Standard service." },
+      { speaker: "Customer", text: "That's fine, please go ahead if needed." },
+      { speaker: "Staff", text: "No problem. Do you know our address, for drop-off?" },
+      { speaker: "Customer", text: "I don't, actually." },
+      { speaker: "Staff", text: "We're at nine Kettering Lane — that's K-E-T-T-E-R-I-N-G — just behind the post office." },
+      { speaker: "Customer", text: "Great, thank you very much." },
+      { speaker: "Staff", text: "You're welcome, see you Tuesday!" },
+    ],
   },
   {
     id: '36000000-0000-0000-0000-000000000002',
     title: 'Induction Talk for New Allotment Plot Holders',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Coordinator": "an organised male coordinator in his 30s with a neutral British accent, friendly and informative tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `COORDINATOR: Good evening everyone, and welcome to Fenwick Road Allotments. My name's Carol, and I'm the site coordinator, so I'll be your first point of contact for anything to do with your plot.
@@ -61,10 +115,35 @@ In terms of access, the main gate is locked at all times, and you'll be issued w
 Finally, if you notice anything wrong on-site — a broken fence, a blocked path, standing water — please report it to me directly rather than trying to fix it yourself, partly for insurance reasons.
 
 That covers the essentials — does anyone have any questions before we hand out the keys?`,
+    turns: [
+      { speaker: "Coordinator", text: "Good evening everyone, and welcome to Fenwick Road Allotments. My name's Carol, and I'm the site coordinator, so I'll be your first point of contact for anything to do with your plot." },
+      { speaker: "Coordinator", text: "Let me start with some background. The site has sixty plots in total, split between three sizes: quarter plots, half plots, and full plots. Most of you here tonight have been allocated a half plot, which is roughly the size of a badminton court." },
+      { speaker: "Coordinator", text: "Now, rent. Half plots cost thirty-two pounds a year, which is genuinely excellent value compared to plots at other sites nearby. Payment is due by the end of March each year, and after that a five-pound late fee applies." },
+      { speaker: "Coordinator", text: "Water is available from four standpipes around the site between April and October — the site unfortunately isn't supplied with water over winter, since the pipes are drained to stop them freezing." },
+      { speaker: "Coordinator", text: "Each plot comes with the right to build a small shed, though it must not exceed eight feet by six feet without written permission from the committee. Sheds must also be positioned at least one metre from any boundary fence." },
+      { speaker: "Coordinator", text: "We compost collectively as well as individually — there are three large compost bins near the main gate, which you're welcome to use, although we do ask that you only add plant material, not cooked food, since that attracts vermin." },
+      { speaker: "Coordinator", text: "A key date for your diary is our annual produce show, which this year falls on the seventh of September. It's a lovely, informal event, and every plot holder is encouraged to enter at least one vegetable or flower." },
+      { speaker: "Coordinator", text: "In terms of access, the main gate is locked at all times, and you'll be issued with a key at the end of tonight's session — please don't lend your key to anyone outside the allotment association, as we've had problems with that in the past." },
+      { speaker: "Coordinator", text: "Finally, if you notice anything wrong on-site — a broken fence, a blocked path, standing water — please report it to me directly rather than trying to fix it yourself, partly for insurance reasons." },
+      { speaker: "Coordinator", text: "That covers the essentials — does anyone have any questions before we hand out the keys?" },
+    ],
   },
   {
     id: '36000000-0000-0000-0000-000000000003',
     title: 'Planning an Urban Beekeeping Case Study',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Dr Harper": "an experienced female academic in her 40s-50s with a neutral British accent, calm, authoritative, and constructive tone",
+      "Chloe": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+      "Ravi": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `DR HARPER: Morning, Chloe, Ravi — let's talk through your case study on urban beekeeping before the proposal deadline.
@@ -92,10 +171,48 @@ RAVI: The tenth of December.
 DR HARPER: Right, that gives you plenty of time. One last thing — do you need a risk assessment, given you're working with hives?
 CHLOE: We've already submitted one, actually, since we'll be near live hives on rooftops.
 DR HARPER: Excellent, that's exactly right procedure. Good luck with it, both of you.`,
+    turns: [
+      { speaker: "Dr Harper", text: "Morning, Chloe, Ravi — let's talk through your case study on urban beekeeping before the proposal deadline." },
+      { speaker: "Chloe", text: "Sure. We've decided to look at three rooftop hives across the city — one on a school, one on an office block, and one on a community centre." },
+      { speaker: "Ravi", text: "I'll be handling the school and the community centre sites, and Chloe's taking the office block." },
+      { speaker: "Dr Harper", text: "Sounds well organised. What exactly will you be measuring at each site?" },
+      { speaker: "Chloe", text: "We're planning to record honey yield per hive, and also track forager activity — basically counting how many bees leave and return in a ten-minute window." },
+      { speaker: "Dr Harper", text: "Good, that's a nice simple proxy for colony health. How often will you visit each site?" },
+      { speaker: "Ravi", text: "Weekly, on Thursday afternoons, for the whole of the spring term." },
+      { speaker: "Dr Harper", text: "And do you have permission from all three sites already?" },
+      { speaker: "Chloe", text: "The school and the office block, yes. We're still waiting to hear back from the community centre." },
+      { speaker: "Dr Harper", text: "Make sure you chase that up soon — you don't want it holding up your data collection. Now, who's writing which section of the report?" },
+      { speaker: "Ravi", text: "I'm doing the methodology and the site descriptions." },
+      { speaker: "Chloe", text: "And I'm doing the literature review and the discussion." },
+      { speaker: "Dr Harper", text: "What about the results section?" },
+      { speaker: "Ravi", text: "We're splitting that one — I'll do the honey yield data, Chloe's doing the forager activity data." },
+      { speaker: "Dr Harper", text: "Sensible division. Now, have you thought about how urban beekeeping might actually be affecting wild pollinator numbers? That's a bit of a hot topic at the moment." },
+      { speaker: "Chloe", text: "We hadn't really considered that angle, actually." },
+      { speaker: "Dr Harper", text: "I'd suggest adding a short section discussing it — there's some emerging research suggesting that a high density of honeybee hives in a small urban area can actually compete with wild bees for limited flowers." },
+      { speaker: "Ravi", text: "That's a really good point, we'll add that in." },
+      { speaker: "Dr Harper", text: "When's the proposal itself due?" },
+      { speaker: "Chloe", text: "The twenty-second of this month." },
+      { speaker: "Dr Harper", text: "And the final report?" },
+      { speaker: "Ravi", text: "The tenth of December." },
+      { speaker: "Dr Harper", text: "Right, that gives you plenty of time. One last thing — do you need a risk assessment, given you're working with hives?" },
+      { speaker: "Chloe", text: "We've already submitted one, actually, since we'll be near live hives on rooftops." },
+      { speaker: "Dr Harper", text: "Excellent, that's exactly right procedure. Good luck with it, both of you." },
+    ],
   },
   {
     id: '36000000-0000-0000-0000-000000000004',
     title: 'Bioluminescence in Marine Organisms',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate male university lecturer in his 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: Good afternoon. Today's lecture turns to one of the ocean's most striking phenomena: bioluminescence, or the ability of living organisms to produce their own light. Although it might sound like something confined to a handful of unusual creatures, current estimates suggest that as many as seventy-six percent of deep-sea species are bioluminescent in some way, making it, in fact, one of the most common forms of communication in the entire ocean.
@@ -107,11 +224,30 @@ Now, why would an organism evolve this ability? Researchers generally group the 
 It's worth noting that bioluminescence isn't distributed evenly through the ocean. Below around one thousand metres — a zone sometimes called the midnight zone, where sunlight cannot penetrate at all — a very high proportion of species are bioluminescent, since light of any kind, self-generated or otherwise, becomes an enormously useful adaptation. Interestingly, closer to the surface, in what's called the twilight zone, some species actually use bioluminescence for camouflage, producing a faint glow on their underside that matches the dim light filtering down from above, making them harder for predators lurking below to spot.
 
 Finally, I want to touch briefly on why this matters beyond marine biology itself. The gene responsible for producing green fluorescent protein, originally isolated from a bioluminescent jellyfish, has become an absolutely indispensable tool in modern molecular biology — scientists now attach it to other genes as a kind of glowing marker, allowing them to track, in real time, exactly when and where a particular gene is active inside a living cell. This discovery was considered significant enough to be awarded the Nobel Prize in Chemistry back in 2008, and it's a great example of how basic, curiosity-driven research into a strange deep-sea phenomenon ended up transforming an entirely different field.`,
+    turns: [
+      { speaker: "Lecturer", text: "Good afternoon. Today's lecture turns to one of the ocean's most striking phenomena: bioluminescence, or the ability of living organisms to produce their own light. Although it might sound like something confined to a handful of unusual creatures, current estimates suggest that as many as seventy-six percent of deep-sea species are bioluminescent in some way, making it, in fact, one of the most common forms of communication in the entire ocean." },
+      { speaker: "Lecturer", text: "So how does it actually work, chemically speaking? Bioluminescence is produced through a chemical reaction between a light-emitting molecule called luciferin and an enzyme called luciferase. When luciferin is oxidised in the presence of luciferase, energy is released in the form of light rather than heat, which is why the process is sometimes described as \"cold light\" — almost none of the energy is wasted as warmth, unlike, say, a light bulb." },
+      { speaker: "Lecturer", text: "Now, why would an organism evolve this ability? Researchers generally group the functions into three broad categories. The first is defence — some species emit a sudden, bright flash to startle a predator, buying just enough time to escape, while others release a cloud of glowing particles into the water, a strategy rather like an underwater smokescreen. The second function is predation, and the most famous example here is the anglerfish, which dangles a glowing lure directly above its mouth to attract smaller fish close enough to strike. The third function is communication — many species use specific, species-recognisable flashing patterns to identify potential mates in the near-total darkness of the deep sea." },
+      { speaker: "Lecturer", text: "It's worth noting that bioluminescence isn't distributed evenly through the ocean. Below around one thousand metres — a zone sometimes called the midnight zone, where sunlight cannot penetrate at all — a very high proportion of species are bioluminescent, since light of any kind, self-generated or otherwise, becomes an enormously useful adaptation. Interestingly, closer to the surface, in what's called the twilight zone, some species actually use bioluminescence for camouflage, producing a faint glow on their underside that matches the dim light filtering down from above, making them harder for predators lurking below to spot." },
+      { speaker: "Lecturer", text: "Finally, I want to touch briefly on why this matters beyond marine biology itself. The gene responsible for producing green fluorescent protein, originally isolated from a bioluminescent jellyfish, has become an absolutely indispensable tool in modern molecular biology — scientists now attach it to other genes as a kind of glowing marker, allowing them to track, in real time, exactly when and where a particular gene is active inside a living cell. This discovery was considered significant enough to be awarded the Nobel Prize in Chemistry back in 2008, and it's a great example of how basic, curiosity-driven research into a strange deep-sea phenomenon ended up transforming an entirely different field." },
+    ],
   },
   // ---------- MOCK 12 ----------
   {
     id: '36000000-0000-0000-0000-000000000005',
     title: 'Signing Up for Beginner Driving Lessons',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Receptionist": "a warm, professional female receptionist in her 30s with a neutral British accent, clear diction, patient and helpful tone — introduces themselves as Sara in the call",
+      "Customer": "a polite adult male customer in his 30s with a neutral British accent, natural relaxed conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 1,
     transcript: `RECEPTIONIST: Good afternoon, DriveRight School of Motoring, this is Sara speaking.
@@ -139,10 +275,48 @@ CUSTOMER: Yes, I got it last month.
 RECEPTIONIST: Great, please bring it along to your first lesson, as Lorna will need to see it.
 CUSTOMER: Will do, thank you so much.
 RECEPTIONIST: You're welcome, see you — or rather, Lorna will see you — Monday!`,
+    turns: [
+      { speaker: "Receptionist", text: "Good afternoon, DriveRight School of Motoring, this is Sara speaking." },
+      { speaker: "Customer", text: "Hi Sara, I'd like to sign up for driving lessons, please — I'm a complete beginner." },
+      { speaker: "Receptionist", text: "No problem at all. We offer three packages for beginners: a five-lesson taster pack, a ten-lesson starter pack, and a twenty-lesson intensive pack." },
+      { speaker: "Customer", text: "I think ten lessons sounds about right to start with." },
+      { speaker: "Receptionist", text: "Good choice, that's our most popular package. It's two hundred and forty pounds for ten one-hour lessons, which works out a bit cheaper than paying per lesson." },
+      { speaker: "Customer", text: "That sounds reasonable. Do I need to pay all at once?" },
+      { speaker: "Receptionist", text: "You can, or you can pay in two instalments — half up front, and the rest after your fifth lesson." },
+      { speaker: "Customer", text: "I'll do the instalments, then." },
+      { speaker: "Receptionist", text: "Great, I'll note that down. Now, which instructor would you prefer — we have male and female instructors available." },
+      { speaker: "Customer", text: "A female instructor, if possible." },
+      { speaker: "Receptionist", text: "Sure, that would be Lorna — she's actually our most experienced instructor, she's been teaching for fifteen years." },
+      { speaker: "Customer", text: "Perfect. When can I start?" },
+      { speaker: "Receptionist", text: "Lorna has a slot free next Monday at four p.m., or you could wait until the following week for a morning slot." },
+      { speaker: "Customer", text: "Monday at four works better for me." },
+      { speaker: "Receptionist", text: "Great, I'll book that in. We usually pick students up from home for the first lesson — could I take your address?" },
+      { speaker: "Customer", text: "Yes, it's twenty-two Bracknell Avenue — that's B-R-A-C-K-N-E-L-L." },
+      { speaker: "Receptionist", text: "Got it. And a contact number, in case Lorna needs to reach you?" },
+      { speaker: "Customer", text: "It's oh-seven-eight-six-six, double-two-nine, one-four-five." },
+      { speaker: "Receptionist", text: "Let me check that — oh-seven-eight-six-six, two-two-nine, one-four-five." },
+      { speaker: "Customer", text: "That's it." },
+      { speaker: "Receptionist", text: "Perfect. Last thing — do you already have a provisional licence?" },
+      { speaker: "Customer", text: "Yes, I got it last month." },
+      { speaker: "Receptionist", text: "Great, please bring it along to your first lesson, as Lorna will need to see it." },
+      { speaker: "Customer", text: "Will do, thank you so much." },
+      { speaker: "Receptionist", text: "You're welcome, see you — or rather, Lorna will see you — Monday!" },
+    ],
   },
   {
     id: '36000000-0000-0000-0000-000000000006',
     title: 'Guided Walking Tour of the Historic Dockside Quarter',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Guide": "a friendly, energetic male guide in his 20s-30s with a neutral British accent, welcoming and upbeat but clear tone",
+    },
     audioUrl: null,
     sectionNumber: 2,
     transcript: `GUIDE: Hello everyone, and welcome to this afternoon's walking tour of the Historic Dockside Quarter. My name's Felix, and I'll be your guide for the next ninety minutes.
@@ -157,15 +331,39 @@ From there, we'll walk about ten minutes along the harbour wall to the Fish Mark
 
 Our final stop is the Grain Warehouse, a huge red-brick building that once stored grain shipped in from across Europe. It's now the maritime museum, and entry is included in your tour ticket — normally it costs six pounds fifty for an adult ticket.
 
-A few practical notes: the tour is entirely outdoors, so please do wear comfortable shoes, and if it starts raining, we do have a covered shelter at the Fish Market where we can pause. Also, please stay together as a group, especially near the harbour wall, since the edge isn't fenced in several places.
+A few practical notes — the tour is entirely outdoors, so please do wear comfortable shoes, and if it starts raining, we do have a covered shelter at the Fish Market where we can pause. Also, please stay together as a group, especially near the harbour wall, since the edge isn't fenced in several places.
 
 If anyone needs the toilet at any point, the nearest public toilets are actually at the Fish Market, so do let me know if you need a short break there.
 
 Right, if everyone's ready, let's begin at the Customs House.`,
+    turns: [
+      { speaker: "Guide", text: "Hello everyone, and welcome to this afternoon's walking tour of the Historic Dockside Quarter. My name's Felix, and I'll be your guide for the next ninety minutes." },
+      { speaker: "Guide", text: "Before we set off, let me give you a quick overview of the route. We'll begin here at the Old Customs House, then walk along the harbour wall to the Fish Market, before finishing at the restored Grain Warehouse, which is now home to the maritime museum." },
+      { speaker: "Guide", text: "A little history first. This area was originally built in the 1820s as a working dock, handling mostly coal and timber imports. By the 1960s, larger container ships couldn't fit into the harbour, and the docks gradually fell out of use, until a major regeneration project in the 1990s converted many of the old buildings into shops, flats, and galleries." },
+      { speaker: "Guide", text: "Our first stop, the Customs House, was built in 1834 and is the oldest building on the tour. If you look up at the clock tower, you'll notice the clock has only one hand — that's not a mistake, it was actually designed that way, since at the time, knowing the hour was considered accurate enough for dock workers." },
+      { speaker: "Guide", text: "From there, we'll walk about ten minutes along the harbour wall to the Fish Market, which still operates every morning, though now mostly selling to restaurants rather than the general public. We'll stop there for about fifteen minutes so you can have a look around, and there's also a small café if anyone wants a coffee." },
+      { speaker: "Guide", text: "Our final stop is the Grain Warehouse, a huge red-brick building that once stored grain shipped in from across Europe. It's now the maritime museum, and entry is included in your tour ticket — normally it costs six pounds fifty for an adult ticket." },
+      { speaker: "Guide", text: "A few practical notes — the tour is entirely outdoors, so please do wear comfortable shoes, and if it starts raining, we do have a covered shelter at the Fish Market where we can pause. Also, please stay together as a group, especially near the harbour wall, since the edge isn't fenced in several places." },
+      { speaker: "Guide", text: "If anyone needs the toilet at any point, the nearest public toilets are actually at the Fish Market, so do let me know if you need a short break there." },
+      { speaker: "Guide", text: "Right, if everyone's ready, let's begin at the Customs House." },
+    ],
   },
   {
     id: '36000000-0000-0000-0000-000000000007',
     title: 'Planning a Textile Recycling Case Study',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Dr Ibrahim": "an experienced female academic in her 40s-50s with a neutral British accent, calm, authoritative, and constructive tone",
+      "Owen": "a male university student in his early 20s with a neutral British accent, casual natural conversational tone",
+      "Meera": "a female university student in her early 20s with a neutral British accent, casual natural conversational tone",
+    },
     audioUrl: null,
     sectionNumber: 3,
     transcript: `DR IBRAHIM: Morning, Owen, Meera — let's go through your case study on textile recycling before the write-up stage.
@@ -193,10 +391,48 @@ MEERA: The seventeenth of December.
 DR IBRAHIM: Good, that's a sensible gap for feedback. One last thing — have you had ethical approval for the interviews?
 OWEN: Yes, that came through last week, since we're interviewing company representatives rather than the public.
 DR IBRAHIM: Perfect, that's exactly right. Good luck with the write-up.`,
+    turns: [
+      { speaker: "Dr Ibrahim", text: "Morning, Owen, Meera — let's go through your case study on textile recycling before the write-up stage." },
+      { speaker: "Owen", text: "Sure. We've decided to compare three different collection methods — high-street donation bins, kerbside collection, and in-store take-back schemes." },
+      { speaker: "Meera", text: "I'm looking at the donation bins and the take-back schemes, and Owen's covering kerbside collection." },
+      { speaker: "Dr Ibrahim", text: "Good split. What are you actually measuring for each method?" },
+      { speaker: "Owen", text: "We're recording the volume collected per month, and also what percentage ends up being genuinely reused, versus recycled into fibre, versus sent to landfill." },
+      { speaker: "Dr Ibrahim", text: "That's a strong angle — the reuse-versus-landfill breakdown is exactly the kind of data that's often missing from this area of research. How are you getting that data?" },
+      { speaker: "Meera", text: "We've got interviews arranged with two textile recycling companies, plus we're using published council data for the kerbside figures." },
+      { speaker: "Dr Ibrahim", text: "Excellent. When are those interviews happening?" },
+      { speaker: "Owen", text: "The first one is the eleventh of this month, and the second is the nineteenth." },
+      { speaker: "Dr Ibrahim", text: "Good, that gives you time to compare the two sets of answers. Now, who's drafting which section?" },
+      { speaker: "Meera", text: "I'm doing the introduction and the methodology." },
+      { speaker: "Owen", text: "And I've got the results and the conclusion." },
+      { speaker: "Dr Ibrahim", text: "What about the literature review?" },
+      { speaker: "Meera", text: "We're splitting that one between us, actually — half each." },
+      { speaker: "Dr Ibrahim", text: "That's fine. Have you thought about including a section on consumer behaviour — why people choose one method over another?" },
+      { speaker: "Owen", text: "We hadn't planned to, no." },
+      { speaker: "Dr Ibrahim", text: "I'd really recommend it — there's growing evidence that convenience matters far more to most people than environmental concern when they're deciding where to take unwanted clothes." },
+      { speaker: "Meera", text: "That's a good point, we can add a short section on that." },
+      { speaker: "Dr Ibrahim", text: "When's the full draft due?" },
+      { speaker: "Owen", text: "The third of December." },
+      { speaker: "Dr Ibrahim", text: "And the final submission?" },
+      { speaker: "Meera", text: "The seventeenth of December." },
+      { speaker: "Dr Ibrahim", text: "Good, that's a sensible gap for feedback. One last thing — have you had ethical approval for the interviews?" },
+      { speaker: "Owen", text: "Yes, that came through last week, since we're interviewing company representatives rather than the public." },
+      { speaker: "Dr Ibrahim", text: "Perfect, that's exactly right. Good luck with the write-up." },
+    ],
   },
   {
     id: '36000000-0000-0000-0000-000000000008',
     title: 'How Migratory Birds Navigate',
+    audioSource: {
+      kind: 'local_tts',
+      provider: 'piper-tts (en_GB-vctk-medium)',
+      license: 'CC-BY-4.0',
+      sourceUrl: 'https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_GB/vctk/medium',
+      attribution:
+        'Voice synthesized locally with Piper TTS (MIT-licensed engine and voice model) using the en_GB-vctk-medium model, trained on the VCTK Corpus, © University of Edinburgh (CSTR), licensed CC BY 4.0.',
+    },
+    speakerPersonas: {
+      "Lecturer": "an articulate male university lecturer in his 40s-50s with a neutral British accent, formal academic register, measured and authoritative but engaging delivery",
+    },
     audioUrl: null,
     sectionNumber: 4,
     transcript: `LECTURER: This afternoon I want to look at a question that puzzled naturalists for centuries: how do migratory birds manage to navigate thousands of kilometres, often returning to the exact same nesting site year after year, without anything resembling a map or a compass in the conventional sense?
@@ -210,6 +446,14 @@ Third, birds also seem to rely on landmarks and, in coastal species particularly
 Now, one especially interesting case study is the Arctic tern, which holds the record for the longest known migration of any animal, travelling an estimated seventy thousand kilometres round trip each year between the Arctic and the Antarctic. Researchers tracking individual terns with tiny satellite tags found that their routes are not simply straight lines but often follow a zigzag pattern, likely to take advantage of prevailing wind systems and reduce the overall energy cost of the journey.
 
 Finally, it's worth noting that climate change is beginning to disrupt some of these long-established migration patterns. Because many species time their migration according to day length, which doesn't change, while food availability increasingly shifts earlier due to warming temperatures, some migratory birds are arriving at their breeding grounds after the peak availability of insects has already passed — a phenomenon researchers call a "mismatch," and one that is being closely studied as a potential long-term threat to several migratory species.`,
+    turns: [
+      { speaker: "Lecturer", text: "This afternoon I want to look at a question that puzzled naturalists for centuries: how do migratory birds manage to navigate thousands of kilometres, often returning to the exact same nesting site year after year, without anything resembling a map or a compass in the conventional sense?" },
+      { speaker: "Lecturer", text: "Research over the past few decades has identified several navigational tools that birds appear to use, often in combination. The first, and probably the most well-established, is what's called magnetoreception — the ability to sense the Earth's magnetic field. Scientists believe this ability is linked to a light-sensitive protein called cryptochrome, found in the birds' eyes, which may allow them to actually see the magnetic field as a kind of visual pattern overlaid on their normal vision." },
+      { speaker: "Lecturer", text: "A second tool is celestial navigation. Many species appear to use the position of the sun during the day, and the pattern of stars at night, to maintain a consistent heading. Remarkably, young birds raised in a planetarium under an artificial night sky will orient themselves according to the position of the artificial stars, which strongly suggests this behaviour is at least partly innate rather than learned." },
+      { speaker: "Lecturer", text: "Third, birds also seem to rely on landmarks and, in coastal species particularly, on olfactory cues — that is, smell. Homing pigeons, for instance, have been shown in experiments to navigate significantly less accurately when their sense of smell is temporarily blocked, suggesting odour plays a genuine role in fine-tuning their route, especially in the final stages closer to a familiar nesting site." },
+      { speaker: "Lecturer", text: "Now, one especially interesting case study is the Arctic tern, which holds the record for the longest known migration of any animal, travelling an estimated seventy thousand kilometres round trip each year between the Arctic and the Antarctic. Researchers tracking individual terns with tiny satellite tags found that their routes are not simply straight lines but often follow a zigzag pattern, likely to take advantage of prevailing wind systems and reduce the overall energy cost of the journey." },
+      { speaker: "Lecturer", text: "Finally, it's worth noting that climate change is beginning to disrupt some of these long-established migration patterns. Because many species time their migration according to day length, which doesn't change, while food availability increasingly shifts earlier due to warming temperatures, some migratory birds are arriving at their breeding grounds after the peak availability of insects has already passed — a phenomenon researchers call a \"mismatch,\" and one that is being closely studied as a potential long-term threat to several migratory species." },
+    ],
   },
 ];
 
