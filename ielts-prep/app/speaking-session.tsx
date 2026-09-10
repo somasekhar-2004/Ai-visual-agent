@@ -177,7 +177,14 @@ export default function SpeakingSessionScreen() {
     setPhase('transcribing');
     try {
       const { uri, durationSeconds } = await recorder.stop();
-      const transcript = uri ? await transcribeAudio(uri) : '';
+      // A null uri means the native recorder itself never produced a file
+      // (e.g. it failed to start) — silently transcribing that as an empty
+      // string used to let the session carry on as if the user had simply
+      // said nothing, instead of surfacing that the recording itself never
+      // happened.
+      if (!uri) throw new Error('No recording was captured — please try recording your answer again.');
+      if (__DEV__) console.log(`[speaking] recorded ${durationSeconds}s, uri=${uri}`);
+      const transcript = await transcribeAudio(uri);
       setTranscripts((t) => [...t, transcript]);
       setTotalDuration((d) => d + durationSeconds);
 

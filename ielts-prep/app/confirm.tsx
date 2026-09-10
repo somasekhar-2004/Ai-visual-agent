@@ -6,6 +6,7 @@ import { Button, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { exchangeConfirmationCode, setOnboardingComplete } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
+import { useOnboardingStore } from '@/store/useOnboardingStore';
 
 type Status = 'exchanging' | 'success' | 'error';
 
@@ -22,9 +23,13 @@ export default function ConfirmScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ code?: string; error?: string; error_description?: string }>();
   const hydrate = useAppStore((s) => s.hydrate);
+  const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+  const onboarding = useOnboardingStore();
 
   const [status, setStatus] = useState<Status>('exchanging');
   const [errorMessage, setErrorMessage] = useState('');
+  const [continuing, setContinuing] = useState(false);
+  const [continueError, setContinueError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,9 +68,47 @@ export default function ConfirmScreen() {
   }, [params.code, params.error, params.error_description]);
 
   async function handleContinue() {
-    await setOnboardingComplete();
-    await hydrate();
-    router.replace('/(tabs)');
+    setContinuing(true);
+    setContinueError(null);
+    try {
+      // hydrate() first so useAppStore's userId reflects the real session
+      // that exchangeConfirmationCode just established — completeOnboarding
+      // falls back to creating a demo user when userId is unset, which
+      // would be wrong here since this user is genuinely authenticated.
+      await hydrate();
+      if (onboarding.ieltsType) {
+        // The onboarding wizard's answers (collected before "Create
+        // account with email" was even tapped) previously never made it
+        // into a saved goal for this flow — completeOnboarding was only
+        // ever called from the demo/immediate-session signup path in
+        // app/(onboarding)/account.tsx, never after an email-confirmation
+        // round trip. That's why Home kept showing "Let's set up your
+        // study goal" even though the goal-setup screens had already been
+        // filled in: they genuinely never got saved.
+        await completeOnboarding({
+          ieltsType: onboarding.ieltsType,
+          currentBand: onboarding.currentBand,
+          targetBand: onboarding.targetBand ?? 7,
+          examDate: onboarding.examDate,
+          weakestSkill: onboarding.weakestSkill,
+          dailyStudyMinutes: onboarding.dailyStudyMinutes ?? 30,
+        });
+        onboarding.reset();
+      } else {
+        // No wizard answers to save — either this is a re-confirmation for
+        // an account whose goal already exists, or the answers were lost
+        // (e.g. the app process was killed while waiting for the email,
+        // before the persisted-store write below existed). Either way,
+        // fabricating a goal from nothing would be worse than honestly
+        // leaving Home to show its own "let's set up your goal" state.
+        await setOnboardingComplete();
+      }
+      router.replace('/(tabs)');
+    } catch (err) {
+      setContinueError((err as Error).message);
+    } finally {
+      setContinuing(false);
+    }
   }
 
   if (status === 'exchanging') {
@@ -111,7 +154,12 @@ export default function ConfirmScreen() {
         <Text color="secondary" align="center">
           Your account is ready. Let&apos;s get started.
         </Text>
-        <Button label="Continue" onPress={handleContinue} fullWidth style={{ marginTop: theme.spacing.md }} />
+        {continueError ? (
+          <Text color="error" align="center">
+            {continueError}
+          </Text>
+        ) : null}
+        <Button label="Continue" onPress={handleContinue} loading={continuing} fullWidth style={{ marginTop: theme.spacing.md }} />
       </View>
     </Screen>
   );

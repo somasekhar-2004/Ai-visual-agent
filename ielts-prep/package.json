@@ -76,7 +76,8 @@
     "db:migrate": "node scripts/run-migrations.js",
     "db:seed": "node scripts/run-seed.js",
     "audio:generate": "tsx scripts/generate-audio.ts",
-    "seed:generate": "tsx scripts/generate-seed-sql.ts"
+    "seed:generate": "tsx scripts/generate-seed-sql.ts",
+    "verify:content-in-db": "tsx scripts/verify-content-in-db.ts"
   },
   "private": true
 }

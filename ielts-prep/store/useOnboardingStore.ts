@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { IeltsType, NotificationCategory, SkillKey } from '@/types/models';
 
@@ -31,17 +33,36 @@ const initial = {
   notificationsEnabled: true,
 };
 
-export const useOnboardingStore = create<OnboardingState>((set) => ({
-  ...initial,
-  setIeltsType: (ieltsType) => set({ ieltsType }),
-  setCurrentBand: (currentBand) => set({ currentBand }),
-  setTargetBand: (targetBand) => set({ targetBand }),
-  setExamDate: (examDate) => set({ examDate }),
-  setWeakestSkill: (weakestSkill) => set({ weakestSkill }),
-  setDailyStudyMinutes: (dailyStudyMinutes) => set({ dailyStudyMinutes }),
-  setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
-  reset: () => set(initial),
-}));
+// Persisted (unlike most other Zustand stores in this app) because the
+// account-creation step of onboarding can require an email-confirmation
+// round trip: the user fills out this whole wizard, taps "Create account",
+// then has to leave the app to open their email client and tap a link.
+// Android can and does kill backgrounded apps under memory pressure during
+// that gap — an in-memory-only store would silently lose every answer the
+// user just gave, and app/confirm.tsx would have nothing to save a goal
+// from once they come back. `reset()` clears this once the goal is
+// actually saved (see app/confirm.tsx and app/(onboarding)/account.tsx),
+// so a stale wizard answer never leaks into a later, unrelated onboarding
+// attempt.
+export const useOnboardingStore = create<OnboardingState>()(
+  persist(
+    (set) => ({
+      ...initial,
+      setIeltsType: (ieltsType) => set({ ieltsType }),
+      setCurrentBand: (currentBand) => set({ currentBand }),
+      setTargetBand: (targetBand) => set({ targetBand }),
+      setExamDate: (examDate) => set({ examDate }),
+      setWeakestSkill: (weakestSkill) => set({ weakestSkill }),
+      setDailyStudyMinutes: (dailyStudyMinutes) => set({ dailyStudyMinutes }),
+      setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
+      reset: () => set(initial),
+    }),
+    {
+      name: 'ielts-prep/onboarding/wizard-answers',
+      storage: createJSONStorage(() => AsyncStorage),
+    },
+  ),
+);
 
 export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   'daily_reminder',

@@ -6,7 +6,7 @@
 // These tests mock @/services/repository directly (not Supabase) since the
 // store calls those functions by name.
 
-import { getActiveGoal, getLatestBandScores, getProfile, getStreak, getSubscription, getXp } from '@/services/repository';
+import { getActiveGoal, getLatestBandScores, getProfile, getStreak, getSubscription, getXp, saveOnboardingGoal } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
 jest.mock('@/services/auth', () => ({
@@ -35,6 +35,7 @@ const mockGetLatestBandScores = getLatestBandScores as jest.Mock;
 const mockGetSubscription = getSubscription as jest.Mock;
 const mockGetStreak = getStreak as jest.Mock;
 const mockGetXp = getXp as jest.Mock;
+const mockSaveOnboardingGoal = saveOnboardingGoal as jest.Mock;
 
 const PROFILE = { id: 'user-1', fullName: 'Alex', avatarUrl: null, createdAt: '2026-01-01' };
 const GOAL = {
@@ -105,5 +106,76 @@ describe('refreshUserData — partial-failure resilience', () => {
 
     expect(useAppStore.getState().homeError).toBeNull();
     expect(useAppStore.getState().goal).toEqual(GOAL);
+  });
+});
+
+// Regression coverage for the "Home keeps showing 'Let's set up your study
+// goal' even though I already completed goal setup" bug: root cause was
+// app/confirm.tsx (the email-confirmation deep-link screen) never calling
+// completeOnboarding at all, so a user who had to confirm their email
+// before their first session never got a user_goals row saved — the
+// wizard's answers were silently discarded. These tests exercise the same
+// store-level sequence confirm.tsx now runs (hydrate, then
+// completeOnboarding, then a later reopen), rather than rendering the
+// screen itself.
+describe('completeOnboarding — the goal actually saves and Home actually sees it', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetStore();
+    useAppStore.setState({ userId: 'user-1' });
+  });
+
+  it('saves the goal and the store reflects it immediately after (goal saves successfully + refresh retrieves it)', async () => {
+    mockSaveOnboardingGoal.mockResolvedValue(GOAL);
+    mockGetProfile.mockResolvedValue(PROFILE);
+    mockGetActiveGoal.mockResolvedValue(GOAL);
+    mockGetLatestBandScores.mockResolvedValue({});
+    mockGetSubscription.mockResolvedValue(null);
+    mockGetStreak.mockResolvedValue({ count: 0, lastActiveDate: null });
+    mockGetXp.mockResolvedValue(0);
+
+    await useAppStore.getState().completeOnboarding({
+      ieltsType: 'academic',
+      currentBand: 6,
+      targetBand: 7,
+      examDate: null,
+      weakestSkill: null,
+      dailyStudyMinutes: 30,
+    });
+
+    expect(mockSaveOnboardingGoal).toHaveBeenCalledWith('user-1', expect.objectContaining({ ieltsType: 'academic', targetBand: 7 }));
+    expect(useAppStore.getState().goal).toEqual(GOAL);
+    expect(useAppStore.getState().onboardingComplete).toBe(true);
+  });
+
+  it('reopening the app afterwards (a fresh hydrate) still shows the same goal', async () => {
+    mockSaveOnboardingGoal.mockResolvedValue(GOAL);
+    mockGetProfile.mockResolvedValue(PROFILE);
+    mockGetActiveGoal.mockResolvedValue(GOAL);
+    mockGetLatestBandScores.mockResolvedValue({});
+    mockGetSubscription.mockResolvedValue(null);
+    mockGetStreak.mockResolvedValue({ count: 0, lastActiveDate: null });
+    mockGetXp.mockResolvedValue(0);
+
+    await useAppStore.getState().completeOnboarding({
+      ieltsType: 'academic',
+      currentBand: 6,
+      targetBand: 7,
+      examDate: null,
+      weakestSkill: null,
+      dailyStudyMinutes: 30,
+    });
+
+    // Simulate the app being fully closed and reopened: reset every field
+    // hydrate() would repopulate, but keep hasCompletedOnboarding/
+    // getCurrentUserId mocked as already-confirmed (jest.mock at the top of
+    // this file resolves them to 'user-1'/true, matching a real returning
+    // session).
+    useAppStore.setState({ isHydrated: false, profile: null, goal: null, bandScores: {}, subscription: null, streak: { count: 0, lastActiveDate: null }, xp: 0 });
+
+    await useAppStore.getState().hydrate();
+
+    expect(useAppStore.getState().goal).toEqual(GOAL);
+    expect(useAppStore.getState().homeError).toBeNull();
   });
 });

@@ -71,6 +71,50 @@ describe('repository insert functions never crash on a null row — they throw t
     await expect(startMockAttempt('user-1', 'mock-1')).rejects.toThrow(/permission denied for table mock_attempts/);
   });
 
+  // Regression coverage for the real-device "insert or update on table
+  // mock_attempts violates foreign key constraint
+  // mock_attempts_mock_test_id_fkey" bug: the mockTestId the UI passes
+  // (from bundled content) didn't exist as a row in the live database —
+  // content/database drift, not a code bug — but the raw Postgres error
+  // gave no hint of that. throwIfSupabaseError now names the likely cause
+  // and points at the diagnostic script for any 23503 (foreign_key_violation).
+  it('startMockAttempt surfaces a foreign-key violation with an actionable message pointing at the content/database drift diagnosis', async () => {
+    fromMock.mockReturnValue(
+      makeQueryBuilder({
+        data: null,
+        error: {
+          message: 'insert or update on table "mock_attempts" violates foreign key constraint "mock_attempts_mock_test_id_fkey"',
+          code: '23503',
+        },
+      }),
+    );
+    await expect(startMockAttempt('user-1', '60000000-0000-0000-0000-000000000099')).rejects.toThrow(/mock_attempts_mock_test_id_fkey/);
+    await expect(startMockAttempt('user-1', '60000000-0000-0000-0000-000000000099')).rejects.toThrow(/verify:content-in-db/);
+  });
+
+  it('startMockAttempt resolves with the mapped attempt when the insert succeeds (the real full-mock-start happy path)', async () => {
+    fromMock.mockReturnValue(
+      makeQueryBuilder({
+        data: {
+          id: 'attempt-1',
+          user_id: 'user-1',
+          mock_test_id: '60000000-0000-0000-0000-000000000001',
+          status: 'in_progress',
+          started_at: '2026-01-01T00:00:00.000Z',
+          completed_at: null,
+          overall_band: null,
+          state: {},
+        },
+        error: null,
+      }),
+    );
+    await expect(startMockAttempt('user-1', '60000000-0000-0000-0000-000000000001')).resolves.toMatchObject({
+      id: 'attempt-1',
+      mockTestId: '60000000-0000-0000-0000-000000000001',
+      status: 'in_progress',
+    });
+  });
+
   it('createSpeakingSession throws a descriptive error instead of crashing on a null row', async () => {
     fromMock.mockReturnValue(makeQueryBuilder({ data: null, error: { message: 'permission denied for table speaking_sessions', code: '42501' } }));
     await expect(createSpeakingSession('user-1', 'part1', null)).rejects.toThrow(/Failed to start the speaking session/);

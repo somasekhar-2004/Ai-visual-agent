@@ -151,7 +151,16 @@ export default function HomeScreen() {
       </View>
 
       <Card elevation="md" style={{ marginBottom: theme.spacing.lg }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
+          <Badge label={goal.ieltsType === 'academic' ? 'IELTS Academic' : 'IELTS General Training'} tone="brand" />
+        </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <View>
+            <Text variant="caption" color="secondary">
+              Current band
+            </Text>
+            <Text variant="h1">{goal.currentBand ? goal.currentBand.toFixed(1) : 'Not yet assessed'}</Text>
+          </View>
           <View>
             <Text variant="caption" color="secondary">
               Target band
@@ -167,11 +176,9 @@ export default function HomeScreen() {
             <Text variant="h1">{overall ? overall.toFixed(1) : '—'}</Text>
           </View>
         </View>
-        {days !== null ? (
-          <Badge label={`${days} days until your test`} tone="brand" />
-        ) : (
-          <Badge label="No test date set" tone="neutral" />
-        )}
+        <View style={{ marginTop: theme.spacing.sm }}>
+          {days !== null ? <Badge label={`${days} days until your test`} tone="brand" /> : <Badge label="No exam date yet" tone="neutral" />}
+        </View>
       </Card>
 
       <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>

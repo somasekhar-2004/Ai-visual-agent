@@ -377,6 +377,29 @@ describe('listening — exactly one playback pipeline app-wide (no hidden device
   });
 });
 
+describe('mock tests — IDs are well-formed (catches a bad generated UUID before it ever reaches the database)', () => {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  it('every mock test id is a well-formed UUID', () => {
+    const bad = content.mockTests.filter((t) => !UUID_RE.test(t.id));
+    expect(bad.map((t) => t.id)).toEqual([]);
+  });
+
+  // mock_sections.id is never actually written to the database — the seed
+  // generator's insert for this table omits `id` entirely and lets
+  // Postgres's own `gen_random_uuid()` default assign it (see
+  // scripts/generate-seed-sql.ts) — so a section's TS-side `id` (some of
+  // which are readable Astra-merge slugs like "ast-mock-ar-10-reading",
+  // not UUIDs) is purely a client-side identifier and can't itself cause a
+  // foreign-key violation. `mockTestId`, by contrast, IS inserted as the
+  // real `mock_sections.mock_test_id` foreign key value and must be a real
+  // UUID matching an actual mock_tests row.
+  it('every mock section\'s mockTestId (the actual foreign-key value written to the database) is a well-formed UUID', () => {
+    const bad = content.mockSections.filter((s) => !UUID_RE.test(s.mockTestId)).map((s) => `${s.id}: malformed mockTestId "${s.mockTestId}"`);
+    expect(bad).toEqual([]);
+  });
+});
+
 describe('mock tests — structure and uniqueness', () => {
   it('has at least 16 Academic and 16 General Training full mock tests', () => {
     const academic = content.mockTests.filter((t) => t.ieltsType === 'academic');

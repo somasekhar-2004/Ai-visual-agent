@@ -18,5 +18,17 @@ import type { PostgrestError } from '@supabase/supabase-js';
  */
 export function throwIfSupabaseError(error: PostgrestError | null, context: string): void {
   if (!error) return;
+  // Postgres 23503 = foreign_key_violation. The most common real cause in
+  // this app is content/database drift: a row id baked into the bundled
+  // lib/content/*.ts (e.g. a mock test) that the live database was never
+  // actually seeded with, or was seeded with before that content changed —
+  // see scripts/verify-content-in-db.ts, which catches this proactively.
+  // Naming that here turns a bare Postgres error code into something
+  // immediately actionable instead of a generic "(code: 23503)".
+  if (error.code === '23503') {
+    throw new Error(
+      `${context}: ${error.message} (code: 23503 — foreign key violation, likely content/database drift: run \`npm run verify:content-in-db\` to find which content the live database is missing)`,
+    );
+  }
   throw new Error(`${context}: ${error.message}${error.code ? ` (code: ${error.code})` : ''}`);
 }

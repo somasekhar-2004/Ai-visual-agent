@@ -90,8 +90,16 @@ export async function chatWithCoach(messages: ChatMessage[], context: CoachConte
 }
 
 export async function transcribeAudio(audioUri: string): Promise<string> {
-  const { data } = await withFallback(() => provider.transcribeAudio(audioUri), () => mock.transcribeAudio(audioUri));
-  return data;
+  // Deliberately does NOT use withFallback's silent-mock-on-failure
+  // behaviour: substituting a fabricated transcript when the real one
+  // fails would let the rest of the Speaking flow carry on as if nothing
+  // was wrong (transcribeAudio never continues to evaluateSpeaking against
+  // fake text). A transcription failure must surface to the user visibly
+  // and let them retry with their real answer, not silently reword it.
+  // Demo Mode (provider.name === 'mock') is unaffected — there's no real
+  // backend to fail there in the first place.
+  if (provider.name === 'mock') return mock.transcribeAudio(audioUri);
+  return provider.transcribeAudio(audioUri);
 }
 
 export async function suggestStudyPlanFocus(input: StudyPlanSuggestionInput): Promise<StudyPlanSuggestionResult> {
