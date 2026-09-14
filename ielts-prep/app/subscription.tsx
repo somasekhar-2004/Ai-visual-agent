@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Badge, Button, Card, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { purchaseResultMessage } from '@/lib/purchaseResultMessage';
+import { googlePlaySubscriptionManagementUrl } from '@/lib/subscriptionManagementUrl';
 import { getPurchasesProvider, isPurchasesMocked } from '@/services/purchases';
 import { setSubscription } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
@@ -25,8 +27,7 @@ export default function SubscriptionScreen() {
   })));
 
   const [restoring, setRestoring] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [restored, setRestored] = useState(false);
+  const [result, setResult] = useState<{ tone: 'info' | 'error'; message: string } | null>(null);
 
   const isPremium = subscription?.plan !== 'free';
   const isCancelled = subscription?.status === 'cancelled';
@@ -34,19 +35,16 @@ export default function SubscriptionScreen() {
 
   async function handleRestore() {
     setRestoring(true);
-    setError(null);
-    setRestored(false);
+    setResult(null);
     try {
-      const result = await getPurchasesProvider().restore();
-      if (result.success && result.plan && userId) {
-        await setSubscription(userId, result.plan, 'active');
+      const restoreResult = await getPurchasesProvider().restore();
+      setResult(purchaseResultMessage(restoreResult));
+      if (restoreResult.success && restoreResult.plan && userId) {
+        await setSubscription(userId, restoreResult.plan, 'active');
         await refreshUserData(userId);
-        setRestored(true);
-      } else {
-        setError(result.error ?? 'No purchase to restore.');
       }
     } catch (err) {
-      setError((err as Error).message);
+      setResult({ tone: 'error', message: (err as Error).message });
     } finally {
       setRestoring(false);
     }
@@ -65,8 +63,8 @@ export default function SubscriptionScreen() {
       <Card style={{ marginBottom: theme.spacing.lg }}>
         <Text variant="body" color="secondary">
           {isPremium
-            ? 'You have full access to unlimited practice, full mock tests, the AI Speaking Examiner, AI Writing Evaluator, and unlimited AI Coach messages.'
-            : 'Free plan includes selected lessons, limited daily practice, limited AI messages, one sample mock test, and basic progress tracking.'}
+            ? 'You have full access to all premium mock tests, premium analytics, and a much higher daily AI Writing/Speaking evaluation allowance.'
+            : 'Free plan includes core practice, 10 AI Writing and 10 AI Speaking evaluations a day, a separate Full Mock allowance, and basic progress tracking.'}
         </Text>
         {isCancelled && periodEndLabel ? (
           <Text variant="caption" color="warning" style={{ marginTop: theme.spacing.xs }}>
@@ -75,17 +73,22 @@ export default function SubscriptionScreen() {
         ) : null}
       </Card>
 
-      {!isPremium ? <Button label="Upgrade to Premium" onPress={() => router.push('/paywall')} fullWidth style={{ marginBottom: theme.spacing.sm }} /> : null}
+      {!isPremium ? (
+        <Button label="Upgrade to Premium" onPress={() => router.push('/paywall')} fullWidth style={{ marginBottom: theme.spacing.sm }} />
+      ) : (
+        <Button
+          label="Manage subscription"
+          variant="secondary"
+          onPress={() => Linking.openURL(googlePlaySubscriptionManagementUrl())}
+          fullWidth
+          style={{ marginBottom: theme.spacing.sm }}
+        />
+      )}
       <Button label="Restore purchases" variant="secondary" onPress={handleRestore} loading={restoring} fullWidth />
 
-      {error ? (
-        <Text color="error" style={{ marginTop: theme.spacing.sm }}>
-          {error}
-        </Text>
-      ) : null}
-      {restored ? (
-        <Text color="success" style={{ marginTop: theme.spacing.sm }}>
-          Purchase restored.
+      {result ? (
+        <Text color={result.tone === 'error' ? 'error' : 'success'} style={{ marginTop: theme.spacing.sm }}>
+          {result.message}
         </Text>
       ) : null}
 
@@ -95,7 +98,7 @@ export default function SubscriptionScreen() {
         </Text>
       ) : (
         <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.lg }}>
-          To cancel or change your plan, use your App Store or Google Play subscription settings — changes sync here automatically the next time you open the app.
+          To cancel or change your plan, use &quot;Manage subscription&quot; above (Google Play) — changes sync here automatically the next time you open the app.
         </Text>
       )}
     </Screen>

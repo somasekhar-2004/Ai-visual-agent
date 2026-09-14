@@ -7,6 +7,7 @@ import {
   signInDemo,
   signOut as authSignOut,
 } from '@/services/auth';
+import { getPurchasesProvider } from '@/services/purchases';
 import {
   getActiveGoal,
   getLatestBandScores,
@@ -73,6 +74,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       const [userId, onboardingComplete] = await Promise.all([getCurrentUserId(), hasCompletedOnboarding()]);
       set({ userId, onboardingComplete, isHydrated: true });
       if (userId) {
+        // Attaches the store's purchase identity to this exact Supabase
+        // user id (never an email — see PurchasesProvider.login's own
+        // comment) BEFORE checking entitlement, so a device that was
+        // previously signed into a different account (or browsing
+        // anonymously) never has that other identity's purchase state
+        // bleed into this session. Runs on every hydrate(), which covers
+        // app launch, a fresh sign-in, AND switching accounts (sign-in
+        // screens call hydrate() again after a successful sign-in,
+        // regardless of what was signed in before).
+        await getPurchasesProvider().login(userId);
         await syncSubscriptionEntitlement(userId);
         await get().refreshUserData(userId);
       } else {
@@ -160,6 +171,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   signOut: async () => {
+    // Reverts the device's purchase identity to a fresh anonymous one
+    // BEFORE clearing local state — never lets a signed-out session (or
+    // whoever signs in next on this device) keep seeing this account's
+    // cached entitlement. Best-effort: a failure here (e.g. no network)
+    // must never block the actual sign-out from completing, so it's
+    // swallowed rather than awaited into the same failure path as
+    // authSignOut() below.
+    try {
+      await getPurchasesProvider().logout();
+    } catch (err) {
+      console.warn('[app] purchases logout failed (sign-out continues anyway):', (err as Error).message);
+    }
     await authSignOut();
     set({
       userId: null,

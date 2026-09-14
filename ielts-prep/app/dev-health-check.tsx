@@ -6,7 +6,7 @@ import { Badge, Button, Card, Screen, ScreenHeader, Text } from '@/components/ui
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
 import { audioRegistry } from '@/lib/content/audioRegistry';
-import { isRevenueCatConfigured, isSupabaseConfigured } from '@/lib/env';
+import { isDemoMode, isRevenueCatConfigured, isSupabaseConfigured } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -156,11 +156,19 @@ export default function DevHealthCheckScreen() {
       }
     }
 
-    // RevenueCat: sync, client-side only.
+    // RevenueCat: sync, client-side only. Mock purchases only ever run in
+    // genuine Demo Mode (no Supabase project) — a real Supabase project
+    // with RevenueCat not yet configured gets "unavailable" instead (never
+    // a fabricated purchase against a real account; see
+    // services/purchases/index.ts).
     update(
       'revenuecat',
       isRevenueCatConfigured ? 'pass' : 'info',
-      isRevenueCatConfigured ? 'EXPO_PUBLIC_REVENUECAT_IOS_KEY/_ANDROID_KEY are set.' : 'Not configured — paywall runs in mock purchase mode.'
+      isRevenueCatConfigured
+        ? 'EXPO_PUBLIC_REVENUECAT_IOS_KEY/_ANDROID_KEY are set.'
+        : isDemoMode
+          ? 'Not configured — paywall runs in mock purchase mode (Demo Mode).'
+          : 'Not configured — paywall shows "subscriptions not available yet" (real Supabase project, no fake purchases).'
     );
 
     // Listening audio assets: sync, always informational (the on-device TTS

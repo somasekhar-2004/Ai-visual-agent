@@ -372,6 +372,52 @@ To promote a track that already has `turns` but no `audioSource` yet (this is ex
 
 **Not yet sandbox-tested:** none of the above has been exercised against a real RevenueCat project or App Store/Play Store sandbox account in this environment — there is no way to do that without real store credentials and a native build. Everything is implemented and verified via `tsc`/lint/unit tests and mock-provider behavior only; a real end-to-end purchase/restore/cancel/expire flow still needs to be run on a device with a sandbox account before shipping.
 
+**Identity — never based on email.** `services/purchases/revenuecatProvider.ts` configures the RevenueCat SDK anonymously at first use, then `login(userId)`/`logout()` (called from `store/useAppStore.ts`'s `hydrate()`/`signOut()`) attach/detach the device's RevenueCat customer to/from the exact authenticated Supabase user id — never the user's email, which can change and isn't guaranteed to stay tied to one account the way the Supabase `auth.users` id is. `hydrate()` runs on every app launch AND every successful sign-in, so this also correctly re-identifies the device when one account signs out and a different one signs in on the same phone (never leaking the previous account's cached entitlement into the new session) — see `login()`'s own doc comment in `services/purchases/types.ts` for the reasoning.
+
+**A single entitlement, checked by name.** Both the client (`revenuecatProvider.ts`) and the webhook below check `entitlements.active['premium']` specifically (`PREMIUM_ENTITLEMENT_ID` in `services/purchases/types.ts`) — not "is any entitlement active" — so a future unrelated add-on entitlement can never be mistaken for full Premium access.
+
+**Pricing (India launch, do not hardcode elsewhere).** The intended starting India price is ₹299/month and ₹2,499/year — set as the actual price on the Google Play products (see "Google Play Console setup" below); nowhere in the app's code is a currency amount hardcoded. Every price the UI shows (`app/paywall.tsx`, `app/subscription.tsx`) comes from `PurchasesPackage.product.priceString` at runtime, which the Play Store itself formats and localizes for whatever country/currency the buyer is actually in — a buyer outside India sees their own store's localized price automatically, with zero app-side currency logic. The yearly plan's "Save X%" badge (`lib/purchasePricing.ts`) is computed purely from RevenueCat's own numeric `product.pricePerMonth`/`product.price` fields — never a hardcoded percentage — and simply doesn't render if that data isn't available. `services/purchases/mockProvider.ts`'s ₹299/₹2,499 strings are Demo-Mode-only placeholder text (no real Supabase project configured), clearly labeled as simulated in the paywall.
+
+**No fake purchases against a real backend.** Provider selection in `services/purchases/index.ts` is keyed off two independent facts: whether a real Supabase backend exists (Demo Mode or not) and whether RevenueCat is configured. A real Supabase project with RevenueCat *not yet* configured gets `UnavailablePurchasesProvider` (empty product list, purchase/restore always fail with "not available yet") — **not** the mock provider, which would otherwise let a real account "purchase" a fabricated Premium subscription with no payment ever taking place. Only genuine Demo Mode (no Supabase project at all) gets the simulated mock provider.
+
+**Server-side sync (webhook) — the authoritative path.** `services/repository/core.ts`'s `syncSubscriptionEntitlement()` (client-side, called on launch/foreground) is a fast local top-up only — it cannot run while the app is closed, so relying on it alone would leave `subscriptions` stale for a renewal, cancellation, or expiration that happens between sessions, exactly what `supabase/functions/_shared/rateLimit.ts`'s server-side quota check (`isPremium()`) reads for every AI evaluation request. `supabase/functions/revenuecat-webhook/` closes that gap: RevenueCat calls it directly on every entitlement-relevant event, independent of whether the app is even installed anymore.
+
+- **Auth**: RevenueCat webhooks have no HMAC signature — the dashboard lets you set a fixed "Authorization header value" it sends on every request. Generate one yourself (`openssl rand -hex 32`) and set the *same* string in both the RevenueCat dashboard (Project settings → Integrations → Webhooks) and this project's `REVENUECAT_WEBHOOK_AUTH_TOKEN` secret. A request with a missing/mismatched header is rejected with 401 before touching the database.
+- **Writes as service-role**, not a user's own RLS-scoped session — this is the one Edge Function in this repo that needs `SUPABASE_SERVICE_ROLE_KEY` (see `supabase/functions/.env.example`), because it updates *another* user's `subscriptions` row on their behalf, which no RLS-scoped/anon-key client can do.
+- **Idempotent**: every event's own `id` is inserted into `revenuecat_webhook_events` (migration `0011_revenuecat_webhook.sql`) before it's acted on; a duplicate delivery (RevenueCat retries anything but a fast 2xx) hits a primary-key conflict and is acknowledged without being re-applied.
+- **Out-of-order-safe**: `subscriptions.last_webhook_event_at` records the event *timestamp* (not delivery time) of the last change actually applied for a user; a late-arriving retry of an older event can never regress state a newer event already applied.
+- **Never guesses**: `supabase/functions/_shared/revenuecatWebhook.ts`'s `deriveSubscriptionUpdate()` maps only the well-understood RevenueCat event types (`INITIAL_PURCHASE`/`RENEWAL`/`UNCANCELLATION`/`PRODUCT_CHANGE`/`NON_RENEWING_PURCHASE`/`TRANSFER` → active; `CANCELLATION` → cancelled, still entitled until expiry; `EXPIRATION` → free) — anything else (`BILLING_ISSUE`, `SUBSCRIPTION_PAUSED`, etc.) is recorded for audit but deliberately left alone rather than guessed at.
+
+Deploy and configure it once your RevenueCat project exists:
+
+```bash
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=...          # Project Settings > API > service_role key
+supabase secrets set REVENUECAT_WEBHOOK_AUTH_TOKEN=$(openssl rand -hex 32)
+supabase functions deploy revenuecat-webhook
+supabase db push   # applies 0011_revenuecat_webhook.sql
+```
+
+Then in the RevenueCat dashboard: Project settings → Integrations → Webhooks → add `https://<your-project-ref>.supabase.co/functions/v1/revenuecat-webhook` as the URL, and paste the *same* token generated above into "Authorization header value."
+
+### Google Play Console setup (manual — cannot be done from this environment)
+
+1. In Play Console, under your app → Monetize → Products → Subscriptions, create **two subscription products**:
+   - `com.ieltsprep.app.premium.monthly` — base plan billed monthly, price ₹299 (India) — set additional regional prices as desired, or let Play's auto-conversion suggest them.
+   - `com.ieltsprep.app.premium.yearly` — base plan billed yearly, price ₹2,499 (India).
+   
+   (These exact ids are placeholders this app's code expects via the "annual"/"year" substring check in `revenuecatProvider.ts`'s `planFromProductId()` and the webhook's identical copy in `_shared/revenuecatWebhook.ts` — use your own ids if you prefer, but update both of those functions to match, and keep them in sync with each other.)
+2. Activate each product's base plan (and any introductory offer, e.g. a 7-day free trial, if desired — matching `trialDays` in `services/purchases/types.ts`'s `PurchaseProduct`, currently a placeholder value).
+3. Ensure the app's Play Console listing has at least one closed/internal testing track published — Play requires this before subscription products can be purchased, even in sandbox testing.
+
+### RevenueCat dashboard setup (manual — cannot be done from this environment)
+
+1. Create a RevenueCat project (or use an existing one) and add an **Android app** to it, entering this app's package name (`com.ieltsprep.app`, from `app.json`) and linking your Google Play Console service-account credentials (RevenueCat's docs walk through generating one — Play Console → Setup → API access).
+2. Under **Entitlements**, create one entitlement with the identifier **`premium`** (must match exactly — this app checks that literal string in both the client and the webhook).
+3. Under **Products**, import the two Play Console products created above, and attach both to the `premium` entitlement.
+4. Under **Offerings**, create (or use the default) offering named `default`/`current`, and add two **packages** to it — a Monthly package wrapping the monthly product, and an Annual package wrapping the yearly product. Mark this offering "current."
+5. Under **API keys**, copy the Android public SDK key into `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` — locally, add it to `.env` (see "Environment variables" above); for EAS builds, use the EAS CLI's environment-variable command (`eas env:create` — this environment has no network access to verify its exact current flags against the live `eas-cli`, so run `eas env:create --help` for the syntax your installed version expects) to set it for each build profile (`development`/`preview`/`production`) that needs a real subscription flow. Never use RevenueCat's separate secret/admin key here or anywhere in this app — this field is specifically the public SDK key.
+6. Set up the webhook as described just above.
+
 ## Free vs. Premium boundary
 
 Every screen with a free/premium distinction reads `useAppStore().subscription?.plan !== 'free'` directly (no separate "entitlements" service to fall out of sync with) and, on the free plan, shows a `DailyLimitCard`/inline upsell instead of silently degrading or silently staying unlimited. The actual limits live in one place, `lib/entitlements.ts`:
