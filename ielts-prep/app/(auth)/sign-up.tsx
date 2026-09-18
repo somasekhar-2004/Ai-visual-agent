@@ -7,6 +7,7 @@ import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNo
 import { Button, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { signUpWithEmail } from '@/services/auth';
+import { useAppStore } from '@/store/useAppStore';
 
 type FlowState =
   | { kind: 'idle' }
@@ -45,6 +46,15 @@ export default function SignUpScreen() {
         setError(result.error);
         return;
       }
+      // signUpWithEmail() just established a real, immediate session and
+      // returned that user's real id — nothing else has put it into
+      // useAppStore yet at this point. Without this, the onboarding wizard
+      // this routes into next ends at app/(onboarding)/account.tsx, which
+      // (before this fix) would find no userId in the store and either fall
+      // back to a broken Demo Mode identity or show "Create your account" /
+      // "Account already exists — sign in" again to a user who is already
+      // signed in — see services/auth.ts's signInDemo() for the related fix.
+      useAppStore.setState({ userId: result.userId });
       // A brand new account has no goals yet — route through onboarding to collect them.
       router.replace('/(onboarding)/ielts-type');
     } finally {

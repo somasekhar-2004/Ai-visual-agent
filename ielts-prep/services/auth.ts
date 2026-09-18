@@ -95,8 +95,17 @@ export async function setOnboardingComplete(): Promise<void> {
   await AsyncStorage.setItem(ONBOARDING_KEY, '1');
 }
 
-/** Signs the user into demo mode instantly — no credentials required. */
+/**
+ * Signs the user into demo mode instantly — no credentials required.
+ * Refuses outright when a real backend is configured: this is the guard
+ * that stops a caller with a bug (e.g. completeOnboarding()'s "no userId
+ * yet, fall back to demo" branch, meant only for the genuine Demo Mode
+ * path) from silently attaching a real user's data to the hardcoded
+ * DEMO_USER_ID instead of surfacing a clear error — every other function in
+ * this file already gates its demo/real branch the same way.
+ */
 export async function signInDemo(): Promise<AuthResult> {
+  if (!isDemoMode) return { error: 'Demo Mode is not available — this build is configured with a real backend.' };
   await AsyncStorage.setItem(DEMO_SESSION_KEY, '1');
   return { userId: DEMO_USER_ID };
 }

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 
 import { DevAuthVersionBadge } from '@/components/auth/DevAuthVersionBadge';
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
@@ -31,6 +31,9 @@ export default function AccountScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [flow, setFlow] = useState<FlowState>({ kind: 'idle' });
+  // Lazy initializer (not an effect) so this is decided once, from the
+  // store's value at first render — see the effect below for why.
+  const [autoCompleting, setAutoCompleting] = useState(() => Boolean(useAppStore.getState().userId));
 
   async function finishOnboarding() {
     // Never fabricate a missing required answer (ieltsType/targetBand/
@@ -48,6 +51,27 @@ export default function AccountScreen() {
     await completeOnboarding(input);
     router.replace('/(onboarding)/plan-ready');
   }
+
+  useEffect(() => {
+    // Reaching this screen already authenticated (userId already set in the
+    // store at first render, per autoCompleting's lazy initializer above)
+    // means the user signed up earlier in this same wizard —
+    // app/(auth)/sign-up.tsx sets it before routing into onboarding for a
+    // brand-new account — and is just finishing the goal-setup questions
+    // for that already-real account. They must never be shown "Create your
+    // account" / "Account already exists — sign in" again for an account
+    // they already have (the exact bug this fixes): skip straight to
+    // saving their answers under the real id. Runs once on mount only, so
+    // this never races handleCreateAccount's own direct finishOnboarding()
+    // call for the normal, not-yet-authenticated path (autoCompleting
+    // starts false there, so this is a no-op).
+    if (!autoCompleting) return;
+    finishOnboarding().catch((err) => {
+      setAutoCompleting(false);
+      setError((err as Error).message);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleDemo() {
     setLoading(true);
@@ -82,6 +106,16 @@ export default function AccountScreen() {
         setError(result.error);
         return;
       }
+      // signUpWithEmail() just established a real, immediate session (no
+      // email confirmation required) and returned that user's real id — but
+      // nothing else has put it into useAppStore yet. Without this,
+      // completeOnboarding() below finds get().userId still null and falls
+      // back to signInDemo(), silently attaching this onboarding data to the
+      // wrong (demo) identity instead of the real account that was just
+      // created — see lib/env.ts's isBackendMisconfigured comment and
+      // services/auth.ts's signInDemo() for the guard that now also refuses
+      // that fallback outright when a real backend is configured.
+      useAppStore.setState({ userId: result.userId });
       await finishOnboarding();
     } catch (err) {
       setError((err as Error).message);
@@ -92,6 +126,14 @@ export default function AccountScreen() {
 
   const goToSignIn = () => router.replace('/(auth)/sign-in');
 
+  if (autoCompleting) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
   let body: React.ReactNode;
 
   if (mode === 'choice') {
@@ -100,11 +142,16 @@ export default function AccountScreen() {
         step={8}
         totalSteps={9}
         title="Create your account"
-        subtitle="Save your progress and sync across devices — or jump straight in with Demo Mode."
+        subtitle={isDemoMode ? "Save your progress and sync across devices — or jump straight in with Demo Mode." : 'Save your progress and sync across devices.'}
         primaryLabel="Create account with email"
         onPrimary={() => setMode('form')}
-        secondaryLabel="Continue with Demo Mode"
-        onSecondary={handleDemo}
+        // Demo Mode only exists as a way to try the whole app without a
+        // configured backend at all — a build with a real Supabase project
+        // must never offer it, since signInDemo() (see services/auth.ts)
+        // now correctly refuses to run there, and offering the button would
+        // just be a dead end that surfaces a confusing error.
+        secondaryLabel={isDemoMode ? 'Continue with Demo Mode' : undefined}
+        onSecondary={isDemoMode ? handleDemo : undefined}
         loading={loading}
       >
         <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
