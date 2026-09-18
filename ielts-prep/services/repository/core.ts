@@ -1,10 +1,7 @@
 import { computeOverallBand, roundIeltsBand } from '@/lib/bandScore';
-import { DEMO_USER_ID, getDb, mutateDb } from '@/lib/demoStore';
-import { isDemoMode } from '@/lib/env';
-import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
 import { throwIfSupabaseError } from '@/lib/supabaseErrors';
-import { getPurchasesProvider, isPurchasesMocked } from '@/services/purchases';
+import { getPurchasesProvider } from '@/services/purchases';
 import type {
   IeltsType,
   NotificationCategory,
@@ -16,10 +13,6 @@ import type {
 } from '@/types/models';
 
 export async function getProfile(userId: string): Promise<Profile | null> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.profile.id === userId || userId === DEMO_USER_ID ? db.profile : null;
-  }
   const { data, error } = await supabase!.from('profiles').select('*').eq('id', userId).maybeSingle();
   // maybeSingle() returns { data: null, error: null } for a genuine "no row"
   // — only a non-null error means the query itself failed (RLS/permission
@@ -30,21 +23,11 @@ export async function getProfile(userId: string): Promise<Profile | null> {
 }
 
 export async function updateProfileName(userId: string, fullName: string): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.profile.fullName = fullName;
-    });
-    return;
-  }
   const { error } = await supabase!.from('profiles').update({ full_name: fullName }).eq('id', userId);
   throwIfSupabaseError(error, 'Failed to update profile');
 }
 
 export async function getActiveGoal(userId: string): Promise<UserGoal | null> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.goal ?? null;
-  }
   const { data, error } = await supabase!
     .from('user_goals')
     .select('*')
@@ -99,23 +82,6 @@ export type OnboardingInput = {
 };
 
 export async function saveOnboardingGoal(userId: string, input: OnboardingInput): Promise<UserGoal> {
-  if (isDemoMode) {
-    return mutateDb((db) => {
-      db.goal = {
-        id: generateId('goal'),
-        userId,
-        ieltsType: input.ieltsType,
-        currentBand: input.currentBand,
-        targetBand: input.targetBand,
-        examDate: input.examDate,
-        weakestSkill: input.weakestSkill,
-        dailyStudyMinutes: input.dailyStudyMinutes,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      };
-      return db.goal;
-    });
-  }
   // Insert the new goal BEFORE deactivating any previous one — deliberately
   // the opposite order from an earlier version of this function. These are
   // two separate, non-transactional requests; deactivating first meant that
@@ -181,14 +147,6 @@ function mapGoalRow(data: any): UserGoal {
 export type SkillBandMap = Partial<Record<SkillOrOverall, number>>;
 
 export async function getLatestBandScores(userId: string): Promise<SkillBandMap> {
-  if (isDemoMode) {
-    const db = await getDb();
-    const map: SkillBandMap = {};
-    for (const entry of db.bandScores) {
-      map[entry.skill] = entry.band;
-    }
-    return map;
-  }
   const { data, error } = await supabase!
     .from('band_scores')
     .select('*')
@@ -201,10 +159,6 @@ export async function getLatestBandScores(userId: string): Promise<SkillBandMap>
 }
 
 export async function getBandScoreHistory(userId: string): Promise<import('@/types/models').BandScoreEntry[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return [...db.bandScores].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
-  }
   const { data, error } = await supabase!
     .from('band_scores')
     .select('*')
@@ -227,12 +181,6 @@ export async function recordBandScore(
   band: number,
   source: 'mock' | 'practice' | 'ai_estimate' | 'manual'
 ): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.bandScores.push({ id: generateId('band'), userId, skill, band, source, recordedAt: new Date().toISOString() });
-    });
-    return;
-  }
   const { error } = await supabase!.from('band_scores').insert({ user_id: userId, skill, band, source });
   throwIfSupabaseError(error, 'Failed to record band score');
 }
@@ -256,10 +204,6 @@ export async function refreshOverallBand(userId: string): Promise<number | null>
 }
 
 export async function getSubscription(userId: string): Promise<Subscription | null> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.subscription;
-  }
   const { data, error } = await supabase!.from('subscriptions').select('*').eq('user_id', userId).maybeSingle();
   throwIfSupabaseError(error, 'Failed to load subscription');
   if (!data) return null;
@@ -279,12 +223,6 @@ export async function setSubscription(
   status: Subscription['status'],
   currentPeriodEnd?: string | null
 ): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.subscription = { ...db.subscription, plan, status, ...(currentPeriodEnd !== undefined ? { currentPeriodEnd } : {}) };
-    });
-    return;
-  }
   const { error } = await supabase!
     .from('subscriptions')
     .update({ plan, status, ...(currentPeriodEnd !== undefined ? { current_period_end: currentPeriodEnd } : {}) })
@@ -293,14 +231,14 @@ export async function setSubscription(
 }
 
 /** Re-checks the store's own entitlement record (RevenueCat when
- * configured; a no-op in Demo Mode) and reconciles the locally stored
- * subscription if it disagrees — the only way the app finds out about a
- * cancellation or expiry that happened outside it (App Store / Play Store
- * settings), since nothing pushes that event to the app otherwise. Never
- * throws: a failed check just leaves the last-known local state in place
- * rather than risking an incorrect downgrade. */
+ * configured; always inactive via UnavailablePurchasesProvider otherwise)
+ * and reconciles the locally stored subscription if it disagrees — the only
+ * way the app finds out about a cancellation or expiry that happened
+ * outside it (App Store / Play Store settings), since nothing pushes that
+ * event to the app otherwise. Never throws: a failed check just leaves the
+ * last-known local state in place rather than risking an incorrect
+ * downgrade. */
 export async function syncSubscriptionEntitlement(userId: string): Promise<void> {
-  if (isPurchasesMocked()) return;
   try {
     const status = await getPurchasesProvider().checkEntitlement();
     const current = await getSubscription(userId);
@@ -331,10 +269,6 @@ const DEFAULT_NOTIFICATION_PREFS: Record<NotificationCategory, boolean> = {
 };
 
 export async function getNotificationPrefs(userId: string): Promise<Record<NotificationCategory, boolean>> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.notificationPrefs;
-  }
   const { data, error } = await supabase!.from('notification_prefs').select('category, enabled').eq('user_id', userId);
   throwIfSupabaseError(error, 'loading notification preferences');
   const prefs = { ...DEFAULT_NOTIFICATION_PREFS };
@@ -345,43 +279,24 @@ export async function getNotificationPrefs(userId: string): Promise<Record<Notif
 }
 
 export async function setNotificationPref(userId: string, category: NotificationCategory, enabled: boolean): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.notificationPrefs[category] = enabled;
-    });
-    return;
-  }
   const { error } = await supabase!
     .from('notification_prefs')
     .upsert({ user_id: userId, category, enabled, updated_at: new Date().toISOString() }, { onConflict: 'user_id,category' });
   throwIfSupabaseError(error, 'saving notification preference');
 }
 
+// Streak/XP have no persisted real-backend representation yet — a brand-new
+// (or any real) account always reads 0/null here rather than a fabricated
+// nonzero value. recordDailyActivity is a deliberate no-op for the same
+// reason: there is nothing yet to write these to server-side.
 export async function getStreak(userId: string): Promise<{ count: number; lastActiveDate: string | null }> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.streak;
-  }
   return { count: 0, lastActiveDate: null };
 }
 
 export async function getXp(userId: string): Promise<number> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.xp;
-  }
   return 0;
 }
 
-/** Call whenever the user completes a meaningful unit of study — bumps the daily streak (once per day) and awards XP. */
-export async function recordDailyActivity(userId: string, xpEarned: number): Promise<void> {
-  if (!isDemoMode) return;
-  const today = new Date().toISOString().slice(0, 10);
-  await mutateDb((db) => {
-    db.xp += xpEarned;
-    if (db.streak.lastActiveDate === today) return;
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    db.streak.count = db.streak.lastActiveDate === yesterday ? db.streak.count + 1 : 1;
-    db.streak.lastActiveDate = today;
-  });
-}
+/** Call whenever the user completes a meaningful unit of study — currently a
+ * no-op (see the comment on getStreak/getXp above). */
+export async function recordDailyActivity(userId: string, xpEarned: number): Promise<void> {}

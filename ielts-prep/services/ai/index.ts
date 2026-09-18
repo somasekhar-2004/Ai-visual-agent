@@ -1,19 +1,12 @@
-import { isSupabaseConfigured } from '@/lib/env';
-
 import { EdgeFunctionProvider } from './edgeFunctionProvider';
-import { MockAiProvider } from './mockProvider';
 import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, StudyPlanSuggestionInput, WritingEvalInput } from './types';
 import type { SpeakingEvaluation, StudyPlanSuggestion, WritingEvaluation } from './schemas';
 
 export { friendlyAiErrorMessage } from './httpClient';
 
 /** Tags an AI result with whether it actually came from the configured real
- * provider or fell back to the mock — distinct from `isRealAiActive()`,
- * which only reports whether a real provider is *configured*. A single call
- * can still fall back to mock output (network error, invalid response) even
- * with a real provider configured, and the UI must reflect that specific
- * result's true source rather than assuming every result matches the
- * provider setting. */
+ * provider — always 'real' now that there is no runtime mock fallback; kept
+ * as a discriminant so callers/tests don't need to change shape. */
 export type AiSource = 'real' | 'mock';
 export type WritingEvaluationResult = WritingEvaluation & { aiSource: AiSource };
 export type SpeakingEvaluationResult = SpeakingEvaluation & { aiSource: AiSource };
@@ -23,31 +16,20 @@ export type StudyPlanSuggestionResult = StudyPlanSuggestion & { aiSource: AiSour
 export * from './types';
 export * from './schemas';
 
-const mock = new MockAiProvider();
+// No client-side "which provider + key" decision — that would mean shipping
+// a secret in the bundle, which is exactly what this architecture exists to
+// avoid. Whether the Edge Function actually has a real OpenAI/Anthropic key
+// configured server-side is entirely the server's decision (via `supabase
+// secrets set`) — if it doesn't, the function returns a clean
+// "ai_not_configured" error, which every function below surfaces to the
+// caller as a real, visible error rather than silently substituting mock
+// output. There is no local mock fallback in runtime code any more: a
+// missing/invalid Supabase config renders ConfigurationErrorScreen (see
+// app/_layout.tsx) before any screen that would call these functions is
+// ever reachable.
+const provider: AiProvider = new EdgeFunctionProvider();
 
-/** No client-side "which provider + key" decision anymore — that would mean
- * shipping a secret in the bundle, which is exactly what this architecture
- * exists to avoid. The only thing the client decides is whether a backend
- * exists to call at all:
- *  - Demo Mode (no Supabase configured): always the local mock, zero
- *    network calls, fully offline — unchanged from before.
- *  - Supabase configured: attempt the Edge Function. Whether that function
- *    actually has a real OpenAI/Anthropic key configured server-side is
- *    entirely the server's decision (via `supabase secrets set`) — if it
- *    doesn't, the function returns a clean "ai_not_configured" error, which
- *    every function below surfaces to the caller as a real, visible error
- *    rather than silently substituting mock output (see each function's own
- *    comment for why). This is what makes requirement "Demo Mode works with
- *    zero config, production AI turns on automatically once Supabase + AI
- *    credentials are both configured" true without the client needing to
- *    know anything about AI credentials at all. */
-function selectConfiguredProvider(): AiProvider {
-  return isSupabaseConfigured ? new EdgeFunctionProvider() : mock;
-}
-
-let provider: AiProvider = selectConfiguredProvider();
-
-/** Returns the currently active AI provider (mock unless Supabase is configured). */
+/** Returns the currently active AI provider. */
 export function getAiProvider(): AiProvider {
   return provider;
 }
@@ -56,77 +38,58 @@ export function getAiProviderName(): string {
   return provider.name;
 }
 
-/** True whenever a real backend is configured to attempt real AI calls —
- * NOT a guarantee any specific call actually used it, since a call can
- * still fail server-side (no AI key set, provider error) and fall back to
- * mock. Use the per-call `aiSource` on a result for that. */
+/** Always true now that there is no runtime mock provider — kept so
+ * existing callers (e.g. DemoAiBadge) don't need to change. */
 export function isRealAiActive(): boolean {
-  return provider.name !== 'mock';
+  return true;
 }
 
 export async function evaluateWriting(input: WritingEvalInput): Promise<WritingEvaluationResult> {
-  // Deliberately does NOT use withFallback's silent-mock-on-failure
-  // behaviour — see transcribeAudio's and evaluateSpeaking's identical
-  // comment. A Writing band is a scored result a student trusts; silently
-  // substituting the heuristic mock's output when the real evaluator fails
-  // would hand them a fabricated band with no indication anything went
-  // wrong. Demo Mode (provider.name === 'mock') is unaffected — there's no
-  // real backend to fail there in the first place, and it's an explicitly
-  // separate, clearly-labelled mode (see DemoAiBadge).
-  if (provider.name === 'mock') return { ...(await mock.evaluateWriting(input)), aiSource: 'mock' };
+  // Deliberately never silently substitutes mock output on failure — a
+  // Writing band is a scored result a student trusts; see
+  // evaluateSpeaking's comment for the production incident this class of
+  // bug caused.
   return { ...(await provider.evaluateWriting(input)), aiSource: 'real' };
 }
 
 export async function evaluateSpeaking(input: SpeakingEvalInput): Promise<SpeakingEvaluationResult> {
-  // Same reasoning as evaluateWriting/transcribeAudio: a real-provider
-  // failure must surface as a visible error, never a silently substituted
-  // mock band. This was the root cause of a release-blocking bug — a
-  // near-silent real-device recording ("Yeah. Gods [no speech detected]
-  // [no speech detected]") that produced Overall Band 5.5 because the real
-  // evaluate-speaking call failed and withFallback quietly handed back
-  // MockAiProvider's heuristic score instead of an error. The heuristic
-  // itself is also not a reliable judge of a near-empty transcript (very
-  // few words can spike its uniqueWordRatio-based Lexical Resource score),
-  // which is exactly why a fabricated band from it must never reach a real
-  // user. See lib/speakingEvidence.ts for the separate, mandatory
+  // A real-provider failure must surface as a visible error, never a
+  // silently substituted mock band. This was the root cause of a
+  // release-blocking bug — a near-silent real-device recording ("Yeah. Gods
+  // [no speech detected] [no speech detected]") that produced Overall Band
+  // 5.5 because the real evaluate-speaking call failed and a prior version
+  // of this code quietly handed back a heuristic mock score instead of an
+  // error. See lib/speakingEvidence.ts for the separate, mandatory
   // insufficient-evidence gate that runs before this function is ever
   // called at all.
-  if (provider.name === 'mock') return { ...(await mock.evaluateSpeaking(input)), aiSource: 'mock' };
   return { ...(await provider.evaluateSpeaking(input)), aiSource: 'real' };
 }
 
 export async function chatWithCoach(messages: ChatMessage[], context: CoachContext): Promise<ChatResult> {
-  // Deliberately does NOT silently fall back to the mock's heuristic reply
-  // on a real-provider failure — same reasoning as evaluateWriting/
+  // Deliberately does NOT silently fall back to a mock heuristic reply on a
+  // real-provider failure — same reasoning as evaluateWriting/
   // evaluateSpeaking/transcribeAudio above. A real production incident
   // showed exactly why: a coach reply that reads as a normal, plausible
   // conversational response is far more convincing (and more dangerous to
   // silently swap out) than a visibly-scored number — a user has no way to
   // sanity-check "hi, here's some advice" the way they might question an
-  // out-of-place band score. Demo Mode (provider.name === 'mock') is
-  // unaffected — there is no real backend to fail there in the first place.
-  if (provider.name === 'mock') return { reply: await mock.chat(messages, context), aiSource: 'mock' };
+  // out-of-place band score.
   return { reply: await provider.chat(messages, context), aiSource: 'real' };
 }
 
 export async function transcribeAudio(audioUri: string): Promise<string> {
-  // Deliberately does NOT use withFallback's silent-mock-on-failure
-  // behaviour: substituting a fabricated transcript when the real one
-  // fails would let the rest of the Speaking flow carry on as if nothing
-  // was wrong (transcribeAudio never continues to evaluateSpeaking against
-  // fake text). A transcription failure must surface to the user visibly
-  // and let them retry with their real answer, not silently reword it.
-  // Demo Mode (provider.name === 'mock') is unaffected — there's no real
-  // backend to fail there in the first place.
-  if (provider.name === 'mock') return mock.transcribeAudio(audioUri);
+  // Deliberately never silently substitutes a fabricated transcript when
+  // the real one fails — that would let the rest of the Speaking flow carry
+  // on as if nothing was wrong. A transcription failure must surface to the
+  // user visibly and let them retry with their real answer, not silently
+  // reword it.
   return provider.transcribeAudio(audioUri);
 }
 
 export async function suggestStudyPlanFocus(input: StudyPlanSuggestionInput): Promise<StudyPlanSuggestionResult> {
-  // Same reasoning as chatWithCoach: no silent mock substitution in real
-  // mode. The caller (Home's focus-note query) already treats a thrown
-  // error as "no note to show today" rather than a blank screen — see
+  // Same reasoning as chatWithCoach: no silent mock substitution. The
+  // caller (Home's focus-note query) already treats a thrown error as "no
+  // note to show today" rather than a blank screen — see
   // app/(tabs)/index.tsx's focusQuery.
-  if (provider.name === 'mock') return { ...(await mock.suggestStudyPlanFocus(input)), aiSource: 'mock' };
   return { ...(await provider.suggestStudyPlanFocus(input)), aiSource: 'real' };
 }

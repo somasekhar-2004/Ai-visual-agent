@@ -30,7 +30,6 @@ jest.mock('@/services/auth', () => ({
   getCurrentUserId: jest.fn().mockResolvedValue('user-1'),
   hasCompletedOnboarding: jest.fn().mockResolvedValue(true),
   setOnboardingComplete: jest.fn(),
-  signInDemo: jest.fn(),
   signOut: jest.fn(),
 }));
 

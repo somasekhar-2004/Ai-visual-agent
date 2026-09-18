@@ -5,7 +5,7 @@
 // exists — sign in" screen while finishing their goal-setup answers, even
 // though they were already authenticated — because nothing had put their
 // real userId into useAppStore yet, so completeOnboarding() found it empty
-// and (before this fix) fell back to a broken Demo Mode identity. These
+// and (before this fix) threw instead of saving. These
 // tests exercise the real screen component: an already-authenticated user
 // must never see the sign-up choice screen at all, and a genuinely new,
 // not-yet-authenticated user must still see it normally.
@@ -37,7 +37,6 @@ jest.mock('@/services/auth', () => ({
   getCurrentUserId: jest.fn().mockResolvedValue(null),
   hasCompletedOnboarding: jest.fn().mockResolvedValue(false),
   setOnboardingComplete: jest.fn(),
-  signInDemo: jest.fn(),
   signOut: jest.fn(),
   signUpWithEmail: jest.fn(),
 }));

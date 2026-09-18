@@ -21,7 +21,7 @@ describe('MockPurchasesProvider', () => {
     expect(result.error).toBeTruthy();
   });
 
-  it('restore() reports no purchase found in demo mode', async () => {
+  it('restore() reports no purchase found', async () => {
     const result = await provider.restore();
     expect(result.success).toBe(false);
   });

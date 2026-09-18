@@ -10,12 +10,6 @@ import { getActiveGoal, saveOnboardingGoal } from '@/services/repository/core';
 // fix: the insert now happens first, and getActiveGoal recovers (and
 // reactivates) the most recent goal if none is marked active, instead of
 // sending an existing user back through onboarding.
-jest.mock('@/lib/env', () => ({
-  ...jest.requireActual('@/lib/env'),
-  isDemoMode: false,
-  isSupabaseConfigured: true,
-}));
-
 jest.mock('@/lib/supabase', () => ({
   supabase: { from: jest.fn() },
 }));

@@ -4,7 +4,6 @@ import {
   getCurrentUserId,
   hasCompletedOnboarding,
   setOnboardingComplete,
-  signInDemo,
   signOut as authSignOut,
 } from '@/services/auth';
 import { applyNotificationPreferences } from '@/services/notifications';
@@ -53,7 +52,6 @@ type AppState = {
   hydrate: () => Promise<void>;
   refreshUserData: (userId: string) => Promise<void>;
   syncEntitlement: () => Promise<void>;
-  enterDemoMode: () => Promise<void>;
   completeOnboarding: (input: OnboardingInput) => Promise<void>;
   signOut: () => Promise<void>;
   setSubscriptionState: (subscription: Subscription) => void;
@@ -146,20 +144,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
-  enterDemoMode: async () => {
-    const result = await signInDemo();
-    if ('userId' in result) {
-      set({ userId: result.userId });
-      await get().refreshUserData(result.userId);
-    }
-  },
-
   completeOnboarding: async (input: OnboardingInput) => {
-    let userId = get().userId;
-    if (!userId) {
-      const result = await signInDemo();
-      if ('userId' in result) userId = result.userId;
-    }
+    const userId = get().userId;
     if (!userId) throw new Error('No signed-in user to attach onboarding data to.');
     const goal = await saveOnboardingGoal(userId, input);
     // Deliberately does NOT call refreshOverallBand here: a brand-new user

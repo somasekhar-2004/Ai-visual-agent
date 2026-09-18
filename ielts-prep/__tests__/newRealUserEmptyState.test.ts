@@ -1,16 +1,13 @@
 // Regression coverage for the reported production incident: a fresh real
-// account showed the Demo Mode seed data (name "Alex", Listening 7.0,
-// Reading 6.5, Writing 5.5, Speaking 6.0, a 3-day streak — see
-// lib/demoStore.ts) instead of its own, genuinely empty state. These tests
-// exercise services/repository/core.ts's REAL (non-Demo-Mode) branch
-// directly — the one every build with a configured Supabase project always
-// takes — and prove a brand-new real user's progress reads back as
-// null/empty/zero, and specifically that none of it is the demo seed
-// shape.
+// account showed fabricated demo seed data (name "Alex", Listening 7.0,
+// Reading 6.5, Writing 5.5, Speaking 6.0, a 3-day streak) instead of its
+// own, genuinely empty state. There is no Demo Mode / seed data anywhere in
+// runtime code any more (see lib/env.ts) — these tests exercise
+// services/repository/core.ts's real Supabase-backed functions directly and
+// prove a brand-new real user's progress reads back as null/empty/zero, and
+// specifically that none of it matches the old fabricated seed shape.
 
 import { getActiveGoal, getLatestBandScores, getProfile, getStreak, getXp } from '@/services/repository';
-
-jest.mock('@/lib/env', () => ({ isDemoMode: false }));
 
 const DEMO_SEED_NAME = 'Alex';
 const DEMO_SEED_BANDS = { listening: 7.0, reading: 6.5, writing: 5.5, speaking: 6.0 };
@@ -35,7 +32,7 @@ function makeEmptyQueryBuilder(response: { data: unknown; error: null }): any {
 const mockFrom = jest.fn((_table?: string) => makeEmptyQueryBuilder({ data: null, error: null }));
 jest.mock('@/lib/supabase', () => ({ supabase: { from: (table: string) => mockFrom(table) } }));
 
-describe('a brand-new real (non-Demo-Mode) user starts with genuinely empty progress', () => {
+describe('a brand-new real user starts with genuinely empty progress', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('getProfile returns null, never the demo seed name "Alex"', async () => {

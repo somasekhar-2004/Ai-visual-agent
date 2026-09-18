@@ -1,6 +1,4 @@
 import { content } from '@/lib/content';
-import { getDb, mutateDb } from '@/lib/demoStore';
-import { isDemoMode } from '@/lib/env';
 import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
 import { throwIfSupabaseError } from '@/lib/supabaseErrors';
@@ -11,10 +9,6 @@ export function listAchievements(): Achievement[] {
 }
 
 export async function getUserAchievements(userId: string): Promise<UserAchievement[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.userAchievements;
-  }
   const { data, error } = await supabase!.from('user_achievements').select('*').eq('user_id', userId);
   throwIfSupabaseError(error, 'Failed to load your achievements');
   return (data ?? []).map((row: any) => ({
@@ -26,13 +20,6 @@ export async function getUserAchievements(userId: string): Promise<UserAchieveme
 }
 
 async function unlock(userId: string, achievementId: string): Promise<boolean> {
-  if (isDemoMode) {
-    return mutateDb((db) => {
-      if (db.userAchievements.some((a) => a.achievementId === achievementId)) return false;
-      db.userAchievements.push({ id: generateId('ua'), userId, achievementId, earnedAt: new Date().toISOString() });
-      return true;
-    });
-  }
   const { error } = await supabase!.from('user_achievements').insert({ user_id: userId, achievement_id: achievementId });
   return !error;
 }
@@ -83,10 +70,6 @@ export async function checkAndUnlockAchievements(userId: string, stats: Achievem
 }
 
 export async function listConversations(userId: string): Promise<AiConversation[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.conversations;
-  }
   const { data, error } = await supabase!
     .from('ai_conversations')
     .select('*')
@@ -97,14 +80,6 @@ export async function listConversations(userId: string): Promise<AiConversation[
 }
 
 export async function createConversation(userId: string, title = 'New conversation'): Promise<AiConversation> {
-  const conversation: AiConversation = { id: generateId('conv'), userId, title, createdAt: new Date().toISOString() };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.conversations.unshift(conversation);
-      db.messages[conversation.id] = [];
-    });
-    return conversation;
-  }
   const { data, error } = await supabase!.from('ai_conversations').insert({ user_id: userId, title }).select('*').single();
   throwIfSupabaseError(error, 'Failed to start a new conversation');
   if (!data) throw new Error('Failed to start a new conversation: the database returned no row.');
@@ -112,10 +87,6 @@ export async function createConversation(userId: string, title = 'New conversati
 }
 
 export async function getMessages(conversationId: string): Promise<AiMessage[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.messages[conversationId] ?? [];
-  }
   const { data, error } = await supabase!
     .from('ai_messages')
     .select('*')
@@ -133,13 +104,6 @@ export async function getMessages(conversationId: string): Promise<AiMessage[]> 
 
 export async function addMessage(conversationId: string, role: AiMessage['role'], content: string): Promise<AiMessage> {
   const message: AiMessage = { id: generateId('msg'), conversationId, role, content, createdAt: new Date().toISOString() };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      if (!db.messages[conversationId]) db.messages[conversationId] = [];
-      db.messages[conversationId].push(message);
-    });
-    return message;
-  }
   const { error } = await supabase!.from('ai_messages').insert({ conversation_id: conversationId, role, content });
   throwIfSupabaseError(error, 'Failed to save the message');
   return message;

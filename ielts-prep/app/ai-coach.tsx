@@ -64,9 +64,8 @@ export default function AiCoachScreen() {
   });
   // Same queryKey ProgressDashboard uses, so this is typically already
   // cached — real accuracy/questions-completed for the coach's context
-  // (real Supabase mode overrides both server-side anyway; see
-  // supabase/functions/_shared/userContext.ts, but Demo Mode has no server
-  // to do that, so this is what makes those honest there too).
+  // (also overridden server-side anyway; see
+  // supabase/functions/_shared/userContext.ts).
   const attemptsQuery = useQuery({
     queryKey: ['question-attempts', userId],
     queryFn: () => getQuestionAttempts(userId!),
@@ -110,12 +109,11 @@ export default function AiCoachScreen() {
     queryClient.invalidateQueries({ queryKey: ['ai-messages', conversationId] });
 
     try {
-      // Real Supabase mode also has this (and every other identity/goal/
-      // band field) re-fetched and overridden server-side by authenticated
-      // user id, not trusted from this client read at all — see
+      // This (and every other identity/goal/band field) is also re-fetched
+      // and overridden server-side by authenticated user id, not trusted
+      // from this client read at all — see
       // supabase/functions/_shared/userContext.ts. buildCoachContext is
-      // still what enforces "never fabricate a missing value" here (and
-      // what Demo Mode, with no server to override anything, relies on).
+      // still what enforces "never fabricate a missing value" here.
       const context = buildCoachContext({ profile, goal, bandScores, streak, attempts: attemptsQuery.data ?? [] });
 
       const history = (await getMessages(conversationId)).map((m) => ({ role: m.role, content: m.content }));

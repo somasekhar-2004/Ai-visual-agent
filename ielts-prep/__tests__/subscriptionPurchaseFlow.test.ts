@@ -158,11 +158,18 @@ describe('RevenueCatProvider — identity binding (login/logout/account switch)'
 });
 
 describe('useAppStore — signOut() clears the account (and, per RevenueCatProvider.logout above, its purchase identity)', () => {
+  afterEach(() => jest.dontMock('@/services/auth'));
+
   it('signOut() clears the signed-in user id and cached subscription state, and never throws even though the purchases provider logout is best-effort', async () => {
-    useAppStore.setState({ userId: 'user-1', subscription: { id: 's1', userId: 'user-1', plan: 'premium_monthly', status: 'active', revenuecatCustomerId: null, currentPeriodEnd: null } });
-    await useAppStore.getState().signOut();
-    expect(useAppStore.getState().userId).toBeNull();
-    expect(useAppStore.getState().subscription).toBeNull();
+    jest.resetModules();
+    jest.doMock('@/services/auth', () => ({ signOut: jest.fn().mockResolvedValue(undefined) }));
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useAppStore: freshUseAppStore } = require('@/store/useAppStore') as typeof import('@/store/useAppStore');
+
+    freshUseAppStore.setState({ userId: 'user-1', subscription: { id: 's1', userId: 'user-1', plan: 'premium_monthly', status: 'active', revenuecatCustomerId: null, currentPeriodEnd: null } });
+    await freshUseAppStore.getState().signOut();
+    expect(freshUseAppStore.getState().userId).toBeNull();
+    expect(freshUseAppStore.getState().subscription).toBeNull();
   });
 });
 

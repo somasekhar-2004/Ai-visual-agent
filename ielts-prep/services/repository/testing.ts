@@ -1,6 +1,4 @@
 import { content } from '@/lib/content';
-import { getDb, mutateDb } from '@/lib/demoStore';
-import { isDemoMode } from '@/lib/env';
 import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
 import { throwIfSupabaseError } from '@/lib/supabaseErrors';
@@ -31,22 +29,6 @@ export function getMockSections(mockTestId: string): MockSection[] {
 }
 
 export async function startMockAttempt(userId: string, mockTestId: string): Promise<MockAttempt> {
-  const attempt: MockAttempt = {
-    id: generateId('mock'),
-    userId,
-    mockTestId,
-    status: 'in_progress',
-    startedAt: new Date().toISOString(),
-    completedAt: null,
-    overallBand: null,
-    state: {},
-  };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.mockAttempts.unshift(attempt);
-    });
-    return attempt;
-  }
   const { data, error } = await supabase!
     .from('mock_attempts')
     .insert({ user_id: userId, mock_test_id: mockTestId, status: 'in_progress' })
@@ -62,29 +44,11 @@ export async function startMockAttempt(userId: string, mockTestId: string): Prom
 }
 
 export async function saveMockAttemptState(attemptId: string, state: Record<string, unknown>): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      const attempt = db.mockAttempts.find((a) => a.id === attemptId);
-      if (attempt) attempt.state = state;
-    });
-    return;
-  }
   const { error } = await supabase!.from('mock_attempts').update({ state }).eq('id', attemptId);
   throwIfSupabaseError(error, 'Failed to save your mock test progress');
 }
 
 export async function completeMockAttempt(attemptId: string, overallBand: number): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      const attempt = db.mockAttempts.find((a) => a.id === attemptId);
-      if (attempt) {
-        attempt.status = 'completed';
-        attempt.completedAt = new Date().toISOString();
-        attempt.overallBand = overallBand;
-      }
-    });
-    return;
-  }
   const { error } = await supabase!
     .from('mock_attempts')
     .update({ status: 'completed', completed_at: new Date().toISOString(), overall_band: overallBand })
@@ -93,10 +57,6 @@ export async function completeMockAttempt(attemptId: string, overallBand: number
 }
 
 export async function getMockAttempts(userId: string): Promise<MockAttempt[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.mockAttempts;
-  }
   const { data, error } = await supabase!
     .from('mock_attempts')
     .select('*')
@@ -130,10 +90,6 @@ function mapMockAttempt(data: any): MockAttempt {
 }
 
 export async function getReadingAttempts(userId: string): Promise<ReadingAttempt[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.readingAttempts;
-  }
   const { data, error } = await supabase!.from('reading_attempts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
   throwIfSupabaseError(error, 'Failed to load your reading attempts');
   return (data ?? []).map((row: any) => ({
@@ -152,10 +108,6 @@ export async function getReadingAttempts(userId: string): Promise<ReadingAttempt
 }
 
 export async function getListeningAttempts(userId: string): Promise<ListeningAttempt[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.listeningAttempts;
-  }
   const { data, error } = await supabase!.from('listening_attempts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
   throwIfSupabaseError(error, 'Failed to load your listening attempts');
   return (data ?? []).map((row: any) => ({
@@ -197,24 +149,18 @@ export async function saveReadingAttempt(
     answers: input.answers,
     createdAt: new Date().toISOString(),
   };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.readingAttempts.unshift(attempt);
-    });
-  } else {
-    const { error } = await supabase!.from('reading_attempts').insert({
-      user_id: userId,
-      mock_attempt_id: input.mockAttemptId,
-      ielts_type: input.ieltsType,
-      passage_ids: input.passageIds,
-      raw_score: input.rawScore,
-      total_questions: input.totalQuestions,
-      band: input.band,
-      time_spent_seconds: input.timeSpentSeconds,
-      answers: input.answers,
-    });
-    throwIfSupabaseError(error, 'Failed to save your reading result');
-  }
+  const { error } = await supabase!.from('reading_attempts').insert({
+    user_id: userId,
+    mock_attempt_id: input.mockAttemptId,
+    ielts_type: input.ieltsType,
+    passage_ids: input.passageIds,
+    raw_score: input.rawScore,
+    total_questions: input.totalQuestions,
+    band: input.band,
+    time_spent_seconds: input.timeSpentSeconds,
+    answers: input.answers,
+  });
+  throwIfSupabaseError(error, 'Failed to save your reading result');
   await addTestHistory(userId, 'reading', attempt.id, input.band, {
     rawScore: input.rawScore,
     totalQuestions: input.totalQuestions,
@@ -245,22 +191,16 @@ export async function saveListeningAttempt(
     answers: input.answers,
     createdAt: new Date().toISOString(),
   };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.listeningAttempts.unshift(attempt);
-    });
-  } else {
-    const { error } = await supabase!.from('listening_attempts').insert({
-      user_id: userId,
-      mock_attempt_id: input.mockAttemptId,
-      track_ids: input.trackIds,
-      raw_score: input.rawScore,
-      total_questions: input.totalQuestions,
-      band: input.band,
-      answers: input.answers,
-    });
-    throwIfSupabaseError(error, 'Failed to save your listening result');
-  }
+  const { error } = await supabase!.from('listening_attempts').insert({
+    user_id: userId,
+    mock_attempt_id: input.mockAttemptId,
+    track_ids: input.trackIds,
+    raw_score: input.rawScore,
+    total_questions: input.totalQuestions,
+    band: input.band,
+    answers: input.answers,
+  });
+  throwIfSupabaseError(error, 'Failed to save your listening result');
   await addTestHistory(userId, 'listening', attempt.id, input.band, { rawScore: input.rawScore, totalQuestions: input.totalQuestions });
   return attempt;
 }
@@ -276,23 +216,6 @@ export async function submitWriting(
     timeSpentSeconds: number;
   }
 ): Promise<WritingSubmission> {
-  const submission: WritingSubmission = {
-    id: generateId('ws'),
-    userId,
-    mockAttemptId: input.mockAttemptId ?? null,
-    promptId: input.promptId,
-    taskType: input.taskType,
-    essayText: input.essayText,
-    wordCount: input.wordCount,
-    timeSpentSeconds: input.timeSpentSeconds,
-    createdAt: new Date().toISOString(),
-  };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.writingSubmissions.unshift(submission);
-    });
-    return submission;
-  }
   const { data, error } = await supabase!
     .from('writing_submissions')
     .insert({
@@ -327,26 +250,20 @@ export async function saveWritingFeedback(
   feedback: Omit<WritingFeedback, 'id' | 'submissionId' | 'createdAt'>
 ): Promise<WritingFeedback> {
   const full: WritingFeedback = { id: generateId('wf'), submissionId, createdAt: new Date().toISOString(), ...feedback };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.writingFeedback.unshift(full);
-    });
-  } else {
-    const { error } = await supabase!.from('writing_feedback').insert({
-      submission_id: submissionId,
-      overall_band: feedback.overallBand,
-      task_achievement: feedback.taskAchievement,
-      coherence_cohesion: feedback.coherenceCohesion,
-      lexical_resource: feedback.lexicalResource,
-      grammatical_range: feedback.grammaticalRange,
-      strengths: feedback.strengths,
-      weaknesses: feedback.weaknesses,
-      suggestions: feedback.suggestions,
-      improved_example: feedback.improvedExample,
-      ai_model: feedback.aiModel,
-    });
-    throwIfSupabaseError(error, 'Failed to save your writing feedback');
-  }
+  const { error } = await supabase!.from('writing_feedback').insert({
+    submission_id: submissionId,
+    overall_band: feedback.overallBand,
+    task_achievement: feedback.taskAchievement,
+    coherence_cohesion: feedback.coherenceCohesion,
+    lexical_resource: feedback.lexicalResource,
+    grammatical_range: feedback.grammaticalRange,
+    strengths: feedback.strengths,
+    weaknesses: feedback.weaknesses,
+    suggestions: feedback.suggestions,
+    improved_example: feedback.improvedExample,
+    ai_model: feedback.aiModel,
+  });
+  throwIfSupabaseError(error, 'Failed to save your writing feedback');
   await addTestHistory(userId, 'writing', submissionId, feedback.overallBand, {
     taskAchievement: feedback.taskAchievement,
     coherenceCohesion: feedback.coherenceCohesion,
@@ -357,13 +274,6 @@ export async function saveWritingFeedback(
 }
 
 export async function getWritingHistory(userId: string): Promise<{ submission: WritingSubmission; feedback: WritingFeedback | null }[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.writingSubmissions.map((submission) => ({
-      submission,
-      feedback: db.writingFeedback.find((f) => f.submissionId === submission.id) ?? null,
-    }));
-  }
   const { data, error } = await supabase!
     .from('writing_submissions')
     .select('*, writing_feedback(*)')
@@ -387,21 +297,6 @@ export async function getWritingHistory(userId: string): Promise<{ submission: W
 }
 
 export async function createSpeakingSession(userId: string, part: SpeakingPart, topicId: string | null): Promise<SpeakingSession> {
-  const session: SpeakingSession = {
-    id: generateId('ss'),
-    userId,
-    mockAttemptId: null,
-    part,
-    topicId,
-    startedAt: new Date().toISOString(),
-    completedAt: null,
-  };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.speakingSessions.unshift(session);
-    });
-    return session;
-  }
   const { data, error } = await supabase!
     .from('speaking_sessions')
     .insert({ user_id: userId, part, topic_id: topicId })
@@ -429,12 +324,6 @@ export async function addSpeakingResponse(
   sessionId: string,
   input: { questionText: string; audioUrl: string | null; transcript: string | null; durationSeconds: number; orderIndex: number }
 ): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.speakingResponses.push({ id: generateId('sr'), sessionId, ...input });
-    });
-    return;
-  }
   const { error } = await supabase!.from('speaking_responses').insert({
     session_id: sessionId,
     question_text: input.questionText,
@@ -447,13 +336,6 @@ export async function addSpeakingResponse(
 }
 
 export async function completeSpeakingSession(sessionId: string): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      const session = db.speakingSessions.find((s) => s.id === sessionId);
-      if (session) session.completedAt = new Date().toISOString();
-    });
-    return;
-  }
   const { error } = await supabase!.from('speaking_sessions').update({ completed_at: new Date().toISOString() }).eq('id', sessionId);
   throwIfSupabaseError(error, 'Failed to complete the speaking session');
 }
@@ -464,25 +346,19 @@ export async function saveSpeakingFeedback(
   feedback: Omit<SpeakingFeedback, 'id' | 'sessionId' | 'createdAt'>
 ): Promise<SpeakingFeedback> {
   const full: SpeakingFeedback = { id: generateId('sf'), sessionId, createdAt: new Date().toISOString(), ...feedback };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.speakingFeedback.unshift(full);
-    });
-  } else {
-    const { error } = await supabase!.from('speaking_feedback').insert({
-      session_id: sessionId,
-      overall_band: feedback.overallBand,
-      fluency_coherence: feedback.fluencyCoherence,
-      lexical_resource: feedback.lexicalResource,
-      grammatical_range: feedback.grammaticalRange,
-      pronunciation: feedback.pronunciation,
-      filler_word_count: feedback.fillerWordCount,
-      strengths: feedback.strengths,
-      weaknesses: feedback.weaknesses,
-      suggested_exercises: feedback.suggestedExercises,
-    });
-    throwIfSupabaseError(error, 'Failed to save your speaking feedback');
-  }
+  const { error } = await supabase!.from('speaking_feedback').insert({
+    session_id: sessionId,
+    overall_band: feedback.overallBand,
+    fluency_coherence: feedback.fluencyCoherence,
+    lexical_resource: feedback.lexicalResource,
+    grammatical_range: feedback.grammaticalRange,
+    pronunciation: feedback.pronunciation,
+    filler_word_count: feedback.fillerWordCount,
+    strengths: feedback.strengths,
+    weaknesses: feedback.weaknesses,
+    suggested_exercises: feedback.suggestedExercises,
+  });
+  throwIfSupabaseError(error, 'Failed to save your speaking feedback');
   await addTestHistory(userId, 'speaking', sessionId, feedback.overallBand, {
     fillerWordCount: feedback.fillerWordCount,
     fluencyCoherence: feedback.fluencyCoherence,
@@ -496,14 +372,6 @@ export async function saveSpeakingFeedback(
 export async function getSpeakingHistory(
   userId: string
 ): Promise<{ session: SpeakingSession; responses: SpeakingResponse[]; feedback: SpeakingFeedback | null }[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.speakingSessions.map((session) => ({
-      session,
-      responses: db.speakingResponses.filter((r) => r.sessionId === session.id),
-      feedback: db.speakingFeedback.find((f) => f.sessionId === session.id) ?? null,
-    }));
-  }
   const { data, error } = await supabase!
     .from('speaking_sessions')
     .select('*, speaking_responses(*), speaking_feedback(*)')
@@ -532,21 +400,6 @@ export async function addTestHistory(
   band: number | null,
   summary: Record<string, unknown>
 ): Promise<void> {
-  const entry: TestHistoryEntry = {
-    id: generateId('th'),
-    userId,
-    activityType,
-    refId,
-    band,
-    summary,
-    createdAt: new Date().toISOString(),
-  };
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.testHistory.unshift(entry);
-    });
-    return;
-  }
   const { error } = await supabase!.from('test_history').insert({
     user_id: userId,
     activity_type: activityType,
@@ -558,10 +411,6 @@ export async function addTestHistory(
 }
 
 export async function getTestHistory(userId: string): Promise<TestHistoryEntry[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.testHistory;
-  }
   const { data, error } = await supabase!
     .from('test_history')
     .select('*')

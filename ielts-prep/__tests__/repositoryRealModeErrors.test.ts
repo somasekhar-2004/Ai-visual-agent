@@ -9,15 +9,6 @@ import { createSpeakingSession, startMockAttempt } from '@/services/repository/t
 // network error) silently looked identical to "no data" instead of
 // surfacing anywhere — producing the Home white screen, the full-mock-test
 // crash, the speaking-session crash, and "Mark as complete" doing nothing.
-// These tests run against the real-backend branch, so isDemoMode must be
-// false here (unlike the rest of the suite, which stays in Demo Mode with
-// no EXPO_PUBLIC_SUPABASE_URL set).
-jest.mock('@/lib/env', () => ({
-  ...jest.requireActual('@/lib/env'),
-  isDemoMode: false,
-  isSupabaseConfigured: true,
-}));
-
 jest.mock('@/lib/supabase', () => ({
   supabase: { from: jest.fn() },
 }));

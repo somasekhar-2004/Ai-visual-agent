@@ -1,14 +1,15 @@
 import type { EntitlementStatus, PurchaseProduct, PurchaseResult, PurchasesProvider } from './types';
 
-// Placeholder pricing for Demo Mode only (no real Supabase/RevenueCat
-// configured) — reflects the app's initial India launch pricing direction
-// (₹299/month, ₹2,499/year) purely so the simulated paywall looks
-// realistic. This is NEVER what a real purchase charges: with RevenueCat
-// actually configured, every price shown anywhere in the app comes from
-// `PurchasesPackage.product.priceString` (see revenuecatProvider.ts),
-// already formatted and localized by the store for the buyer's own
-// country/currency — nothing about a real price is ever hardcoded here or
-// in the UI that renders it.
+// Placeholder pricing used only by this test double (never wired into the
+// runtime provider selection in services/purchases/index.ts — see that
+// file) — reflects the app's initial India launch pricing direction
+// (₹299/month, ₹2,499/year) purely so tests exercising the paywall have
+// realistic-looking data. This is NEVER what a real purchase charges: with
+// RevenueCat actually configured, every price shown anywhere in the app
+// comes from `PurchasesPackage.product.priceString` (see
+// revenuecatProvider.ts), already formatted and localized by the store for
+// the buyer's own country/currency — nothing about a real price is ever
+// hardcoded here or in the UI that renders it.
 const PRODUCTS: PurchaseProduct[] = [
   {
     identifier: 'premium_monthly',
@@ -34,13 +35,13 @@ const PRODUCTS: PurchaseProduct[] = [
   },
 ];
 
-/** Simulates App Store / Play Store purchases so the whole paywall flow can
- * be demoed without a RevenueCat project or real store products configured.
- * Only ever used in genuine Demo Mode (no real Supabase project) — see
- * services/purchases/index.ts's provider selection. A real Supabase backend
- * with RevenueCat not yet configured gets UnavailablePurchasesProvider
- * instead, specifically so a "successful" simulated purchase here can never
- * write a fabricated Premium subscription into a real user's account. */
+/** Test double that simulates App Store / Play Store purchases, used only by
+ * Jest tests exercising the paywall flow — see __tests__/purchases.test.ts.
+ * NEVER imported by services/purchases/index.ts's runtime provider
+ * selection: a real backend with RevenueCat not yet configured gets
+ * UnavailablePurchasesProvider instead, specifically so a "successful"
+ * simulated purchase can never write a fabricated Premium subscription into
+ * a real user's account. */
 export class MockPurchasesProvider implements PurchasesProvider {
   readonly name = 'mock';
 
@@ -57,17 +58,16 @@ export class MockPurchasesProvider implements PurchasesProvider {
 
   async restore(): Promise<PurchaseResult> {
     await new Promise((r) => setTimeout(r, 400));
-    return { success: false, kind: 'error', error: 'No previous purchase found in Demo Mode.' };
+    return { success: false, kind: 'error', error: 'No previous purchase found.' };
   }
 
   async checkEntitlement(): Promise<EntitlementStatus> {
-    // Demo Mode has no external store to re-check against — the locally
-    // stored subscription record (set at purchase time) is already the
-    // source of truth, so there is nothing to reconcile here.
+    // No external store to re-check against in this test double — there is
+    // nothing to reconcile here.
     return { active: false, plan: null, expirationDate: null, willRenew: null };
   }
 
-  // No real store identity to attach/detach in Demo Mode.
+  // No real store identity to attach/detach in this test double.
   async login(): Promise<void> {}
   async logout(): Promise<void> {}
 }

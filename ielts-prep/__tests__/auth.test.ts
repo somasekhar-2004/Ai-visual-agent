@@ -1,23 +1,26 @@
-import { DEMO_USER_ID } from '@/lib/demoStore';
-import { getCurrentUserId, hasCompletedOnboarding, setOnboardingComplete, signInDemo, signOut } from '@/services/auth';
+import { supabase } from '@/lib/supabase';
+import { getCurrentUserId, hasCompletedOnboarding, setOnboardingComplete } from '@/services/auth';
 
-describe('demo-mode auth', () => {
-  it('starts signed out with onboarding incomplete', async () => {
-    expect(await getCurrentUserId()).toBeNull();
+jest.mock('@/lib/supabase', () => ({
+  supabase: { auth: { getSession: jest.fn().mockResolvedValue({ data: { session: null } }) } },
+}));
+
+describe('local onboarding-completion flag', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('starts incomplete', async () => {
     expect(await hasCompletedOnboarding()).toBe(false);
-  });
-
-  it('signs in and out of demo mode', async () => {
-    const result = await signInDemo();
-    expect('userId' in result && result.userId).toBe(DEMO_USER_ID);
-    expect(await getCurrentUserId()).toBe(DEMO_USER_ID);
-
-    await signOut();
-    expect(await getCurrentUserId()).toBeNull();
   });
 
   it('persists onboarding completion', async () => {
     await setOnboardingComplete();
     expect(await hasCompletedOnboarding()).toBe(true);
+  });
+});
+
+describe('getCurrentUserId — no signed-in Supabase session', () => {
+  it('returns null when there is no session', async () => {
+    expect(await getCurrentUserId()).toBeNull();
+    expect(supabase!.auth.getSession).toHaveBeenCalled();
   });
 });

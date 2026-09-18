@@ -1,15 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { saveOnboardingGoal } from '@/services/repository/core';
 
-// These tests exercise the real-backend branch of services/repository/core.ts,
-// so isDemoMode must be false here (unlike the rest of the suite, which runs
-// with no EXPO_PUBLIC_SUPABASE_URL set and therefore stays in Demo Mode).
-jest.mock('@/lib/env', () => ({
-  ...jest.requireActual('@/lib/env'),
-  isDemoMode: false,
-  isSupabaseConfigured: true,
-}));
-
 jest.mock('@/lib/supabase', () => ({
   supabase: { from: jest.fn() },
 }));

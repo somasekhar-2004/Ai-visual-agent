@@ -7,7 +7,7 @@ import { Badge, Button, Card, IconCircle, Screen, ScreenHeader, Text } from '@/c
 import { useTheme } from '@/hooks/useTheme';
 import { purchaseResultMessage } from '@/lib/purchaseResultMessage';
 import { googlePlaySubscriptionManagementUrl } from '@/lib/subscriptionManagementUrl';
-import { getPurchasesProvider, isPurchasesMocked } from '@/services/purchases';
+import { getPurchasesProvider } from '@/services/purchases';
 import { setSubscription } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -92,15 +92,9 @@ export default function SubscriptionScreen() {
         </Text>
       ) : null}
 
-      {isPurchasesMocked() ? (
-        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.lg }}>
-          RevenueCat isn&apos;t configured — plan changes here are simulated for Demo Mode and are not real purchases.
-        </Text>
-      ) : (
-        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.lg }}>
-          To cancel or change your plan, use &quot;Manage subscription&quot; above (Google Play) — changes sync here automatically the next time you open the app.
-        </Text>
-      )}
+      <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.lg }}>
+        To cancel or change your plan, use &quot;Manage subscription&quot; above (Google Play) — changes sync here automatically the next time you open the app.
+      </Text>
 
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.md, marginTop: theme.spacing.md, marginBottom: theme.spacing.huge }}>
         <Text variant="caption" color="brand" onPress={() => router.push('/help')}>

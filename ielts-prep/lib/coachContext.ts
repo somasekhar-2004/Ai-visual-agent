@@ -16,14 +16,13 @@ import type { Profile, QuestionAttempt, UserGoal } from '@/types/models';
  * settled yet. Every "missing" case below returns null/not-fabricated
  * instead of a guessed default — see each field's comment.
  *
- * Real Supabase mode also has every one of these fields re-fetched and
- * overridden server-side by the caller's own authenticated user id (see
+ * Every one of these fields is also re-fetched and overridden server-side
+ * by the caller's own authenticated user id (see
  * supabase/functions/_shared/userContext.ts) rather than trusted from this
  * client read at all, so a stale or racy local read like the one that
  * caused the bug can no longer reach the model even if this function were
- * called too early. This function still matters for: Demo Mode (no server
- * to override anything) and as the one place the "don't invent a value"
- * contract is enforced and tested on the client.
+ * called too early. This function still matters as the one place the
+ * "don't invent a value" contract is enforced and tested on the client.
  */
 export function buildCoachContext(params: {
   profile: Profile | null;

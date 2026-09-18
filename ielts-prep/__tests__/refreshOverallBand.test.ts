@@ -7,12 +7,6 @@ import { refreshOverallBand } from '@/services/repository/core';
 // test still got a recorded, displayed "Overall Band 6.0" — invented from
 // nothing. It must now refuse to compute (or record) an overall band until
 // all four skills have a genuine recorded score.
-jest.mock('@/lib/env', () => ({
-  ...jest.requireActual('@/lib/env'),
-  isDemoMode: false,
-  isSupabaseConfigured: true,
-}));
-
 jest.mock('@/lib/supabase', () => ({
   supabase: { from: jest.fn() },
 }));

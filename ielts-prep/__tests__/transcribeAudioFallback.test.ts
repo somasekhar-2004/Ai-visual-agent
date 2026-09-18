@@ -13,13 +13,11 @@
 describe('transcribeAudio — never silently substitutes a fake transcript for a real failure', () => {
   afterEach(() => {
     jest.resetModules();
-    jest.dontMock('@/lib/env');
     jest.dontMock('@/services/ai/edgeFunctionProvider');
   });
 
   it('propagates a real EdgeFunctionProvider failure instead of returning mock.transcribeAudio\'s canned text', async () => {
     jest.resetModules();
-    jest.doMock('@/lib/env', () => ({ isSupabaseConfigured: true, SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'test-anon-key' }));
     jest.doMock('@/services/ai/edgeFunctionProvider', () => ({
       EdgeFunctionProvider: jest.fn().mockImplementation(() => ({
         name: 'cloud',
@@ -30,14 +28,5 @@ describe('transcribeAudio — never silently substitutes a fake transcript for a
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ai = require('@/services/ai');
     await expect(ai.transcribeAudio('file:///fake.m4a')).rejects.toThrow(/took too long to respond/);
-  });
-
-  it('still uses the local mock in Demo Mode, where there is no real backend to fail', async () => {
-    jest.resetModules();
-    jest.doMock('@/lib/env', () => ({ isSupabaseConfigured: false }));
-
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ai = require('@/services/ai');
-    await expect(ai.transcribeAudio('file:///fake.m4a')).resolves.toEqual(expect.any(String));
   });
 });

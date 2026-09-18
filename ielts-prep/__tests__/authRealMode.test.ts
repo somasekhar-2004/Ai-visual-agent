@@ -1,15 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { exchangeConfirmationCode, resendConfirmationEmail, signInWithEmail, signUpWithEmail } from '@/services/auth';
 
-// These tests exercise the real-backend branch of services/auth.ts, so
-// isDemoMode must be false here (unlike the rest of the suite, which runs
-// with no EXPO_PUBLIC_SUPABASE_URL set and therefore stays in Demo Mode).
-jest.mock('@/lib/env', () => ({
-  ...jest.requireActual('@/lib/env'),
-  isDemoMode: false,
-  isSupabaseConfigured: true,
-}));
-
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     auth: { signUp: jest.fn(), signInWithPassword: jest.fn(), resend: jest.fn(), exchangeCodeForSession: jest.fn() },

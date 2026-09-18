@@ -22,8 +22,8 @@ export default function HelpScreen() {
           never an official IELTS result.
         </Text>
         <Text variant="body" color="secondary">
-          Q: Can I use the app without an internet connection?{'\n'}A: Demo Mode works fully offline. Real AI evaluation and Supabase sync require
-          a connection.
+          Q: Can I use the app without an internet connection?{'\n'}A: No — an internet connection is required to sign in and sync your progress,
+          and AI evaluation requires a connection to reach the server.
         </Text>
       </Card>
 
@@ -44,8 +44,7 @@ export default function HelpScreen() {
           writing and speaking submissions, and subscription status.
         </Text>
         <Text variant="caption" color="secondary">
-          {'•'} Where it&apos;s stored: in Demo Mode, entirely on your device (local storage) and never sent to us. When you sign in with a
-          configured Supabase backend, the same data is stored in your account&apos;s rows in our database, isolated from other users.
+          {'•'} Where it&apos;s stored: in your account&apos;s rows in our database, isolated from other users.
         </Text>
         <Text variant="caption" color="secondary">
           {'•'} Third parties: if a real AI provider (OpenAI or Anthropic) is configured, your written and transcribed spoken answers are sent

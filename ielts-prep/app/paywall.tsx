@@ -10,7 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { purchaseResultMessage } from '@/lib/purchaseResultMessage';
 import { computeYearlySavingsPercent } from '@/lib/purchasePricing';
 import { googlePlaySubscriptionManagementUrl } from '@/lib/subscriptionManagementUrl';
-import { getPurchasesProvider, isPurchasesMocked, isPurchasesUnavailable } from '@/services/purchases';
+import { getPurchasesProvider, isPurchasesUnavailable } from '@/services/purchases';
 import { setSubscription } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -153,10 +153,6 @@ export default function PaywallScreen() {
       {isPurchasesUnavailable() ? (
         <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.md }}>
           Subscriptions aren&apos;t available yet — check back soon.
-        </Text>
-      ) : isPurchasesMocked() ? (
-        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.md }}>
-          RevenueCat isn&apos;t configured yet — this is a simulated purchase for demo purposes. No payment will be charged.
         </Text>
       ) : (
         <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.md }}>

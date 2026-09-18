@@ -45,32 +45,14 @@ export const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY
 export const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '';
 export const isRevenueCatConfigured = Boolean(REVENUECAT_API_KEY_IOS || REVENUECAT_API_KEY_ANDROID);
 
-// `__DEV__` is false for any release JS bundle — every EAS profile except
-// `development` (the only one with developmentClient: true) — and true only
-// for a Metro dev-server/development-client session. This is deliberately
-// NOT "is this the `production` EAS profile specifically": an internal-test
-// `preview` build is just as much a release a real user could install as
-// `production` is, and must never show fabricated demo data either.
-const isReleaseBuild = !__DEV__;
-
 /**
- * The app runs in Demo Mode whenever Supabase isn't configured (no project
- * wired up yet) — but ONLY in a local development build. Every feature
- * works against a local, seeded, on-device store instead of a real backend
- * — see lib/demoStore.ts.
- *
- * A release build (an EAS `preview` or `production` build — anything a real
- * user could install) must NEVER silently substitute that fabricated demo
- * data ("Alex", seeded bands, a 3-day streak) for a real account just
- * because its Supabase env vars are missing or malformed — see the exact
- * production incident this guards against in git history. See
- * isBackendMisconfigured below for what a release build shows instead.
+ * True whenever Supabase isn't configured or its config is invalid — in
+ * EVERY build type (production, preview, AND local development). There is
+ * no Demo Mode / fake-data fallback anywhere in this app any more: a
+ * missing or malformed backend config always renders the full-screen
+ * ConfigurationErrorScreen (see app/_layout.tsx) instead of substituting
+ * fabricated data ("Alex", seeded bands, a 3-day streak) for a real
+ * account — see the exact production incident this guards against in git
+ * history.
  */
-export const isDemoMode = !isSupabaseConfigured && !isReleaseBuild;
-
-/**
- * True only for a release build whose Supabase config is missing or
- * invalid — the state app/_layout.tsx renders a full-screen configuration
- * error for instead of either crashing or falling back to Demo Mode.
- */
-export const isBackendMisconfigured = !isSupabaseConfigured && isReleaseBuild;
+export const isBackendMisconfigured = !isSupabaseConfigured;

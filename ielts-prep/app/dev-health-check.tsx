@@ -6,7 +6,7 @@ import { Badge, Button, Card, Screen, ScreenHeader, Text } from '@/components/ui
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
 import { audioRegistry } from '@/lib/content/audioRegistry';
-import { isDemoMode, isRevenueCatConfigured, isSupabaseConfigured } from '@/lib/env';
+import { isRevenueCatConfigured, isSupabaseConfigured } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -60,16 +60,18 @@ export default function DevHealthCheckScreen() {
     setRunning(true);
     setResults(initialResults());
 
-    // 1. Supabase configured (sync, purely informational — Demo Mode is a
-    // valid, fully-supported state, not a failure).
+    // 1. Supabase configured (sync). In practice this branch should be
+    // unreachable from here: app/_layout.tsx renders ConfigurationErrorScreen
+    // for the whole app (this screen included) whenever Supabase isn't
+    // configured, in every build type. Kept as a defensive fallback only.
     if (!isSupabaseConfigured) {
-      update('supabase-config', 'info', 'Not configured — running in Demo Mode (local storage only). Everything below that needs Supabase is skipped.');
-      update('supabase-reachable', 'info', 'Skipped (Demo Mode).');
-      update('auth', 'info', 'Skipped (Demo Mode).');
-      update('db-read-write', 'info', 'Skipped (Demo Mode).');
-      update('edge-functions', 'info', 'Skipped (Demo Mode) — Edge Functions require a configured Supabase project.');
-      update('ai-provider', 'info', 'Skipped (Demo Mode).');
-      update('transcription-provider', 'info', 'Skipped (Demo Mode).');
+      update('supabase-config', 'fail', 'Not configured — EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY missing or invalid. Everything below that needs Supabase is skipped.');
+      update('supabase-reachable', 'info', 'Skipped — Supabase not configured.');
+      update('auth', 'info', 'Skipped — Supabase not configured.');
+      update('db-read-write', 'info', 'Skipped — Supabase not configured.');
+      update('edge-functions', 'info', 'Skipped — Supabase not configured.');
+      update('ai-provider', 'info', 'Skipped — Supabase not configured.');
+      update('transcription-provider', 'info', 'Skipped — Supabase not configured.');
     } else {
       update('supabase-config', 'pass', 'EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set.');
 
@@ -89,7 +91,7 @@ export default function DevHealthCheckScreen() {
         if (error) {
           update('auth', 'fail', error.message);
         } else if (!data.user) {
-          update('auth', 'info', 'No signed-in session. Sign in with a real account (not Demo Mode) to test auth and DB read/write.');
+          update('auth', 'info', 'No signed-in session. Sign in with a real account to test auth and DB read/write.');
         } else {
           authedUserId = data.user.id;
           update('auth', 'pass', `Signed in as ${data.user.email ?? data.user.id}.`);
@@ -156,19 +158,15 @@ export default function DevHealthCheckScreen() {
       }
     }
 
-    // RevenueCat: sync, client-side only. Mock purchases only ever run in
-    // genuine Demo Mode (no Supabase project) — a real Supabase project
-    // with RevenueCat not yet configured gets "unavailable" instead (never
-    // a fabricated purchase against a real account; see
-    // services/purchases/index.ts).
+    // RevenueCat: sync, client-side only. Not configured gets
+    // UnavailablePurchasesProvider instead of a mock — never a fabricated
+    // purchase against a real account (see services/purchases/index.ts).
     update(
       'revenuecat',
       isRevenueCatConfigured ? 'pass' : 'info',
       isRevenueCatConfigured
         ? 'EXPO_PUBLIC_REVENUECAT_IOS_KEY/_ANDROID_KEY are set.'
-        : isDemoMode
-          ? 'Not configured — paywall runs in mock purchase mode (Demo Mode).'
-          : 'Not configured — paywall shows "subscriptions not available yet" (real Supabase project, no fake purchases).'
+        : 'Not configured — paywall shows "subscriptions not available yet" (no fake purchases).'
     );
 
     // Listening audio assets: sync, always informational (the on-device TTS

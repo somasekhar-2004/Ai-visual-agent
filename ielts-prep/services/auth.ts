@@ -1,11 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 
-import { isDemoMode } from '@/lib/env';
-import { DEMO_USER_ID } from '@/lib/demoStore';
 import { supabase } from '@/lib/supabase';
 
-const DEMO_SESSION_KEY = 'ielts-prep/auth/demo-session';
 const ONBOARDING_KEY = 'ielts-prep/auth/onboarding-complete';
 
 // Where Supabase sends the browser after verifying a signup confirmation
@@ -77,12 +74,8 @@ async function disambiguateExistingAccount(email: string): Promise<AuthResult> {
   return { existingConfirmedAccount: true, email };
 }
 
-/** Returns the signed-in user's id, or null if nobody is signed in. Works transparently across demo mode and real Supabase auth. */
+/** Returns the signed-in user's id, or null if nobody is signed in. */
 export async function getCurrentUserId(): Promise<string | null> {
-  if (isDemoMode) {
-    const flag = await AsyncStorage.getItem(DEMO_SESSION_KEY);
-    return flag === '1' ? DEMO_USER_ID : null;
-  }
   const { data } = await supabase!.auth.getSession();
   return data.session?.user.id ?? null;
 }
@@ -95,23 +88,7 @@ export async function setOnboardingComplete(): Promise<void> {
   await AsyncStorage.setItem(ONBOARDING_KEY, '1');
 }
 
-/**
- * Signs the user into demo mode instantly — no credentials required.
- * Refuses outright when a real backend is configured: this is the guard
- * that stops a caller with a bug (e.g. completeOnboarding()'s "no userId
- * yet, fall back to demo" branch, meant only for the genuine Demo Mode
- * path) from silently attaching a real user's data to the hardcoded
- * DEMO_USER_ID instead of surfacing a clear error — every other function in
- * this file already gates its demo/real branch the same way.
- */
-export async function signInDemo(): Promise<AuthResult> {
-  if (!isDemoMode) return { error: 'Demo Mode is not available — this build is configured with a real backend.' };
-  await AsyncStorage.setItem(DEMO_SESSION_KEY, '1');
-  return { userId: DEMO_USER_ID };
-}
-
 export async function signUpWithEmail(email: string, password: string, fullName: string): Promise<AuthResult> {
-  if (isDemoMode) return signInDemo();
   const { data, error } = await supabase!.auth.signUp({
     email,
     password,
@@ -151,7 +128,6 @@ export async function signUpWithEmail(email: string, password: string, fullName:
  * clearly, with the exact cooldown, instead of a raw
  * "over_email_send_rate_limit" message). */
 export async function resendConfirmationEmail(email: string): Promise<{ ok: boolean; error?: string; retryAfterSeconds?: number }> {
-  if (isDemoMode) return { ok: true };
   const { error } = await supabase!.auth.resend({
     type: 'signup',
     email,
@@ -171,14 +147,12 @@ export async function resendConfirmationEmail(email: string): Promise<{ ok: bool
  * points the user back to sign-in, which already offers "Resend confirmation
  * email" for an account that still isn't confirmed. */
 export async function exchangeConfirmationCode(code: string): Promise<{ ok: boolean; error?: string }> {
-  if (isDemoMode) return { ok: true };
   const { error } = await supabase!.auth.exchangeCodeForSession(code);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
-  if (isDemoMode) return signInDemo();
   const { data, error } = await supabase!.auth.signInWithPassword({ email, password });
   if (error) {
     // Give this its own outcome (rather than a plain error string) so the
@@ -192,26 +166,18 @@ export async function signInWithEmail(email: string, password: string): Promise<
 }
 
 export async function sendPasswordReset(email: string): Promise<{ ok: boolean; error?: string }> {
-  if (isDemoMode) return { ok: true };
   const { error } = await supabase!.auth.resetPasswordForEmail(email);
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 /**
- * Deletes the current user's account. In Demo Mode this clears the local
- * on-device database. Against a real Supabase project, self-service account
- * deletion requires a server-side Edge Function (the anon/client key cannot
- * call `auth.admin.deleteUser`) — see README.md "Account deletion" for the
+ * Deletes the current user's account. Self-service account deletion
+ * requires a server-side Edge Function (the anon/client key cannot call
+ * `auth.admin.deleteUser`) — see README.md "Account deletion" for the
  * function to deploy; this calls it via RPC if present, and otherwise
  * surfaces guidance instead of silently no-op'ing.
  */
 export async function deleteAccount(): Promise<{ ok: boolean; message?: string }> {
-  if (isDemoMode) {
-    const { resetDb } = await import('@/lib/demoStore');
-    await resetDb();
-    await AsyncStorage.removeItem(DEMO_SESSION_KEY);
-    return { ok: true };
-  }
   const { error } = await supabase!.functions.invoke('delete-account');
   if (error) {
     return {
@@ -224,9 +190,5 @@ export async function deleteAccount(): Promise<{ ok: boolean; message?: string }
 }
 
 export async function signOut(): Promise<void> {
-  if (isDemoMode) {
-    await AsyncStorage.removeItem(DEMO_SESSION_KEY);
-    return;
-  }
   await supabase!.auth.signOut();
 }

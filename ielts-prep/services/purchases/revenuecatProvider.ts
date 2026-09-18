@@ -124,7 +124,7 @@ export class RevenueCatProvider implements PurchasesProvider {
 
   /** Re-reads the store's own customer info — the source of truth for
    * whether a subscription is still active, independent of whatever the app
-   * last wrote to Supabase/demoStore. Call on launch/foreground so a
+   * last wrote to Supabase. Call on launch/foreground so a
    * cancellation or expiry made outside the app (App Store / Play Store
    * settings) is picked up without the user having to reopen the paywall. */
   async checkEntitlement(): Promise<EntitlementStatus> {

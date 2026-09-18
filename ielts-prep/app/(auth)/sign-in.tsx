@@ -6,7 +6,6 @@ import { DevAuthVersionBadge } from '@/components/auth/DevAuthVersionBadge';
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
 import { Button, IconCircle, Screen, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
-import { isDemoMode } from '@/lib/env';
 import { setOnboardingComplete, signInWithEmail } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -14,7 +13,6 @@ export default function SignInScreen() {
   const theme = useTheme();
   const router = useRouter();
   const hydrate = useAppStore((s) => s.hydrate);
-  const enterDemoMode = useAppStore((s) => s.enterDemoMode);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,17 +39,6 @@ export default function SignInScreen() {
       }
       await setOnboardingComplete();
       await hydrate();
-      router.replace('/(tabs)');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDemo() {
-    setLoading(true);
-    try {
-      await enterDemoMode();
-      await setOnboardingComplete();
       router.replace('/(tabs)');
     } finally {
       setLoading(false);
@@ -96,7 +83,6 @@ export default function SignInScreen() {
 
       <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.xl }}>
         <Button label="Sign in" onPress={handleSignIn} loading={loading} fullWidth />
-        {isDemoMode ? <Button label="Continue with Demo Mode" variant="secondary" onPress={handleDemo} fullWidth /> : null}
         <Button label="Create a new account" variant="ghost" onPress={() => router.push('/(auth)/sign-up')} fullWidth />
       </View>
     </Screen>

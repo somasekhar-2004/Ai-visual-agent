@@ -74,7 +74,7 @@ async function checkIdsExist(supabase: any, label: string, table: string, wanted
 
 async function main() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.log('EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY not set — nothing to check against (Demo Mode has no database).');
+    console.log('EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY not set — nothing to check against.');
     console.log('Set them in .env (the same values the app uses) and re-run to check your live project.');
     return;
   }

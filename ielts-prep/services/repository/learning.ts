@@ -1,7 +1,4 @@
 import { content } from '@/lib/content';
-import { getDb, mutateDb } from '@/lib/demoStore';
-import { isDemoMode } from '@/lib/env';
-import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
 import { throwIfSupabaseError } from '@/lib/supabaseErrors';
 import type {
@@ -26,10 +23,6 @@ export function getLessonById(id: string): Lesson | undefined {
 }
 
 export async function getLessonProgressMap(userId: string): Promise<Record<string, string | null>> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.lessonProgress;
-  }
   const { data, error } = await supabase!.from('lesson_progress').select('*').eq('user_id', userId);
   throwIfSupabaseError(error, 'Failed to load lesson progress');
   const map: Record<string, string | null> = {};
@@ -38,12 +31,6 @@ export async function getLessonProgressMap(userId: string): Promise<Record<strin
 }
 
 export async function markLessonComplete(userId: string, lessonId: string): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.lessonProgress[lessonId] = new Date().toISOString();
-    });
-    return;
-  }
   const { error } = await supabase!
     .from('lesson_progress')
     .upsert({ user_id: userId, lesson_id: lessonId, completed_at: new Date().toISOString() }, { onConflict: 'user_id,lesson_id' });
@@ -72,10 +59,6 @@ export function getQuestionById(id: string): Question | undefined {
 }
 
 export async function getQuestionAttempts(userId: string): Promise<QuestionAttempt[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.questionAttempts;
-  }
   const { data, error } = await supabase!
     .from('question_attempts')
     .select('*')
@@ -101,21 +84,6 @@ export async function recordQuestionAttempt(
   isCorrect: boolean,
   timeSpentSeconds: number
 ): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.questionAttempts.unshift({
-        id: generateId('qa'),
-        userId,
-        questionId,
-        selectedAnswer,
-        isCorrect,
-        timeSpentSeconds,
-        practiceSessionId: null,
-        createdAt: new Date().toISOString(),
-      });
-    });
-    return;
-  }
   const { error } = await supabase!.from('question_attempts').insert({
     user_id: userId,
     question_id: questionId,
@@ -127,10 +95,6 @@ export async function recordQuestionAttempt(
 }
 
 export async function getBookmarks(userId: string): Promise<Bookmark[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.bookmarks;
-  }
   const { data, error } = await supabase!.from('bookmarks').select('*').eq('user_id', userId);
   throwIfSupabaseError(error, 'Failed to load your bookmarks');
   return (data ?? []).map((row: any) => ({
@@ -144,24 +108,6 @@ export async function getBookmarks(userId: string): Promise<Bookmark[]> {
 }
 
 export async function toggleQuestionBookmark(userId: string, questionId: string): Promise<boolean> {
-  if (isDemoMode) {
-    return mutateDb((db) => {
-      const idx = db.bookmarks.findIndex((b) => b.questionId === questionId);
-      if (idx >= 0) {
-        db.bookmarks.splice(idx, 1);
-        return false;
-      }
-      db.bookmarks.push({
-        id: generateId('bm'),
-        userId,
-        questionId,
-        vocabularyWordId: null,
-        lessonId: null,
-        createdAt: new Date().toISOString(),
-      });
-      return true;
-    });
-  }
   const existing = await supabase!.from('bookmarks').select('id').eq('user_id', userId).eq('question_id', questionId).maybeSingle();
   throwIfSupabaseError(existing.error, 'Failed to check your bookmarks');
   if (existing.data) {
@@ -179,10 +125,6 @@ export function listVocabulary(topic?: string) {
 }
 
 export async function getUserVocabularyMap(userId: string): Promise<Record<string, UserVocabulary>> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.userVocabulary;
-  }
   const { data, error } = await supabase!.from('user_vocabulary').select('*').eq('user_id', userId);
   throwIfSupabaseError(error, 'Failed to load your vocabulary progress');
   const map: Record<string, UserVocabulary> = {};
@@ -202,26 +144,6 @@ export async function getUserVocabularyMap(userId: string): Promise<Record<strin
 const REVIEW_INTERVALS_DAYS = [1, 3, 7, 16, 35]; // simple spaced-repetition ladder
 
 export async function reviewVocabWord(userId: string, wordId: string, remembered: boolean): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      const existing = db.userVocabulary[wordId];
-      const reviewCount = remembered ? (existing?.reviewCount ?? 0) + 1 : 0;
-      const intervalDays = REVIEW_INTERVALS_DAYS[Math.min(reviewCount, REVIEW_INTERVALS_DAYS.length - 1)];
-      const nextReview = new Date();
-      nextReview.setDate(nextReview.getDate() + intervalDays);
-      const status: VocabStatus = reviewCount >= REVIEW_INTERVALS_DAYS.length ? 'mastered' : reviewCount > 0 ? 'learning' : 'new';
-      db.userVocabulary[wordId] = {
-        id: existing?.id ?? generateId('uv'),
-        userId,
-        wordId,
-        status,
-        nextReviewAt: nextReview.toISOString(),
-        reviewCount,
-      };
-    });
-    return;
-  }
-  // Supabase path mirrors the same ladder logic server-side/client-side.
   const { data: existing, error: readError } = await supabase!
     .from('user_vocabulary')
     .select('*')
@@ -260,10 +182,6 @@ export function listGrammarQuestions(filters: GrammarQuestionFilters = {}): Gram
 }
 
 export async function getGrammarQuestionAttempts(userId: string): Promise<GrammarQuestionAttempt[]> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.grammarQuestionAttempts;
-  }
   const { data, error } = await supabase!.from('grammar_question_attempts').select('*').eq('user_id', userId);
   throwIfSupabaseError(error, 'Failed to load your grammar attempts');
   return (data ?? []).map((row: any) => ({
@@ -277,19 +195,6 @@ export async function getGrammarQuestionAttempts(userId: string): Promise<Gramma
 }
 
 export async function recordGrammarAttempt(userId: string, questionId: string, selectedAnswer: string, isCorrect: boolean): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      db.grammarQuestionAttempts.push({
-        id: generateId('ga'),
-        userId,
-        questionId,
-        selectedAnswer,
-        isCorrect,
-        createdAt: new Date().toISOString(),
-      });
-    });
-    return;
-  }
   const { error } = await supabase!.from('grammar_question_attempts').insert({
     user_id: userId,
     question_id: questionId,

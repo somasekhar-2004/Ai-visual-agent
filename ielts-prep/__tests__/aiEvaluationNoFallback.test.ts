@@ -12,13 +12,11 @@
 describe('evaluateSpeaking/evaluateWriting — never silently substitute a fabricated score for a real failure', () => {
   afterEach(() => {
     jest.resetModules();
-    jest.dontMock('@/lib/env');
     jest.dontMock('@/services/ai/edgeFunctionProvider');
   });
 
   it('propagates a real EdgeFunctionProvider evaluateSpeaking failure instead of returning a mock band', async () => {
     jest.resetModules();
-    jest.doMock('@/lib/env', () => ({ isSupabaseConfigured: true, SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'test-anon-key' }));
     jest.doMock('@/services/ai/edgeFunctionProvider', () => ({
       EdgeFunctionProvider: jest.fn().mockImplementation(() => ({
         name: 'cloud',
@@ -35,7 +33,6 @@ describe('evaluateSpeaking/evaluateWriting — never silently substitute a fabri
 
   it('propagates a real EdgeFunctionProvider evaluateWriting failure instead of returning a mock band', async () => {
     jest.resetModules();
-    jest.doMock('@/lib/env', () => ({ isSupabaseConfigured: true, SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'test-anon-key' }));
     jest.doMock('@/services/ai/edgeFunctionProvider', () => ({
       EdgeFunctionProvider: jest.fn().mockImplementation(() => ({
         name: 'cloud',
@@ -48,15 +45,5 @@ describe('evaluateSpeaking/evaluateWriting — never silently substitute a fabri
     await expect(
       ai.evaluateWriting({ taskType: 'task2', promptText: 'Discuss.', essayText: 'A real extended essay response.', wordCount: 250, minWords: 250 })
     ).rejects.toThrow(/took too long to respond/);
-  });
-
-  it('still uses the local heuristic mock in Demo Mode, where there is no real backend to fail', async () => {
-    jest.resetModules();
-    jest.doMock('@/lib/env', () => ({ isSupabaseConfigured: false }));
-
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ai = require('@/services/ai');
-    const result = await ai.evaluateSpeaking({ part: 'part1', topicCategory: 'Home', transcript: 'A real extended answer about my home.', questionCount: 1, totalDurationSeconds: 30 });
-    expect(result.aiSource).toBe('mock');
   });
 });

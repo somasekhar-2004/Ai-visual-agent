@@ -24,10 +24,10 @@ export default function RootLayout() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
-    // A misconfigured release build must never reach hydrate() at all —
-    // every store/repository/auth call it triggers assumes either a real,
-    // working Supabase client or Demo Mode's local store, neither of which
-    // is true here (see lib/env.ts's isBackendMisconfigured).
+    // A misconfigured build must never reach hydrate() at all — every
+    // store/repository/auth call it triggers assumes a real, working
+    // Supabase client, which is not true here (see lib/env.ts's
+    // isBackendMisconfigured).
     if (isBackendMisconfigured) {
       SplashScreen.hideAsync().catch(() => {});
       return;
@@ -40,7 +40,7 @@ export default function RootLayout() {
     // Re-checks the store's entitlement whenever the app returns to the
     // foreground, so a subscription cancelled/expired in the App Store or
     // Play Store settings is reflected without the user reopening the
-    // paywall. No-ops in Demo Mode (see syncSubscriptionEntitlement).
+    // paywall (see syncSubscriptionEntitlement).
     const sub = AppState.addEventListener('change', (next) => {
       if (appState.current.match(/inactive|background/) && next === 'active') {
         syncEntitlement().catch(() => {});

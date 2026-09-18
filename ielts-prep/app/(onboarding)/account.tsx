@@ -7,7 +7,6 @@ import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNo
 import { OnboardingScaffold } from '@/components/onboarding/OnboardingScaffold';
 import { Button, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
-import { isDemoMode } from '@/lib/env';
 import { firstMissingOnboardingStepRoute, validateOnboardingInput } from '@/lib/onboardingValidation';
 import { signUpWithEmail } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
@@ -73,18 +72,6 @@ export default function AccountScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleDemo() {
-    setLoading(true);
-    setError(null);
-    try {
-      await finishOnboarding();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleCreateAccount() {
     setError(null);
     if (!fullName || !email || !password) {
@@ -109,12 +96,9 @@ export default function AccountScreen() {
       // signUpWithEmail() just established a real, immediate session (no
       // email confirmation required) and returned that user's real id — but
       // nothing else has put it into useAppStore yet. Without this,
-      // completeOnboarding() below finds get().userId still null and falls
-      // back to signInDemo(), silently attaching this onboarding data to the
-      // wrong (demo) identity instead of the real account that was just
-      // created — see lib/env.ts's isBackendMisconfigured comment and
-      // services/auth.ts's signInDemo() for the guard that now also refuses
-      // that fallback outright when a real backend is configured.
+      // completeOnboarding() below would find get().userId still null and
+      // throw instead of attaching this onboarding data to the account that
+      // was just created.
       useAppStore.setState({ userId: result.userId });
       await finishOnboarding();
     } catch (err) {
@@ -142,16 +126,9 @@ export default function AccountScreen() {
         step={8}
         totalSteps={9}
         title="Create your account"
-        subtitle={isDemoMode ? "Save your progress and sync across devices — or jump straight in with Demo Mode." : 'Save your progress and sync across devices.'}
+        subtitle="Save your progress and sync across devices."
         primaryLabel="Create account with email"
         onPrimary={() => setMode('form')}
-        // Demo Mode only exists as a way to try the whole app without a
-        // configured backend at all — a build with a real Supabase project
-        // must never offer it, since signInDemo() (see services/auth.ts)
-        // now correctly refuses to run there, and offering the button would
-        // just be a dead end that surfaces a confusing error.
-        secondaryLabel={isDemoMode ? 'Continue with Demo Mode' : undefined}
-        onSecondary={isDemoMode ? handleDemo : undefined}
         loading={loading}
       >
         <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
@@ -215,11 +192,6 @@ export default function AccountScreen() {
           />
           <TextField label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="At least 8 characters" />
           {error ? <Text color="error">{error}</Text> : null}
-          {isDemoMode ? (
-            <Text variant="caption" color="tertiary">
-              No Supabase project configured yet — account creation will continue in Demo Mode instead.
-            </Text>
-          ) : null}
           <View style={{ alignItems: 'center' }}>
             <Button label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} />
           </View>

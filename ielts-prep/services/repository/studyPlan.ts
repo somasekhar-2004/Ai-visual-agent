@@ -1,7 +1,4 @@
 import { weakestQuestionType } from '@/lib/analytics';
-import { getDb, mutateDb } from '@/lib/demoStore';
-import { isDemoMode } from '@/lib/env';
-import { generateId } from '@/lib/id';
 import { supabase } from '@/lib/supabase';
 import { throwIfSupabaseError } from '@/lib/supabaseErrors';
 import { suggestStudyPlanFocus, type CoachContext, type StudyPlanSuggestionResult } from '@/services/ai';
@@ -181,10 +178,6 @@ export function buildPlanItems(
 }
 
 export async function getStudyPlanForDate(userId: string, date: string): Promise<StudyPlan | null> {
-  if (isDemoMode) {
-    const db = await getDb();
-    return db.studyPlans.find((p) => p.date === date) ?? null;
-  }
   const { data, error } = await supabase!
     .from('study_plans')
     .select('*, study_plan_items(*)')
@@ -212,22 +205,6 @@ export async function generateStudyPlan(
   ]);
   const context = derivePerformanceContext(questionAttempts, testHistory, grammarAttempts);
   const items = buildPlanItems(goal, bandBySkill, context);
-
-  if (isDemoMode) {
-    return mutateDb((db) => {
-      const plan: StudyPlan = {
-        id: generateId('plan'),
-        userId,
-        date,
-        generatedAt: new Date().toISOString(),
-        isCompleted: false,
-        items: items.map((item) => ({ ...item, id: generateId('planitem'), studyPlanId: '' })),
-      };
-      plan.items.forEach((i) => (i.studyPlanId = plan.id));
-      db.studyPlans.unshift(plan);
-      return plan;
-    });
-  }
 
   const { data: planRow, error: planError } = await supabase!
     .from('study_plans')
@@ -257,14 +234,10 @@ export async function generateStudyPlan(
 /** A short AI-written note (focus summary + motivational line) layered on
  * top of the deterministic plan above — this never changes which items are
  * in the plan or their order/duration/links, only adds a sentence of
- * framing. In Demo Mode (no Supabase configured) this always runs the local
- * heuristic MockAiProvider; with a real backend configured, a failure here
- * surfaces as a thrown error rather than a silently-substituted mock note
- * (see services/ai/index.ts's suggestStudyPlanFocus) — the caller (Home's
- * focus-note query) already treats that as "no note today", not a blank
- * screen. The result's `aiSource` tells the caller which one actually
- * produced it so the UI can show "Live AI" vs "Demo AI" rather than imply
- * every plan is AI-written. */
+ * framing. A failure here surfaces as a thrown error rather than a
+ * silently-substituted mock note (see services/ai/index.ts's
+ * suggestStudyPlanFocus) — the caller (Home's focus-note query) already
+ * treats that as "no note today", not a blank screen. */
 export async function getStudyPlanFocusSuggestion(userId: string, context: CoachContext): Promise<StudyPlanSuggestionResult> {
   const [questionAttempts, testHistory, grammarAttempts] = await Promise.all([
     getQuestionAttempts(userId),
@@ -280,15 +253,6 @@ export async function getStudyPlanFocusSuggestion(userId: string, context: Coach
 }
 
 export async function completeStudyPlanItem(planId: string, itemId: string): Promise<void> {
-  if (isDemoMode) {
-    await mutateDb((db) => {
-      const plan = db.studyPlans.find((p) => p.id === planId);
-      const item = plan?.items.find((i) => i.id === itemId);
-      if (item) item.isCompleted = true;
-      if (plan && plan.items.every((i) => i.isCompleted)) plan.isCompleted = true;
-    });
-    return;
-  }
   const { error: updateError } = await supabase!.from('study_plan_items').update({ is_completed: true }).eq('id', itemId);
   throwIfSupabaseError(updateError, 'Failed to mark this study plan item complete');
   const { data: items, error: readError } = await supabase!.from('study_plan_items').select('is_completed').eq('study_plan_id', planId);

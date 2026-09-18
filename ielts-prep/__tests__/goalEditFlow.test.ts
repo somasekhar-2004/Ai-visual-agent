@@ -18,7 +18,6 @@ jest.mock('@/services/auth', () => ({
   getCurrentUserId: jest.fn().mockResolvedValue('user-1'),
   hasCompletedOnboarding: jest.fn().mockResolvedValue(true),
   setOnboardingComplete: jest.fn(),
-  signInDemo: jest.fn(),
   signOut: jest.fn(),
 }));
 
@@ -113,8 +112,6 @@ describe('the shared Home/Settings goal-save flow', () => {
     });
 
     expect(mockSaveOnboardingGoal).toHaveBeenCalledWith('user-1', expect.objectContaining({ targetBand: 7.5 }));
-    // No sign-up/demo-mode call of any kind — this never touches auth at all.
-    expect(jest.requireMock('@/services/auth').signInDemo).not.toHaveBeenCalled();
   });
 
   it('Home (reading the same store) reflects the new target immediately after save — no reload needed', async () => {

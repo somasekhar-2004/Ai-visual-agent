@@ -1,46 +1,15 @@
-// Regression coverage for the exact root cause of the reported "Demo data
-// leaking into a real session" incident's onboarding half: services/auth.ts's
-// signInDemo() used to return the hardcoded DEMO_USER_ID unconditionally —
-// with no isDemoMode check at all, unlike every other function in that
-// file — so any caller with a bug (completeOnboarding()'s "no userId yet,
-// fall back to demo" branch, meant only for the genuine Demo Mode path)
-// could silently attach a real user's data to that hardcoded id instead of
-// failing loudly. These tests prove that guard, and that
-// completeOnboarding() never uses it as a substitute for a real signed-in
-// user once a real backend is configured.
+// Regression coverage for account isolation in useAppStore.completeOnboarding:
+// there is no Demo Mode / fallback identity anywhere in runtime code any
+// more (see lib/env.ts) — completeOnboarding must throw when there is no
+// signed-in user rather than silently attaching onboarding data to any
+// substitute identity, and two different real accounts on the same device
+// must always save under their own separate ids.
 
-import { DEMO_USER_ID } from '@/lib/demoStore';
-
-describe('signInDemo — refuses to run once a real backend is configured', () => {
-  afterEach(() => jest.resetModules());
-
-  it('returns the demo user id when Supabase is not configured (the genuine Demo Mode path)', async () => {
-    jest.resetModules();
-    jest.doMock('@/lib/env', () => ({ isDemoMode: true }));
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { signInDemo } = require('@/services/auth') as typeof import('@/services/auth');
-    const result = await signInDemo();
-    expect(result).toEqual({ userId: DEMO_USER_ID });
-  });
-
-  it('refuses and never returns DEMO_USER_ID once a real backend is configured', async () => {
-    jest.resetModules();
-    jest.doMock('@/lib/env', () => ({ isDemoMode: false }));
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { signInDemo } = require('@/services/auth') as typeof import('@/services/auth');
-    const result = await signInDemo();
-    expect('error' in result).toBe(true);
-    expect(JSON.stringify(result)).not.toContain(DEMO_USER_ID);
-  });
-});
-
-describe('completeOnboarding — never falls back to a demo identity for a real backend', () => {
+describe('completeOnboarding — never falls back to any substitute identity', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
-  afterEach(() => jest.dontMock('@/services/auth'));
 
   const ONBOARDING_INPUT = {
     ieltsType: 'academic' as const,
@@ -51,13 +20,11 @@ describe('completeOnboarding — never falls back to a demo identity for a real 
     dailyStudyMinutes: 30,
   };
 
-  async function setupStore(opts: { signInDemoResult: unknown }) {
-    const mockSignInDemo = jest.fn().mockResolvedValue(opts.signInDemoResult);
+  async function setupStore() {
     jest.doMock('@/services/auth', () => ({
       getCurrentUserId: jest.fn().mockResolvedValue(null),
       hasCompletedOnboarding: jest.fn().mockResolvedValue(false),
       setOnboardingComplete: jest.fn(),
-      signInDemo: mockSignInDemo,
       signOut: jest.fn(),
     }));
     const mockSaveOnboardingGoal = jest.fn();
@@ -75,13 +42,11 @@ describe('completeOnboarding — never falls back to a demo identity for a real 
     jest.doMock('@/services/notifications', () => ({ applyNotificationPreferences: jest.fn() }));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useAppStore } = require('@/store/useAppStore') as typeof import('@/store/useAppStore');
-    return { useAppStore, mockSignInDemo, mockSaveOnboardingGoal };
+    return { useAppStore, mockSaveOnboardingGoal };
   }
 
-  it('with no signed-in user and a real backend (signInDemo refuses), completeOnboarding throws instead of silently saving under a demo identity', async () => {
-    const { useAppStore, mockSaveOnboardingGoal } = await setupStore({
-      signInDemoResult: { error: 'Demo Mode is not available — this build is configured with a real backend.' },
-    });
+  it('with no signed-in user, completeOnboarding throws instead of saving under any substitute identity', async () => {
+    const { useAppStore, mockSaveOnboardingGoal } = await setupStore();
     useAppStore.setState({ userId: null });
 
     await expect(useAppStore.getState().completeOnboarding(ONBOARDING_INPUT)).rejects.toThrow(
@@ -90,10 +55,8 @@ describe('completeOnboarding — never falls back to a demo identity for a real 
     expect(mockSaveOnboardingGoal).not.toHaveBeenCalled();
   });
 
-  it('with a real userId already in the store, completeOnboarding uses it directly and never calls signInDemo at all', async () => {
-    const { useAppStore, mockSignInDemo, mockSaveOnboardingGoal } = await setupStore({
-      signInDemoResult: { userId: DEMO_USER_ID },
-    });
+  it('with a real userId already in the store, completeOnboarding uses it directly', async () => {
+    const { useAppStore, mockSaveOnboardingGoal } = await setupStore();
     mockSaveOnboardingGoal.mockResolvedValue({
       id: 'goal-1',
       userId: 'real-user-A',
@@ -110,14 +73,11 @@ describe('completeOnboarding — never falls back to a demo identity for a real 
 
     await useAppStore.getState().completeOnboarding(ONBOARDING_INPUT);
 
-    expect(mockSignInDemo).not.toHaveBeenCalled();
     expect(mockSaveOnboardingGoal).toHaveBeenCalledWith('real-user-A', expect.anything());
   });
 
-  it('two different real accounts on the same device never collide through the demo fallback — each saves under its own id', async () => {
-    const { useAppStore, mockSaveOnboardingGoal } = await setupStore({
-      signInDemoResult: { userId: DEMO_USER_ID },
-    });
+  it('two different real accounts on the same device always save under their own separate id — never collide', async () => {
+    const { useAppStore, mockSaveOnboardingGoal } = await setupStore();
     mockSaveOnboardingGoal.mockImplementation((userId: string) => Promise.resolve({
       id: `goal-${userId}`,
       userId,
@@ -139,7 +99,5 @@ describe('completeOnboarding — never falls back to a demo identity for a real 
 
     expect(mockSaveOnboardingGoal).toHaveBeenNthCalledWith(1, 'account-1', expect.anything());
     expect(mockSaveOnboardingGoal).toHaveBeenNthCalledWith(2, 'account-2', expect.anything());
-    const calledIds = mockSaveOnboardingGoal.mock.calls.map((call: unknown[]) => call[0]);
-    expect(calledIds).not.toContain(DEMO_USER_ID);
   });
 });
