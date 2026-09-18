@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Badge, Card, Divider, IconCircle, Screen, Text } from '@/components/ui';
+import { useAccountDeletion } from '@/hooks/useAccountDeletion';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -34,6 +35,7 @@ export default function ProfileScreen() {
     subscription: s.subscription,
     signOut: s.signOut,
   })));
+  const { deleting, confirmDelete } = useAccountDeletion();
 
   async function handleSignOut() {
     await signOut();
@@ -75,9 +77,17 @@ export default function ProfileScreen() {
         ))}
       </Card>
 
-      <Card onPress={handleSignOut} style={{ marginBottom: theme.spacing.huge, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+      <Card onPress={handleSignOut} style={{ marginBottom: theme.spacing.sm, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
         <Ionicons name="log-out-outline" size={20} color={theme.colors.error} />
         <Text color="error">Sign out</Text>
+      </Card>
+
+      <Card
+        onPress={deleting ? undefined : confirmDelete}
+        style={{ marginBottom: theme.spacing.huge, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, opacity: deleting ? 0.6 : 1 }}
+      >
+        <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+        <Text color="error">{deleting ? 'Deleting account…' : 'Delete account'}</Text>
       </Card>
     </Screen>
   );
