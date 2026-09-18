@@ -6,7 +6,9 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ConfigurationErrorScreen } from '@/components/ConfigurationErrorScreen';
 import { ThemeProvider } from '@/hooks/useTheme';
+import { isBackendMisconfigured } from '@/lib/env';
 import { useAppStore } from '@/store/useAppStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -22,10 +24,19 @@ export default function RootLayout() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
+    // A misconfigured release build must never reach hydrate() at all —
+    // every store/repository/auth call it triggers assumes either a real,
+    // working Supabase client or Demo Mode's local store, neither of which
+    // is true here (see lib/env.ts's isBackendMisconfigured).
+    if (isBackendMisconfigured) {
+      SplashScreen.hideAsync().catch(() => {});
+      return;
+    }
     hydrate().finally(() => SplashScreen.hideAsync().catch(() => {}));
   }, [hydrate]);
 
   useEffect(() => {
+    if (isBackendMisconfigured) return;
     // Re-checks the store's entitlement whenever the app returns to the
     // foreground, so a subscription cancelled/expired in the App Store or
     // Play Store settings is reflected without the user reopening the
@@ -38,6 +49,18 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, [syncEntitlement]);
+
+  if (isBackendMisconfigured) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <ConfigurationErrorScreen />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
 
   if (!isHydrated) return null;
 
