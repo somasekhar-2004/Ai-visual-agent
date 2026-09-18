@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IELTS Prep — Privacy Policy</title>
+<style>
+  :root { color-scheme: light dark; --fg:#1a1a1a; --bg:#ffffff; --muted:#5b5b5b; --accent:#0b5fff; --border:#e2e2e2; --warn-bg:#fff6e5; --warn-border:#f0c36d; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#f0f0f0; --bg:#121212; --muted:#a8a8a8; --accent:#7aa2ff; --border:#2c2c2c; --warn-bg:#2a2410; --warn-border:#8a6d1f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.6; }
+  .wrap { max-width:720px; margin:0 auto; padding:40px 20px 80px; }
+  h1 { font-size:1.6rem; margin-bottom:.2em; }
+  h2 { font-size:1.15rem; margin-top:2em; border-top:1px solid var(--border); padding-top:1.2em; }
+  p, li { color:var(--fg); }
+  .muted { color:var(--muted); font-size:.92rem; }
+  .placeholder { background:var(--warn-bg); border:1px solid var(--warn-border); border-radius:6px; padding:2px 6px; font-family:ui-monospace,monospace; font-size:.85em; }
+  .notice { background:var(--warn-bg); border:1px solid var(--warn-border); border-radius:8px; padding:14px 16px; margin:1.2em 0; }
+  a { color:var(--accent); }
+  ul { padding-left:1.3em; }
+  table { border-collapse:collapse; width:100%; margin:1em 0; }
+  th, td { text-align:left; border:1px solid var(--border); padding:8px 10px; font-size:.92rem; vertical-align:top; }
+  th { background:rgba(127,127,127,.08); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Privacy Policy — IELTS Prep</h1>
+  <p class="muted">Last updated: 2026-09-18</p>
+
+  <div class="notice">
+    This is a draft based on an audit of the app's actual code, not a generic template. <strong>Placeholders below (highlighted) must be filled in</strong> — legal entity name, address, and contact email — and this should be reviewed by counsel for your jurisdiction before public launch.
+  </div>
+
+  <p>This policy describes what <strong>IELTS Prep</strong> ("the app", "we", "us") actually collects, stores, and does with your data.</p>
+
+  <h2>1. Who this policy covers</h2>
+  <p>This policy applies to the IELTS Prep mobile app, operated by <span class="placeholder">[Company/Owner Legal Name]</span>, <span class="placeholder">[Business Address]</span>. Contact: <span class="placeholder">support@ieltsprep.app</span>.</p>
+
+  <h2>2. Two modes the app can run in</h2>
+  <ul>
+    <li><strong>Demo Mode</strong> (no backend configured): every piece of data below stays entirely on your device. Nothing is sent to us or any third party except the AI providers used for evaluation/transcription (see §4), and only when you use a feature that calls one.</li>
+    <li><strong>Signed-in Mode</strong> (a real account): the same data categories are stored in our database, in rows scoped to your account and isolated from other users by database-level access rules (Row Level Security).</li>
+  </ul>
+
+  <h2>3. What we collect and why</h2>
+  <table>
+    <tr><th>Data</th><th>Why we collect it</th></tr>
+    <tr><td>Email address, display name</td><td>Account identity, sign-in, personalizing greetings</td></tr>
+    <tr><td>Target band, current band estimate, exam date, weakest skill, daily study-time preference</td><td>Building your study plan and progress dashboard</td></tr>
+    <tr><td>Practice/test attempts and Full Mock attempts/scores</td><td>Showing progress, computing band estimates, grounding AI Coach</td></tr>
+    <tr><td>Written essay text and Speaking transcripts you submit for evaluation</td><td>Generating AI feedback</td></tr>
+    <tr><td>Vocabulary/grammar progress, bookmarks, achievements, streak, XP</td><td>Progress tracking and gamification</td></tr>
+    <tr><td>AI Coach chat messages</td><td>Continuing your coaching conversation</td></tr>
+    <tr><td>Subscription plan/status</td><td>Determining Premium access</td></tr>
+    <tr><td>Daily AI-usage counts (operation + success flag + timestamp, not content)</td><td>Server-side quota enforcement, abuse prevention</td></tr>
+  </table>
+  <p>We do not sell your data to anyone.</p>
+
+  <h2>4. Third parties that actually process your data</h2>
+  <ul>
+    <li><strong>Supabase</strong> — database, authentication, and serverless functions backing Signed-in Mode.</li>
+    <li><strong>AI providers</strong> (whichever one is configured server-side — never more than one active at a time): <strong>OpenAI</strong>, <strong>Anthropic</strong>, or <strong>Google (Gemini)</strong>. Submitting a Writing essay, a Speaking recording, an AI Coach message, or a study-plan request sends the relevant text to whichever provider is active, solely to generate that response. See <a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener">OpenAI</a>, <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener">Anthropic</a>, or <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google</a>'s own privacy policy.</li>
+    <li><strong>RevenueCat</strong> — if configured, manages subscription/purchase state; see <a href="https://www.revenuecat.com/privacy/" target="_blank" rel="noopener">RevenueCat's policy</a>.</li>
+    <li><strong>Google Play Billing</strong> — the actual payment processor; we never see or store your payment card details.</li>
+  </ul>
+  <p>No crash-reporting, analytics, or advertising SDK is present in this app.</p>
+
+  <h2>5. Microphone and audio recordings (Speaking practice)</h2>
+  <p>Audio is recorded <strong>only while you are actively recording a response you started</strong> — never in the background, never before that explicit action. The recording is held temporarily on your device, then uploaded to our server-side function for transcription by the configured AI provider; the resulting text (not the raw audio) is what gets evaluated.</p>
+  <p>We do not upload your audio to any persistent server-side storage bucket of our own. We cannot guarantee the AI provider's own retention of a request it processed — see §4. We do not claim the local recording file is deleted from your device immediately after upload.</p>
+
+  <h2>6. AI-generated feedback — limitations</h2>
+  <p>Every score and piece of AI-generated feedback (Writing, Speaking, AI Coach, study-plan suggestions) is an <strong>estimate for practice purposes</strong>, not an official IELTS score, and not affiliated with any organization that administers the real exam. AI evaluation can be wrong or inconsistent.</p>
+
+  <h2>7. Local device storage</h2>
+  <p>Independent of any account: in-progress onboarding answers, draft essay text, and, in Demo Mode, your entire local dataset are stored only on your device.</p>
+
+  <h2>8. Notifications</h2>
+  <p>If enabled, the app schedules <strong>local, on-device</strong> reminders (daily study, streak, weekly summary, exam countdown) via your device's own notification system — not push notifications through a remote server, and no notification token is collected. Disable any category anytime; the app works fully without notification permission.</p>
+
+  <h2>9. Error logging</h2>
+  <p>Diagnostic log lines are written to standard platform/Supabase function logs for our own debugging — not a dedicated third-party crash-reporting service.</p>
+
+  <h2>10. Data retention and deletion</h2>
+  <p>Delete your account and all associated data anytime from <strong>Profile → Delete account</strong> in the app. Deletion removes your authentication record and every database row tied to your account, is immediate and irreversible, and may not remove data already sent to a third-party AI provider before deletion. We may retain minimal records where legally required (e.g. tax records for a completed payment). If you can't sign in, see our <a href="./account-deletion.html">account deletion request page</a>.</p>
+
+  <h2>11. Children</h2>
+  <p>Not directed at children under 13; we do not knowingly collect data from them.</p>
+
+  <h2>12. Your rights</h2>
+  <p>Depending on your jurisdiction, you may have rights to access, correct, export, or delete your data. Deletion is available in-app; for anything else, contact us.</p>
+
+  <h2>13. Changes to this policy</h2>
+  <p>We may update this policy as the app changes. The "Last updated" date reflects the most recent revision.</p>
+
+  <h2>14. Contact</h2>
+  <p><span class="placeholder">support@ieltsprep.app</span></p>
+
+  <p class="muted">See also: <a href="./terms-of-use.html">Terms of Use</a> · <a href="./account-deletion.html">Account Deletion</a></p>
+</div>
+</body>
+</html>

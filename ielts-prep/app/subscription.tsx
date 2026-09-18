@@ -101,6 +101,18 @@ export default function SubscriptionScreen() {
           To cancel or change your plan, use &quot;Manage subscription&quot; above (Google Play) — changes sync here automatically the next time you open the app.
         </Text>
       )}
+
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.md, marginTop: theme.spacing.md, marginBottom: theme.spacing.huge }}>
+        <Text variant="caption" color="brand" onPress={() => router.push('/help')}>
+          Terms of Use
+        </Text>
+        <Text variant="caption" color="tertiary">
+          •
+        </Text>
+        <Text variant="caption" color="brand" onPress={() => router.push('/help')}>
+          Privacy Policy
+        </Text>
+      </View>
     </Screen>
   );
 }

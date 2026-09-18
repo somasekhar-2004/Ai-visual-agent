@@ -151,18 +151,30 @@ export default function PaywallScreen() {
       )}
 
       {isPurchasesUnavailable() ? (
-        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.huge }}>
+        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.md }}>
           Subscriptions aren&apos;t available yet — check back soon.
         </Text>
       ) : isPurchasesMocked() ? (
-        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.huge }}>
+        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.md }}>
           RevenueCat isn&apos;t configured yet — this is a simulated purchase for demo purposes. No payment will be charged.
         </Text>
       ) : (
-        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.huge }}>
-          Payment will be charged to your Google Play account. Subscriptions renew automatically unless cancelled.
+        <Text variant="caption" color="tertiary" align="center" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.md }}>
+          Payment will be charged to your Google Play account. Subscriptions renew automatically at the plan&apos;s price unless cancelled before the renewal date.
         </Text>
       )}
+
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.huge }}>
+        <Text variant="caption" color="brand" onPress={() => router.push('/help')}>
+          Terms of Use
+        </Text>
+        <Text variant="caption" color="tertiary">
+          •
+        </Text>
+        <Text variant="caption" color="brand" onPress={() => router.push('/help')}>
+          Privacy Policy
+        </Text>
+      </View>
     </Screen>
   );
 }
