@@ -13,6 +13,7 @@ function makeGoal(overrides: Partial<UserGoal>): UserGoal {
     dailyStudyMinutes: 60,
     isActive: true,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     ...overrides,
   };
 }

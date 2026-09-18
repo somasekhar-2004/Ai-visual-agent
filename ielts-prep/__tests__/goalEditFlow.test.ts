@@ -54,9 +54,13 @@ const OLD_GOAL = {
   dailyStudyMinutes: 30,
   isActive: true,
   createdAt: '2026-01-01',
+  updatedAt: '2026-01-01',
 };
 const NEW_GOAL = {
-  id: 'goal-new',
+  // Same id as OLD_GOAL, not a new one: saveOnboardingGoal upserts the
+  // single current goal row in place since migration 0013 — see
+  // services/repository/core.ts. Only updatedAt changes on an edit.
+  id: 'goal-old',
   userId: 'user-1',
   ieltsType: 'academic' as const,
   currentBand: 6,
@@ -65,7 +69,8 @@ const NEW_GOAL = {
   weakestSkill: 'writing' as const,
   dailyStudyMinutes: 45,
   isActive: true,
-  createdAt: '2026-02-01',
+  createdAt: '2026-01-01',
+  updatedAt: '2026-02-01',
 };
 
 /** Exactly the sequence app/profile-edit.tsx's handleSave runs — the one
@@ -136,7 +141,11 @@ describe('the shared Home/Settings goal-save flow', () => {
     });
 
     expect(useAppStore.getState().goal?.targetBand).toBe(7.5);
-    expect(useAppStore.getState().goal?.id).toBe('goal-new');
+    // Same id as before the edit — saveOnboardingGoal upserts the single
+    // current goal row in place since migration 0013, it never creates a
+    // new row for an edit. updatedAt (not id) is what changes.
+    expect(useAppStore.getState().goal?.id).toBe('goal-old');
+    expect(useAppStore.getState().goal?.updatedAt).toBe('2026-02-01');
   });
 
   it("AI Coach's context reflects the newly-saved goal right after — no stale target band", async () => {

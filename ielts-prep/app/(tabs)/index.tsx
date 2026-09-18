@@ -46,7 +46,7 @@ export default function HomeScreen() {
   const [retrying, setRetrying] = React.useState(false);
 
   const planQuery = useQuery({
-    queryKey: studyPlanQueryKey(userId, goal?.id, today()),
+    queryKey: studyPlanQueryKey(userId, goal?.updatedAt, today()),
     queryFn: () => generateStudyPlan(userId!, goal!, bandScores as any, today()),
     enabled: Boolean(userId && goal),
   });
@@ -58,7 +58,7 @@ export default function HomeScreen() {
   });
 
   const focusQuery = useQuery({
-    queryKey: studyPlanFocusQueryKey(userId, goal?.id, today()),
+    queryKey: studyPlanFocusQueryKey(userId, goal?.updatedAt, today()),
     queryFn: () => {
       const context: CoachContext = {
         fullName: profile?.fullName ?? null,
@@ -136,7 +136,7 @@ export default function HomeScreen() {
   async function toggleItem(itemId: string, isCompleted: boolean) {
     if (!planQuery.data || isCompleted) return;
     await completeStudyPlanItem(planQuery.data.id, itemId);
-    queryClient.invalidateQueries({ queryKey: studyPlanQueryKey(userId, goal?.id, today()) });
+    queryClient.invalidateQueries({ queryKey: studyPlanQueryKey(userId, goal?.updatedAt, today()) });
   }
 
   return (

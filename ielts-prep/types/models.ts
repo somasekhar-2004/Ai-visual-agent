@@ -40,6 +40,12 @@ export type UserGoal = {
   dailyStudyMinutes: number;
   isActive: boolean;
   createdAt: string;
+  // Bumped by a DB trigger on every UPDATE (see migration 0013) — the
+  // authoritative "this goal was actually just edited" signal, since
+  // saveOnboardingGoal updates the single current goal row in place rather
+  // than creating a new row per edit. Used to key study-plan caches so an
+  // edit is never served stale content — see lib/studyPlanQueryKeys.ts.
+  updatedAt: string;
 };
 
 export type LessonSection = { heading: string; body: string; tips: string[] };

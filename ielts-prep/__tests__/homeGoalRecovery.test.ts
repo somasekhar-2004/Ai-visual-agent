@@ -1,15 +1,17 @@
 import { supabase } from '@/lib/supabase';
-import { getActiveGoal, saveOnboardingGoal } from '@/services/repository/core';
+import { getActiveGoal } from '@/services/repository/core';
 
 // Regression coverage for "Home still shows 'Let's set up your study goal'
-// for an existing account that already completed onboarding." Root cause:
-// saveOnboardingGoal deactivated every previous goal *before* inserting the
-// new one, as two separate, non-transactional Supabase calls — any failure
-// between them (an app kill, a dropped connection) left the account with
-// zero active goals and no way back. These tests cover both halves of the
-// fix: the insert now happens first, and getActiveGoal recovers (and
-// reactivates) the most recent goal if none is marked active, instead of
-// sending an existing user back through onboarding.
+// for an existing account that already completed onboarding." getActiveGoal
+// recovers (and reactivates) the most recent goal if none is marked active,
+// instead of sending an existing user back through onboarding. This was
+// originally paired with saveOnboardingGoal tests for its old
+// insert-then-deactivate flow — that flow no longer exists (see migration
+// 0013, uq_user_goals_one_active_per_user: saveOnboardingGoal now upserts
+// the single current goal row in place) — see onboardingGoalRealMode.test.ts
+// for the current saveOnboardingGoal coverage. The self-heal path below is
+// kept as a legacy-recovery fallback for any account whose data predates
+// that migration.
 jest.mock('@/lib/supabase', () => ({
   supabase: { from: jest.fn() },
 }));
@@ -25,87 +27,6 @@ function makeQueryBuilder(result: { data: any; error: any }) {
 }
 
 const fromMock = supabase!.from as jest.Mock;
-
-describe('saveOnboardingGoal — inserts the new goal before deactivating old ones', () => {
-  afterEach(() => jest.clearAllMocks());
-
-  it('never deactivates any previous goal when the insert itself fails', async () => {
-    fromMock.mockReturnValueOnce(makeQueryBuilder({ data: null, error: { message: 'permission denied for table user_goals', code: '42501' } }));
-    await expect(
-      saveOnboardingGoal('user-1', { ieltsType: 'academic', currentBand: null, targetBand: 7, examDate: null, weakestSkill: null, dailyStudyMinutes: 30 })
-    ).rejects.toThrow(/Failed to save onboarding goal/);
-    // Only the failed insert call happened — the old deactivate-first
-    // ordering would have made a second `.from('user_goals')` call to
-    // deactivate previous goals regardless of what came next.
-    expect(fromMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('saves the new goal and then deactivates previous ones, in that order', async () => {
-    const insertBuilder = makeQueryBuilder({
-      data: { id: 'goal-2', user_id: 'user-1', ielts_type: 'academic', current_band: null, target_band: 7, exam_date: null, weakest_skill: null, daily_study_minutes: 30, is_active: true, created_at: '2026-01-02T00:00:00.000Z' },
-      error: null,
-    });
-    const deactivateBuilder = makeQueryBuilder({ data: null, error: null });
-    fromMock.mockReturnValueOnce(insertBuilder).mockReturnValueOnce(deactivateBuilder);
-
-    const goal = await saveOnboardingGoal('user-1', { ieltsType: 'academic', currentBand: null, targetBand: 7, examDate: null, weakestSkill: null, dailyStudyMinutes: 30 });
-
-    expect(goal.id).toBe('goal-2');
-    expect(insertBuilder.insert).toHaveBeenCalled();
-    expect(deactivateBuilder.update).toHaveBeenCalledWith({ is_active: false });
-    // Excludes the row it just inserted, so the brand-new goal is never
-    // immediately deactivated by its own cleanup step.
-    expect(deactivateBuilder.neq).toHaveBeenCalledWith('id', 'goal-2');
-  });
-
-  it('still returns the newly-saved goal even if the deactivate-old-goals cleanup step fails', async () => {
-    const insertBuilder = makeQueryBuilder({
-      data: { id: 'goal-3', user_id: 'user-1', ielts_type: 'academic', current_band: null, target_band: 7, exam_date: null, weakest_skill: null, daily_study_minutes: 30, is_active: true, created_at: '2026-01-03T00:00:00.000Z' },
-      error: null,
-    });
-    const deactivateBuilder = makeQueryBuilder({ data: null, error: { message: 'network error', code: 'ETIMEDOUT' } });
-    fromMock.mockReturnValueOnce(insertBuilder).mockReturnValueOnce(deactivateBuilder);
-
-    await expect(
-      saveOnboardingGoal('user-1', { ieltsType: 'academic', currentBand: null, targetBand: 7, examDate: null, weakestSkill: null, dailyStudyMinutes: 30 })
-    ).resolves.toMatchObject({ id: 'goal-3' });
-  });
-
-  // Regression coverage for the "Home 'Set your goal' flow is broken/dummy"
-  // bug: Home's CTA and Settings → Edit profile & goals now both call this
-  // exact function to save an edit to an existing goal (see
-  // lib/goalSetupNav.ts + app/profile-edit.tsx) — never a second, separate
-  // implementation. This proves that path specifically never leaves two
-  // active goals: editing account "user-1"'s already-active goal-old
-  // inserts goal-new as active and deactivates everything else, so exactly
-  // one row ends up active regardless of which screen triggered the edit.
-  it('editing an account\'s already-active goal (the shared Home/Settings save path) ends with exactly one active goal, never two', async () => {
-    const insertBuilder = makeQueryBuilder({
-      data: { id: 'goal-new', user_id: 'user-1', ielts_type: 'academic', current_band: 6, target_band: 7.5, exam_date: null, weakest_skill: 'writing', daily_study_minutes: 45, is_active: true, created_at: '2026-02-01T00:00:00.000Z' },
-      error: null,
-    });
-    const deactivateBuilder = makeQueryBuilder({ data: null, error: null });
-    fromMock.mockReturnValueOnce(insertBuilder).mockReturnValueOnce(deactivateBuilder);
-
-    const goal = await saveOnboardingGoal('user-1', {
-      ieltsType: 'academic',
-      currentBand: 6,
-      targetBand: 7.5,
-      examDate: null,
-      weakestSkill: 'writing',
-      dailyStudyMinutes: 45,
-    });
-
-    expect(goal.id).toBe('goal-new');
-    expect(goal.targetBand).toBe(7.5);
-    // Deactivates every other row for this user (which includes the
-    // previously-active goal-old) except the one just inserted — so
-    // goal-old can never remain active alongside goal-new.
-    expect(deactivateBuilder.update).toHaveBeenCalledWith({ is_active: false });
-    expect(deactivateBuilder.eq).toHaveBeenCalledWith('user_id', 'user-1');
-    expect(deactivateBuilder.neq).toHaveBeenCalledWith('id', 'goal-new');
-  });
-});
 
 describe('getActiveGoal — recovers an existing account\'s goal even if it ended up with no row marked active', () => {
   afterEach(() => jest.clearAllMocks());

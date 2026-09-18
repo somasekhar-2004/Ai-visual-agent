@@ -22,6 +22,7 @@ const GOAL: UserGoal = {
   dailyStudyMinutes: 45,
   isActive: true,
   createdAt: '2026-01-01',
+  updatedAt: '2026-01-01',
 };
 
 function makeAttempt(isCorrect: boolean): QuestionAttempt {

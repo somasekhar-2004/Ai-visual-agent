@@ -41,17 +41,14 @@ export async function getActiveGoal(userId: string): Promise<UserGoal | null> {
 
   // No row has is_active=true — before concluding "this user never set up a
   // goal" (and sending them back through onboarding), check for ANY goal
-  // row under this account. A real-device bug left existing users stuck on
-  // the setup screen despite having completed onboarding: saveOnboardingGoal
-  // used to deactivate every previous goal *before* inserting the new one,
-  // as two separate, non-transactional requests — an app kill, a dropped
-  // connection, or any failure between those two calls left the account
-  // with zero active goals and no way back short of a real DB fix. That
-  // ordering is fixed below (insert first, deactivate after), but this
-  // fallback is the actual recovery path for any account that already hit
-  // it: recover the most recent goal — reactivating it — rather than
-  // silently sending someone who genuinely already set up a goal through
-  // onboarding again.
+  // row under this account. This is now a legacy-recovery path only:
+  // saveOnboardingGoal upserts a single current goal row in place (see its
+  // own comment and migration 0013's uq_user_goals_one_active_per_user
+  // constraint), so a healthy account can never actually reach a
+  // zero-active-goals state going forward. Kept for any account whose data
+  // predates that migration — recover the most recent goal by reactivating
+  // it, rather than silently sending someone who genuinely already set up a
+  // goal through onboarding again.
   const { data: anyGoal, error: anyGoalError } = await supabase!
     .from('user_goals')
     .select('*')
@@ -82,49 +79,47 @@ export type OnboardingInput = {
 };
 
 export async function saveOnboardingGoal(userId: string, input: OnboardingInput): Promise<UserGoal> {
-  // Insert the new goal BEFORE deactivating any previous one — deliberately
-  // the opposite order from an earlier version of this function. These are
-  // two separate, non-transactional requests; deactivating first meant that
-  // any failure between the two calls (an app kill, a dropped connection,
-  // a timeout) left the account with every goal marked inactive and the new
-  // one never inserted — zero active goals, with no way back short of a
-  // direct DB fix. Inserting first means the same failure instead just
-  // leaves an old goal active alongside a new one (getActiveGoal picks the
-  // most recently created), which is a soft, self-correcting inconsistency
-  // rather than "no goal exists" (see this file's Listening rollout /
-  // integrity-audit history for the real-device bug this caused).
-  const { data, error } = await supabase!
+  // True upsert semantics: at most one CURRENT (is_active) goal row per
+  // user, enforced by migration 0013's partial unique index
+  // (uq_user_goals_one_active_per_user) — Postgres itself now rejects a
+  // second active row for the same user, so editing a goal updates that one
+  // row in place with a single atomic UPDATE instead of the previous
+  // "insert a new row, then separately deactivate the rest" two-step (which
+  // that unique index would now reject outright on the insert). This also
+  // means `updated_at` (bumped by a DB trigger on every UPDATE) is now the
+  // authoritative "this goal actually just changed" signal — see
+  // lib/studyPlanQueryKeys.ts, which keys the study-plan/AI-note caches on
+  // it precisely because `id` no longer changes across edits.
+  const { data: existing, error: existingError } = await supabase!
     .from('user_goals')
-    .insert({
-      user_id: userId,
-      ielts_type: input.ieltsType,
-      current_band: input.currentBand,
-      target_band: input.targetBand,
-      exam_date: input.examDate,
-      weakest_skill: input.weakestSkill,
-      daily_study_minutes: input.dailyStudyMinutes,
-      is_active: true,
-    })
-    .select('*')
-    .single();
-  // A failed insert (RLS rejection, missing/expired auth session, constraint
+    .select('id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .maybeSingle();
+  throwIfSupabaseError(existingError, 'Failed to check your existing study goal');
+
+  const payload = {
+    ielts_type: input.ieltsType,
+    current_band: input.currentBand,
+    target_band: input.targetBand,
+    exam_date: input.examDate,
+    weakest_skill: input.weakestSkill,
+    daily_study_minutes: input.dailyStudyMinutes,
+  };
+
+  const { data, error } = existing
+    ? await supabase!.from('user_goals').update(payload).eq('id', existing.id).select('*').single()
+    : await supabase!.from('user_goals').insert({ user_id: userId, is_active: true, ...payload }).select('*').single();
+  // A failed write (RLS rejection, missing/expired auth session, constraint
   // violation, network error) surfaces here as `error` set and `data` null.
   // Never pass that straight to mapGoalRow — it doesn't defend against a null
   // row, by design, so a real failure is never silently reshaped into a fake
   // "empty" goal.
   if (error || !data) {
     throw new Error(
-      `Failed to save onboarding goal: ${error?.message ?? 'the database returned no row for the new goal.'}` +
+      `Failed to save your study goal: ${error?.message ?? 'the database returned no row for the goal.'}` +
         (error?.code ? ` (code: ${error.code})` : '')
     );
-  }
-
-  const { error: deactivateError } = await supabase!.from('user_goals').update({ is_active: false }).eq('user_id', userId).neq('id', data.id);
-  if (deactivateError) {
-    // The new goal is already saved and active — a failure to deactivate
-    // old ones is a (harmless-to-Home) cleanup step, not a reason to throw
-    // and make onboarding look like it failed when it actually succeeded.
-    console.warn('[repository] saved new goal but failed to deactivate previous ones:', deactivateError.message);
   }
   return mapGoalRow(data);
 }
@@ -141,6 +136,7 @@ function mapGoalRow(data: any): UserGoal {
     dailyStudyMinutes: data.daily_study_minutes,
     isActive: data.is_active,
     createdAt: data.created_at,
+    updatedAt: data.updated_at,
   };
 }
 

@@ -39,7 +39,7 @@ describe('profile-edit.tsx save — invalidates study-plan/study-plan-focus quer
       userId: 'user-1',
       profile: { id: 'user-1', fullName: 'Priya', avatarUrl: null, createdAt: '2026-01-01' },
       goal: {
-        id: 'goal-old',
+        id: 'goal-1',
         userId: 'user-1',
         ieltsType: 'academic',
         currentBand: 6,
@@ -49,11 +49,14 @@ describe('profile-edit.tsx save — invalidates study-plan/study-plan-focus quer
         dailyStudyMinutes: 30,
         isActive: true,
         createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
       },
       refreshUserData: jest.fn().mockImplementation(async () => {
         useAppStore.setState({
           goal: {
-            id: 'goal-new',
+            // Same id, upserted in place — only updatedAt changes on an edit
+            // since migration 0013 (see services/repository/core.ts).
+            id: 'goal-1',
             userId: 'user-1',
             ieltsType: 'academic',
             currentBand: 6,
@@ -62,7 +65,8 @@ describe('profile-edit.tsx save — invalidates study-plan/study-plan-focus quer
             weakestSkill: null,
             dailyStudyMinutes: 30,
             isActive: true,
-            createdAt: '2026-01-02',
+            createdAt: '2026-01-01',
+            updatedAt: '2026-01-02',
           },
         });
       }),

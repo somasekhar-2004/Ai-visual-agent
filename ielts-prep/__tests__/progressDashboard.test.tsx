@@ -42,6 +42,7 @@ const GOAL = {
   dailyStudyMinutes: 30,
   isActive: true,
   createdAt: '2026-01-01',
+  updatedAt: '2026-01-01',
 };
 
 function resetStore(overrides: Partial<ReturnType<typeof useAppStore.getState>> = {}) {

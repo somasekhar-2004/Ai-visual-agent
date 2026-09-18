@@ -50,14 +50,15 @@ export default function ProfileEditScreen() {
         dailyStudyMinutes,
       });
       await refreshUserData(userId);
-      // saveOnboardingGoal always inserts a new goal row (a new goal.id),
-      // which app/(tabs)/index.tsx's study-plan/study-plan-focus query keys
+      // saveOnboardingGoal upserts the single current goal row in place
+      // (migration 0013) — its updated_at changes on every edit, which
+      // app/(tabs)/index.tsx's study-plan/study-plan-focus query keys
       // already include — so those refetch on their own once the store's
       // `goal` (read above) propagates. This invalidation is a
       // belt-and-braces measure for anything still holding the previous
-      // goal.id's cache entry, so Home/Study Plan never keep showing a
+      // updatedAt's cache entry, so Home/Study Plan never keep showing a
       // stale target band or daily study time after this save — see
-      // lib/studyPlanQueryKeys.ts for why the key includes goal.id at all.
+      // lib/studyPlanQueryKeys.ts for why the key includes goal.updatedAt.
       queryClient.invalidateQueries({ queryKey: ['study-plan-focus', userId] });
       queryClient.invalidateQueries({ queryKey: ['study-plan', userId] });
       router.back();

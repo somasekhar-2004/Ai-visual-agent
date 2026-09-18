@@ -14,36 +14,55 @@ const INPUT = {
   dailyStudyMinutes: 30,
 };
 
-function mockGoalTable({ deactivateError = null as any, insertData = null as any, insertError = null as any }) {
-  const neqMock = jest.fn().mockResolvedValue({ error: deactivateError });
-  const eqMock = jest.fn().mockReturnValue({ neq: neqMock });
-  const updateMock = jest.fn().mockReturnValue({ eq: eqMock });
-  const singleMock = jest.fn().mockResolvedValue({ data: insertData, error: insertError });
-  const selectMock = jest.fn().mockReturnValue({ single: singleMock });
-  const insertMock = jest.fn().mockReturnValue({ select: selectMock });
-  (supabase!.from as jest.Mock).mockReturnValue({ update: updateMock, insert: insertMock });
-  return { updateMock, insertMock, neqMock, eqMock };
+const EXISTING_ROW = {
+  id: 'goal-1',
+  user_id: 'user-1',
+  ielts_type: 'academic',
+  current_band: 6,
+  target_band: 7,
+  exam_date: null,
+  weakest_skill: null,
+  daily_study_minutes: 30,
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+};
+
+/** Mocks the two-call shape saveOnboardingGoal now uses: a SELECT for the
+ * existing active goal (maybeSingle), then either an UPDATE (existing found)
+ * or an INSERT (none found) — never both, unlike the old insert-then-
+ * deactivate flow this replaces. `existing` controls which branch fires. */
+function mockGoalTable({
+  existing = null as { id: string } | null,
+  writeData = null as any,
+  writeError = null as any,
+  selectError = null as any,
+}) {
+  const maybeSingleMock = jest.fn().mockResolvedValue({ data: existing, error: selectError });
+  const selectEqMock = jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: maybeSingleMock }) });
+  const selectMock = jest.fn().mockReturnValue({ eq: selectEqMock });
+
+  const writeSingleMock = jest.fn().mockResolvedValue({ data: writeData, error: writeError });
+  const writeSelectMock = jest.fn().mockReturnValue({ single: writeSingleMock });
+  const updateEqMock = jest.fn().mockReturnValue({ select: writeSelectMock });
+  const updateMock = jest.fn().mockReturnValue({ eq: updateEqMock });
+  const insertMock = jest.fn().mockReturnValue({ select: writeSelectMock });
+
+  (supabase!.from as jest.Mock).mockReturnValue({ select: selectMock, update: updateMock, insert: insertMock });
+  return { selectMock, selectEqMock, maybeSingleMock, updateMock, updateEqMock, insertMock, writeSingleMock };
 }
 
-describe('saveOnboardingGoal — real backend', () => {
+describe('saveOnboardingGoal — true upsert semantics (migration 0013)', () => {
   afterEach(() => jest.clearAllMocks());
 
-  it('maps a successful insert to a UserGoal', async () => {
-    mockGoalTable({
-      insertData: {
-        id: 'goal-1',
-        user_id: 'user-1',
-        ielts_type: 'academic',
-        current_band: 6,
-        target_band: 7,
-        exam_date: null,
-        weakest_skill: null,
-        daily_study_minutes: 30,
-        is_active: true,
-        created_at: '2026-01-01T00:00:00Z',
-      },
+  it('a brand-new user (no existing goal) gets an INSERT, never an UPDATE', async () => {
+    const { insertMock, updateMock } = mockGoalTable({
+      existing: null,
+      writeData: { ...EXISTING_ROW },
     });
     const goal = await saveOnboardingGoal('user-1', INPUT);
+    expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'user-1', is_active: true, target_band: 7 }));
+    expect(updateMock).not.toHaveBeenCalled();
     expect(goal).toEqual({
       id: 'goal-1',
       userId: 'user-1',
@@ -55,71 +74,47 @@ describe('saveOnboardingGoal — real backend', () => {
       dailyStudyMinutes: 30,
       isActive: true,
       createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
     });
   });
 
-  it('throws the real database error instead of crashing when the insert is rejected (e.g. by a row-level security policy)', async () => {
+  // The exact regression this migration fixes: editing a goal must update
+  // the ONE existing current-goal row in place — never insert a second,
+  // competing "current" row (which migration 0013's
+  // uq_user_goals_one_active_per_user constraint would now reject outright
+  // anyway).
+  it('an existing user (has an active goal) gets an UPDATE on that same row, never a second INSERT', async () => {
+    const { insertMock, updateMock, updateEqMock } = mockGoalTable({
+      existing: { id: 'goal-1' },
+      writeData: { ...EXISTING_ROW, target_band: 8, daily_study_minutes: 45, updated_at: '2026-01-02T00:00:00Z' },
+    });
+    const goal = await saveOnboardingGoal('user-1', { ...INPUT, targetBand: 8, dailyStudyMinutes: 45 });
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ target_band: 8, daily_study_minutes: 45 })
+    );
+    expect(updateEqMock).toHaveBeenCalledWith('id', 'goal-1');
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(goal.id).toBe('goal-1'); // same row, not a new one
+    expect(goal.targetBand).toBe(8);
+    expect(goal.updatedAt).toBe('2026-01-02T00:00:00Z');
+  });
+
+  it('throws the real database error instead of crashing when the write is rejected (e.g. by a row-level security policy)', async () => {
     mockGoalTable({
-      insertError: { message: 'new row violates row-level security policy for table "user_goals"', code: '42501' },
+      existing: null,
+      writeError: { message: 'new row violates row-level security policy for table "user_goals"', code: '42501' },
     });
     await expect(saveOnboardingGoal('user-1', INPUT)).rejects.toThrow(/row-level security policy/);
     await expect(saveOnboardingGoal('user-1', INPUT)).rejects.toThrow(/42501/);
   });
 
-  it('throws instead of passing a null row to the mapper when the insert returns no data and no error', async () => {
-    mockGoalTable({ insertData: null, insertError: null });
+  it('throws instead of passing a null row to the mapper when the write returns no data and no error', async () => {
+    mockGoalTable({ existing: null, writeData: null, writeError: null });
     await expect(saveOnboardingGoal('user-1', INPUT)).rejects.toThrow(/no row/);
   });
 
-  // Regression coverage for "Home still shows the setup CTA for an existing
-  // account" (see __tests__/homeGoalRecovery.test.ts for the full story):
-  // this used to deactivate every previous goal BEFORE inserting the new
-  // one — a failure between those two calls left the account with zero
-  // active goals. The insert now happens first, so a failure to deactivate
-  // old goals afterward is a non-fatal cleanup step, never a reason for
-  // onboarding itself to appear to have failed.
-  it('still returns the newly-saved goal even if deactivating previous goals fails afterward', async () => {
-    const { insertMock } = mockGoalTable({
-      deactivateError: { message: 'connection reset', code: '08006' },
-      insertData: {
-        id: 'goal-1',
-        user_id: 'user-1',
-        ielts_type: 'academic',
-        current_band: 6,
-        target_band: 7,
-        exam_date: null,
-        weakest_skill: null,
-        daily_study_minutes: 30,
-        is_active: true,
-        created_at: '2026-01-01T00:00:00Z',
-      },
-    });
-    await expect(saveOnboardingGoal('user-1', INPUT)).resolves.toMatchObject({ id: 'goal-1' });
-    expect(insertMock).toHaveBeenCalled();
-  });
-
-  // Explicit coverage for "no duplicate active goals": every OTHER goal row
-  // for this user (matched by user_id, excluding the just-inserted row's own
-  // id) is deactivated right after the insert, so exactly one active goal
-  // ever exists per user.
-  it('deactivates every other goal for this user (never the one just inserted), so no duplicate active goals exist afterward', async () => {
-    const { updateMock, eqMock, neqMock } = mockGoalTable({
-      insertData: {
-        id: 'goal-new',
-        user_id: 'user-1',
-        ielts_type: 'academic',
-        current_band: 6,
-        target_band: 7,
-        exam_date: null,
-        weakest_skill: null,
-        daily_study_minutes: 30,
-        is_active: true,
-        created_at: '2026-01-01T00:00:00Z',
-      },
-    });
-    await saveOnboardingGoal('user-1', INPUT);
-    expect(updateMock).toHaveBeenCalledWith({ is_active: false });
-    expect(eqMock).toHaveBeenCalledWith('user_id', 'user-1');
-    expect(neqMock).toHaveBeenCalledWith('id', 'goal-new');
+  it('throws when checking for an existing goal itself fails, rather than guessing which branch to take', async () => {
+    mockGoalTable({ selectError: { message: 'connection reset', code: '08006' } });
+    await expect(saveOnboardingGoal('user-1', INPUT)).rejects.toThrow(/connection reset/);
   });
 });
