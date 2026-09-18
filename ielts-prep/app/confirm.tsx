@@ -12,12 +12,24 @@ import { useOnboardingStore } from '@/store/useOnboardingStore';
 type Status = 'exchanging' | 'success' | 'error';
 
 /**
- * Deep-link target for the confirmation email — resolves from
- * EMAIL_CONFIRMATION_REDIRECT_URL (services/auth.ts) via Expo Router's
- * file-based linking, e.g. ieltsprep://confirm?code=... . Supabase redirects
- * here itself after verifying the link, either with `code` (success — PKCE
- * flow, see lib/supabase.ts's flowType) or `error`/`error_description`
- * (an invalid or expired link never reaches app code at all).
+ * NOT currently reachable from the actual confirmation email —
+ * EMAIL_CONFIRMATION_REDIRECT_URL (services/auth.ts) no longer points here.
+ * It used to: this screen was the ieltsprep://confirm deep-link target,
+ * resolved via Expo Router's file-based linking (e.g.
+ * ieltsprep://confirm?code=...). Real-device testing found that even with
+ * Supabase's redirect correctly allowlisted and the email genuinely
+ * verified, tapping the link left the user on a blank white page — a
+ * browser failing to hand off to the app's custom URL scheme, which isn't
+ * something app code can fix. The redirect now points at a static,
+ * always-rendering page instead (supabase/static/email-confirmation.html,
+ * hosted in a public Supabase Storage bucket — see
+ * lib/confirmationPageState.ts for its tested logic).
+ *
+ * Left in place (unused by the live flow) for possible future real
+ * deep-link work — e.g. reopening the app to a signed-in state after
+ * confirming, which isn't required for launch. If revived, this is where
+ * EMAIL_CONFIRMATION_REDIRECT_URL would need to point again, either instead
+ * of or as a secondary open-in-app affordance from the static page.
  */
 export default function ConfirmScreen() {
   const theme = useTheme();

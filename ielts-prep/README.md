@@ -92,7 +92,7 @@ Everything above runs with zero configuration. This is the ordered checklist for
   EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon key>
   ```
   Restart `npm run start` after saving.
-- [ ] **Add the app's deep link to Supabase's Redirect URLs allowlist** — Dashboard → Authentication → URL Configuration → Redirect URLs → add `ieltsprep://confirm` (or the wildcard `ieltsprep://*`). **Without this step, every signup/confirmation email link points at `http://localhost:3000` and fails with `ERR_FAILED`** — Supabase silently falls back to the project's Site URL (defaults to `http://localhost:3000`) whenever the `emailRedirectTo` the app sends isn't on this allowlist; it does not error, it just ignores the value. See "Supabase setup" → Auth redirect URL below for the full explanation.
+- [ ] **Upload the email-confirmation landing page and allowlist its URL** — see "Supabase setup" → Auth redirect URL below for the full explanation and exact commands. **Without this step, every signup/confirmation email link points at `http://localhost:3000` and fails with `ERR_FAILED`** — Supabase silently falls back to the project's Site URL (defaults to `http://localhost:3000`) whenever the `emailRedirectTo` the app sends isn't on the Redirect URLs allowlist; it does not error, it just ignores the value.
 - [ ] **Set an AI provider key as a Supabase secret** (server-side only — never in `.env`):
   ```bash
   npx supabase secrets set OPENAI_API_KEY=sk-...
@@ -184,20 +184,28 @@ Restart the Expo dev server after changing `.env` (`EXPO_PUBLIC_*` vars are inli
    echo "SUPABASE_SERVICE_ROLE_KEY=..." >> .env
    npm run db:seed
    ```
-6. **Add the app's deep link to the Redirect URLs allowlist** (Dashboard → Authentication → URL Configuration → Redirect URLs): add `ieltsprep://confirm` (or the wildcard `ieltsprep://*`) — see "Auth redirect URL" just below for why this step is easy to miss and what breaks without it.
-7. Restart `npm run start`.
+6. **Upload the email-confirmation landing page** (the `public-pages` bucket itself is created by migration `0014_public_pages_bucket.sql`, applied by step 4 above — this just puts the file in it):
+   ```bash
+   npx supabase storage cp --experimental --linked \
+     --content-type "text/html; charset=utf-8" --cache-control "no-cache" \
+     supabase/static/email-confirmation.html ss:///public-pages/email-confirmation.html
+   ```
+7. **Add that page's URL to the Redirect URLs allowlist** (Dashboard → Authentication → URL Configuration → Redirect URLs): add `https://<project-ref>.supabase.co/storage/v1/object/public/public-pages/email-confirmation.html` exactly — see "Auth redirect URL" just below for why this step is easy to miss and what breaks without it.
+8. Restart `npm run start`.
 
 ### Auth redirect URL (required — without it, confirmation emails point at `localhost`)
 
-`services/auth.ts` passes `emailRedirectTo: Linking.createURL('confirm')` to every `supabase.auth.signUp()`/`auth.resend()` call — in a production/preview build this resolves to `ieltsprep://confirm` (`ieltsprep` is `app.json`'s top-level `"scheme"`), which `app/confirm.tsx` already handles correctly as a deep link.
+`services/auth.ts`'s `EMAIL_CONFIRMATION_REDIRECT_URL` (passed as `emailRedirectTo` to every `supabase.auth.signUp()`/`auth.resend()` call) is a static HTML page — `supabase/static/email-confirmation.html` — hosted in the public `public-pages` Storage bucket, at `${EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/public-pages/email-confirmation.html`. It shows "Email confirmed successfully — please return to the Bandpath IELTS app and sign in" (or an expired/invalid/error variant) and never calls the Supabase API itself — the confirmation already happened server-side by the time Supabase redirects the browser here. Its state logic is tested via `lib/confirmationPageState.ts`.
 
-Supabase does **not** use that value unless it's on the project's allowlist. If it isn't, `signUp()`/`auth.resend()` still report success (the client has no way to detect this), but the actual email Supabase sends links to the project's **Site URL** instead — and every fresh Supabase project's Site URL defaults to `http://localhost:3000`. Tapping that link on a phone opens `localhost:3000` and fails with `ERR_FAILED`. This is a Dashboard setting, not something any app code change can fix:
+This used to be a `ieltsprep://` deep link into the app (`app/confirm.tsx`). Real-device testing found that even with the redirect correctly allowlisted and the email genuinely verified, tapping the link left the user on a blank white page — a browser failing to hand off to the app's custom URL scheme, which varies by browser/in-app-webview and isn't something app code can fix. The static page sidesteps that: it always renders, with no dependency on the app being installed or successfully intercepting a custom scheme.
+
+Supabase does **not** use the `emailRedirectTo` value unless it's on the project's allowlist. If it isn't, `signUp()`/`auth.resend()` still report success (the client has no way to detect this), but the actual email Supabase sends links to the project's **Site URL** instead — and every fresh Supabase project's Site URL defaults to `http://localhost:3000`. Tapping that link on a phone opens `localhost:3000` and fails with `ERR_FAILED`. This is a Dashboard setting, not something any app code change can fix:
 
 1. Supabase Dashboard → your project → **Authentication → URL Configuration**.
-2. Under **Redirect URLs**, add `ieltsprep://confirm` (or `ieltsprep://*` to cover it and any other deep link the app adds later).
-3. (Optional but recommended) Also update **Site URL** away from the `http://localhost:3000` default — it's the fallback for any auth flow that doesn't specify its own `emailRedirectTo`. There's currently no public HTTPS domain for this project to set it to instead; leave it as-is if that's the case rather than inventing one, since Site URL only matters as a fallback once the Redirect URLs entry above is correctly allowlisted.
+2. Under **Redirect URLs**, add the exact page URL above.
+3. (Optional but recommended) Also update **Site URL** away from the `http://localhost:3000` default — it's the fallback for any auth flow that doesn't specify its own `emailRedirectTo`. There's currently no Bandpath-branded domain for this project to set it to instead; leave it as-is if that's the case rather than inventing one, since Site URL only matters as a fallback once the Redirect URLs entry above is correctly allowlisted.
 
-No `EXPO_PUBLIC_` env var, app.json field, or app code controls this — it's Dashboard-only.
+No `EXPO_PUBLIC_` env var or app.json field controls this — it's Dashboard-only, plus the one-time bucket/file setup in steps 4/6 above.
 
 The schema (`supabase/migrations/0001_init.sql`, plus `0002_content_expansion_schema.sql` for mock test numbering/difficulty and writing chart data, `0003_grammar_practice.sql` for grammar practice questions/attempts, `0004_ai_chat_activity_type.sql` for the AI Coach's daily-limit activity type, and `0005_ai_usage_log.sql` for server-side AI rate-limiting/audit logging) covers every table in the product spec: profiles, goals, lessons/progress, questions/attempts, passages, listening tracks, mock tests/sections/attempts, reading/listening attempts, writing submissions/feedback, speaking sessions/responses/feedback, band scores (with a configurable raw-score → band conversion table), study plans/items, vocabulary + spaced repetition, grammar lessons/questions/attempts, achievements, AI conversations/messages, subscriptions, notifications, bookmarks, test history, and the AI usage audit log — 39 tables total, each with RLS so users can only read/write their own rows, and public content tables (lessons, questions, etc.) readable by anyone.
 
