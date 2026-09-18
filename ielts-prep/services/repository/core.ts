@@ -322,20 +322,26 @@ export async function syncSubscriptionEntitlement(userId: string): Promise<void>
   }
 }
 
+const DEFAULT_NOTIFICATION_PREFS: Record<NotificationCategory, boolean> = {
+  daily_reminder: true,
+  streak_reminder: true,
+  test_countdown: true,
+  unfinished_plan: true,
+  weekly_summary: true,
+};
+
 export async function getNotificationPrefs(userId: string): Promise<Record<NotificationCategory, boolean>> {
   if (isDemoMode) {
     const db = await getDb();
     return db.notificationPrefs;
   }
-  // Real backend: derive from the notifications table's category distinct opt-outs,
-  // or a dedicated preferences table — kept simple here with sensible defaults.
-  return {
-    daily_reminder: true,
-    streak_reminder: true,
-    test_countdown: true,
-    unfinished_plan: true,
-    weekly_summary: true,
-  };
+  const { data, error } = await supabase!.from('notification_prefs').select('category, enabled').eq('user_id', userId);
+  throwIfSupabaseError(error, 'loading notification preferences');
+  const prefs = { ...DEFAULT_NOTIFICATION_PREFS };
+  for (const row of data ?? []) {
+    prefs[row.category as NotificationCategory] = row.enabled;
+  }
+  return prefs;
 }
 
 export async function setNotificationPref(userId: string, category: NotificationCategory, enabled: boolean): Promise<void> {
@@ -343,7 +349,12 @@ export async function setNotificationPref(userId: string, category: Notification
     await mutateDb((db) => {
       db.notificationPrefs[category] = enabled;
     });
+    return;
   }
+  const { error } = await supabase!
+    .from('notification_prefs')
+    .upsert({ user_id: userId, category, enabled, updated_at: new Date().toISOString() }, { onConflict: 'user_id,category' });
+  throwIfSupabaseError(error, 'saving notification preference');
 }
 
 export async function getStreak(userId: string): Promise<{ count: number; lastActiveDate: string | null }> {

@@ -7,6 +7,7 @@ import {
   signInDemo,
   signOut as authSignOut,
 } from '@/services/auth';
+import { applyNotificationPreferences } from '@/services/notifications';
 import { getPurchasesProvider } from '@/services/purchases';
 import {
   getActiveGoal,
@@ -18,9 +19,11 @@ import {
   type OnboardingInput,
   type SkillBandMap,
   saveOnboardingGoal,
+  setNotificationPref,
   syncSubscriptionEntitlement,
 } from '@/services/repository';
-import type { Profile, Subscription, UserGoal } from '@/types/models';
+import { NOTIFICATION_CATEGORIES, useOnboardingStore } from '@/store/useOnboardingStore';
+import type { NotificationCategory, Profile, Subscription, UserGoal } from '@/types/models';
 
 type AppState = {
   isHydrated: boolean;
@@ -158,7 +161,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if ('userId' in result) userId = result.userId;
     }
     if (!userId) throw new Error('No signed-in user to attach onboarding data to.');
-    await saveOnboardingGoal(userId, input);
+    const goal = await saveOnboardingGoal(userId, input);
     // Deliberately does NOT call refreshOverallBand here: a brand-new user
     // has taken zero tests at onboarding time, and refreshOverallBand
     // correctly refuses to compute an overall band until all four skills
@@ -166,6 +169,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     // and was previously the exact place a fabricated "Overall Band 6.0"
     // got recorded before any test was ever attempted.
     await setOnboardingComplete();
+
+    // Applies the onboarding wizard's single "remind me / don't remind me"
+    // answer (app/(onboarding)/notifications.tsx) to the real, per-category
+    // preference mechanism (app/notification-settings.tsx uses the same
+    // one) so the choice actually takes effect instead of being captured
+    // and silently discarded. Best-effort: a permission denial or a
+    // transient write failure must never block onboarding from completing.
+    try {
+      const notificationsEnabled = useOnboardingStore.getState().notificationsEnabled;
+      const prefs = Object.fromEntries(
+        NOTIFICATION_CATEGORIES.map((category) => [category, notificationsEnabled])
+      ) as Record<NotificationCategory, boolean>;
+      await Promise.all(NOTIFICATION_CATEGORIES.map((category) => setNotificationPref(userId, category, notificationsEnabled)));
+      await applyNotificationPreferences(prefs, goal.examDate);
+    } catch (err) {
+      console.warn('[app] failed to apply onboarding notification preference (onboarding continues anyway):', (err as Error).message);
+    }
+
     set({ userId, onboardingComplete: true });
     await get().refreshUserData(userId);
   },

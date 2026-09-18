@@ -115,6 +115,12 @@ export default function SpeakingSessionScreen() {
     const confirmed = await confirmAsync('Exit test?', 'Your progress on this speaking test will not be saved. Are you sure you want to exit?', 'Exit');
     if (confirmed) {
       Speech.stop();
+      // If the user exits while actively recording, the native recorder
+      // must be told to stop — otherwise the microphone can keep capturing
+      // audio after the user has navigated away and believes they cancelled.
+      if (recorder.isRecording) {
+        await recorder.stop().catch(() => {});
+      }
       router.back();
     }
   }
@@ -399,7 +405,14 @@ export default function SpeakingSessionScreen() {
         )}
 
         {phase === 'intro' ? (
-          <Button label={turn.isCue ? 'Start 1-minute preparation' : 'Start speaking'} onPress={turn.isCue ? startPrep : startRecording} fullWidth />
+          <View style={{ gap: theme.spacing.sm }}>
+            <Button label={turn.isCue ? 'Start 1-minute preparation' : 'Start speaking'} onPress={turn.isCue ? startPrep : startRecording} fullWidth />
+            {turnIndex === 0 ? (
+              <Text variant="caption" color="tertiary" align="center">
+                Your recording is processed to generate a transcript and speaking feedback.
+              </Text>
+            ) : null}
+          </View>
         ) : null}
 
         {phase === 'prep' ? (

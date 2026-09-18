@@ -28,7 +28,12 @@ jest.mock('@/services/repository', () => ({
   getXp: jest.fn(),
   refreshOverallBand: jest.fn(),
   saveOnboardingGoal: jest.fn(),
+  setNotificationPref: jest.fn(),
   syncSubscriptionEntitlement: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/services/notifications', () => ({
+  applyNotificationPreferences: jest.fn(),
 }));
 
 const mockGetProfile = getProfile as jest.Mock;
