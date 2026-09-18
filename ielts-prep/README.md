@@ -560,31 +560,31 @@ Open the installed app on your phone — it behaves like Expo Go but with full n
 
 ## Account deletion (Edge Function)
 
-The mobile app's anon/publishable Supabase key cannot delete an `auth.users` row directly (that requires the service-role key, which must never ship in the app). `services/auth.ts`'s `deleteAccount()` calls a Supabase Edge Function named `delete-account` for this. Deploy one like:
-
-```ts
-// supabase/functions/delete-account/index.ts
-import { createClient } from 'jsr:@supabase/supabase-js@2';
-
-Deno.serve(async (req) => {
-  const authHeader = req.headers.get('Authorization')!;
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return new Response('Unauthorized', { status: 401 });
-
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  await admin.auth.admin.deleteUser(user.id); // profiles/etc. cascade via FK ON DELETE CASCADE
-  return new Response('OK');
-});
-```
+The mobile app's anon/publishable Supabase key cannot delete an `auth.users` row directly (that requires the service-role key, which must never ship in the app). `services/auth.ts`'s `deleteAccount()` calls a Supabase Edge Function named `delete-account` for this — implemented at `supabase/functions/delete-account/index.ts` (deletion logic factored out into `_shared/deleteAccount.ts`, unit-tested in `_shared/deleteAccount.test.ts`). Deploy it:
 
 ```bash
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=...   # same secret the revenuecat-webhook function uses
 supabase functions deploy delete-account
 ```
 
+It verifies the caller's own session JWT (never a client-supplied user id — it can only ever delete the account making the request), then deletes the `auth.users` row. Every user-owned table cascades from there via `on delete cascade` foreign keys rooted at `profiles(id) references auth.users(id)` (see `supabase/migrations/0001_init.sql`, `0003_grammar_practice.sql`, `0005_ai_usage_log.sql`, `0012_notification_prefs.sql`) — profiles, user_goals, every practice/mock/reading/listening/writing/speaking attempt and feedback row, band_scores, study plans, vocabulary/grammar progress, achievements, AI Coach conversations, subscriptions, notifications, notification_prefs, test_history, and ai_usage_log all go with it in one cascade, with nothing deleted table-by-table by hand (which would risk silently missing a future new table). `revenuecat_webhook_events` has no such FK (it's a webhook idempotency ledger keyed by RevenueCat's own event id, `app_user_id` stored as plain text for audit only) and is cleaned up with an explicit delete first.
+
+Client-side, both **Profile → Delete account** and **Help & support → Delete account** call the same shared flow (`hooks/useAccountDeletion.ts` / `lib/accountDeletion.ts`, unit-tested in `__tests__/accountDeletion.test.ts`): a destructive confirmation dialog naming the action explicitly, then on success `useAppStore.signOut()` — which clears all local app state and logs the device out of RevenueCat's purchase identity — before routing to the sign-in screen.
+
 In Demo Mode, "Delete account" just resets the local on-device database — no function needed.
+
+## Legal pages (Privacy Policy, Terms of Use, account-deletion request)
+
+Drafts live in `legal/` — `PRIVACY_POLICY.md` and `TERMS_OF_USE.md` (source of truth, based on an audit of what the app's code actually does, not a generic template) and `legal/site/*.html` (the same content as simple, dependency-free static pages: `privacy-policy.html`, `terms-of-use.html`, `account-deletion.html`, plus an `index.html` linking all three). **These are drafts, not finished legal documents** — every `[bracketed placeholder]` (legal entity name, business address, governing-law/jurisdiction, contact email) needs a real value, and both documents should be reviewed by counsel for your actual jurisdiction and business structure before you rely on them publicly.
+
+**What you still need to do:**
+1. Fill in the placeholders in `legal/PRIVACY_POLICY.md` and `legal/TERMS_OF_USE.md`, then re-copy the same values into the matching `legal/site/*.html` files (kept in sync manually — there's no build step converting one to the other).
+2. Host `legal/site/` somewhere public (any static host works — GitHub Pages, Vercel, Netlify, S3+CloudFront, your own domain). This repo does not do that for you, and **no URL is invented anywhere in this codebase** for that hosted site — nothing currently points at one.
+3. Once hosted, put the real URLs in:
+   - **Play Console** → App content → Privacy policy (required for every published app) and, if you offer subscriptions, the terms/EULA field under Monetization setup.
+   - **The app itself** → `app/help.tsx`'s existing inline Privacy Policy/Terms of Service cards already describe the same policies for users who never leave the app; if you'd rather link out to the hosted pages instead of (or in addition to) that inline text, add `Linking.openURL(...)` calls there pointing at your real hosted URLs — do this once you actually have one, not before.
+   - Any app-store listing page/description that references your privacy policy or terms.
+4. For the account-deletion request page specifically (`legal/site/account-deletion.html`): Google Play's Data Safety form requires an account-deletion path even outside the app for users who can't sign in — point Play Console's data-safety "how to request deletion" field at this hosted page's URL once it's live.
 
 ## Known limitations
 
