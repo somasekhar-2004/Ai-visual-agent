@@ -98,7 +98,7 @@ function renderStudentContext(context: CoachContext): string {
 - Exam type: IELTS ${context.ieltsType}
 - Target band: ${context.targetBand != null ? context.targetBand : 'not set'}
 - Exam date: ${context.examDate ?? 'not set'}
-- Daily study time available: ${context.dailyStudyMinutes} minutes
+- Daily study time available: ${context.dailyStudyMinutes != null ? `${context.dailyStudyMinutes} minutes` : 'not set'}
 
 CURRENT / PREDICTED (from the student's actual recorded band scores — "not enough data yet" means they have not completed enough scored practice/tests for this; never invent one):
 - Current estimated overall band: ${context.currentBand != null ? context.currentBand : 'not enough data yet'}

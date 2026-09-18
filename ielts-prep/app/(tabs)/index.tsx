@@ -14,6 +14,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { goalSetupRoute } from '@/lib/goalSetupNav';
 import { getHomeViewState } from '@/lib/homeViewState';
 import { studyPlanItemTarget } from '@/lib/studyPlanNav';
+import { studyPlanFocusQueryKey, studyPlanQueryKey } from '@/lib/studyPlanQueryKeys';
 import type { CoachContext } from '@/services/ai';
 import {
   completeStudyPlanItem,
@@ -45,7 +46,7 @@ export default function HomeScreen() {
   const [retrying, setRetrying] = React.useState(false);
 
   const planQuery = useQuery({
-    queryKey: ['study-plan', userId, today()],
+    queryKey: studyPlanQueryKey(userId, goal?.id, today()),
     queryFn: () => generateStudyPlan(userId!, goal!, bandScores as any, today()),
     enabled: Boolean(userId && goal),
   });
@@ -57,7 +58,7 @@ export default function HomeScreen() {
   });
 
   const focusQuery = useQuery({
-    queryKey: ['study-plan-focus', userId, today()],
+    queryKey: studyPlanFocusQueryKey(userId, goal?.id, today()),
     queryFn: () => {
       const context: CoachContext = {
         fullName: profile?.fullName ?? null,
@@ -135,7 +136,7 @@ export default function HomeScreen() {
   async function toggleItem(itemId: string, isCompleted: boolean) {
     if (!planQuery.data || isCompleted) return;
     await completeStudyPlanItem(planQuery.data.id, itemId);
-    queryClient.invalidateQueries({ queryKey: ['study-plan', userId, today()] });
+    queryClient.invalidateQueries({ queryKey: studyPlanQueryKey(userId, goal?.id, today()) });
   }
 
   return (

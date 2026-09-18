@@ -49,7 +49,11 @@ export function buildCoachContext(params: {
     weakestSkill: goal?.weakestSkill ?? null,
     bandBySkill: bandScores,
     streakDays: streak.count,
-    dailyStudyMinutes: goal?.dailyStudyMinutes ?? 30,
+    // null — never a hardcoded 30 — when there is no active study goal.
+    // Same class of bug as targetBand above: a stale/racy client read used
+    // to fabricate "30 minutes a day" for a goal that either wasn't loaded
+    // yet or genuinely doesn't exist.
+    dailyStudyMinutes: goal?.dailyStudyMinutes ?? null,
     // null (not 0%) when there is genuinely no practice history yet — 0%
     // accuracy and "no data yet" are different facts and must not be
     // conflated.

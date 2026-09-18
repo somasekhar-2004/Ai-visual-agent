@@ -45,7 +45,12 @@ export type CoachContext = {
   weakestSkill: SkillKey | null;
   bandBySkill: Partial<Record<SkillKey, number>>;
   streakDays: number;
-  dailyStudyMinutes: number;
+  /** null means the student has not set a daily study-time goal yet — never
+   * fabricate a number here either (the exact same class of bug as
+   * targetBand above: a hardcoded `?? 30` fallback previously made the
+   * coach/study-plan note confidently reference "30 minutes a day" for an
+   * account that either had no goal loaded yet or genuinely had none set). */
+  dailyStudyMinutes: number | null;
   /** Optional: real Supabase mode always overrides these server-side from
    * `question_attempts` (see userContext.ts), so callers that can't cheaply
    * compute them (e.g. a queryFn with no attempts query of its own) may omit

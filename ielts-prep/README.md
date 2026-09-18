@@ -10,7 +10,7 @@ It covers all four IELTS skills (Listening, Reading, Writing, Speaking), realist
 
 - [What's included](#whats-included)
 - [Tech stack](#tech-stack)
-- [Quick start (Demo Mode)](#quick-start-demo-mode)
+- [Quick start](#quick-start)
 - [Production setup checklist](#production-setup-checklist)
 - [Project structure](#project-structure)
 - [Environment variables](#environment-variables)
@@ -58,9 +58,9 @@ It covers all four IELTS skills (Listening, Reading, Writing, Speaking), realist
 | Speech | `expo-speech` (TTS) + `expo-audio` (recording/playback) |
 | Testing | Jest (`jest-expo`) |
 
-## Quick start (Demo Mode)
+## Quick start
 
-No API keys, no Supabase project, no RevenueCat account needed.
+There is no Demo Mode — a real Supabase project (and its env vars in `.env`) is required from the start. A missing/invalid Supabase config renders a full-screen configuration error instead (`components/ConfigurationErrorScreen.tsx`) in every build type, including local development. Set up Supabase first — see "Production setup checklist" and "Supabase setup" below — then:
 
 ```bash
 cd ielts-prep
@@ -69,8 +69,6 @@ npm run start
 ```
 
 Press `i` / `a` / `w` in the Expo CLI to open iOS Simulator, Android Emulator, or web, or scan the QR code with Expo Go on a physical device (note: `expo-audio` recording and `expo-notifications` require a [custom dev client](https://docs.expo.dev/develop/development-builds/introduction/) rather than Expo Go for full functionality — everything else works in Expo Go).
-
-On first launch, choose **"Continue with Demo Mode"** during onboarding (or on the sign-in screen). This seeds a demo profile ("Alex", Academic, target Band 7.5, exam in 42 days) and stores all progress on-device via `AsyncStorage` — see `lib/demoStore.ts`.
 
 ## Production setup checklist
 
@@ -93,7 +91,8 @@ Everything above runs with zero configuration. This is the ordered checklist for
   EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
   EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon key>
   ```
-  Restart `npm run start` after saving — these are the *only* two things that switch the app out of Demo Mode.
+  Restart `npm run start` after saving.
+- [ ] **Add the app's deep link to Supabase's Redirect URLs allowlist** — Dashboard → Authentication → URL Configuration → Redirect URLs → add `ieltsprep://confirm` (or the wildcard `ieltsprep://*`). **Without this step, every signup/confirmation email link points at `http://localhost:3000` and fails with `ERR_FAILED`** — Supabase silently falls back to the project's Site URL (defaults to `http://localhost:3000`) whenever the `emailRedirectTo` the app sends isn't on this allowlist; it does not error, it just ignores the value. See "Supabase setup" → Auth redirect URL below for the full explanation.
 - [ ] **Set an AI provider key as a Supabase secret** (server-side only — never in `.env`):
   ```bash
   npx supabase secrets set OPENAI_API_KEY=sk-...
@@ -178,14 +177,27 @@ Restart the Expo dev server after changing `.env` (`EXPO_PUBLIC_*` vars are inli
    ```bash
    npm run db:migrate
    ```
-5. Seed reference content and the demo user:
+5. Seed reference content:
    ```bash
-   # Optional, for the "Alex" demo auth user — Project Settings → API → service_role key.
-   # NEVER prefix this with EXPO_PUBLIC_ or ship it in the app.
+   # Project Settings → API → service_role key. NEVER prefix this with
+   # EXPO_PUBLIC_ or ship it in the app.
    echo "SUPABASE_SERVICE_ROLE_KEY=..." >> .env
    npm run db:seed
    ```
-6. Restart `npm run start`. The app now reads/writes Supabase instead of Demo Mode.
+6. **Add the app's deep link to the Redirect URLs allowlist** (Dashboard → Authentication → URL Configuration → Redirect URLs): add `ieltsprep://confirm` (or the wildcard `ieltsprep://*`) — see "Auth redirect URL" just below for why this step is easy to miss and what breaks without it.
+7. Restart `npm run start`.
+
+### Auth redirect URL (required — without it, confirmation emails point at `localhost`)
+
+`services/auth.ts` passes `emailRedirectTo: Linking.createURL('confirm')` to every `supabase.auth.signUp()`/`auth.resend()` call — in a production/preview build this resolves to `ieltsprep://confirm` (`ieltsprep` is `app.json`'s top-level `"scheme"`), which `app/confirm.tsx` already handles correctly as a deep link.
+
+Supabase does **not** use that value unless it's on the project's allowlist. If it isn't, `signUp()`/`auth.resend()` still report success (the client has no way to detect this), but the actual email Supabase sends links to the project's **Site URL** instead — and every fresh Supabase project's Site URL defaults to `http://localhost:3000`. Tapping that link on a phone opens `localhost:3000` and fails with `ERR_FAILED`. This is a Dashboard setting, not something any app code change can fix:
+
+1. Supabase Dashboard → your project → **Authentication → URL Configuration**.
+2. Under **Redirect URLs**, add `ieltsprep://confirm` (or `ieltsprep://*` to cover it and any other deep link the app adds later).
+3. (Optional but recommended) Also update **Site URL** away from the `http://localhost:3000` default — it's the fallback for any auth flow that doesn't specify its own `emailRedirectTo`. There's currently no public HTTPS domain for this project to set it to instead; leave it as-is if that's the case rather than inventing one, since Site URL only matters as a fallback once the Redirect URLs entry above is correctly allowlisted.
+
+No `EXPO_PUBLIC_` env var, app.json field, or app code controls this — it's Dashboard-only.
 
 The schema (`supabase/migrations/0001_init.sql`, plus `0002_content_expansion_schema.sql` for mock test numbering/difficulty and writing chart data, `0003_grammar_practice.sql` for grammar practice questions/attempts, `0004_ai_chat_activity_type.sql` for the AI Coach's daily-limit activity type, and `0005_ai_usage_log.sql` for server-side AI rate-limiting/audit logging) covers every table in the product spec: profiles, goals, lessons/progress, questions/attempts, passages, listening tracks, mock tests/sections/attempts, reading/listening attempts, writing submissions/feedback, speaking sessions/responses/feedback, band scores (with a configurable raw-score → band conversion table), study plans/items, vocabulary + spaced repetition, grammar lessons/questions/attempts, achievements, AI conversations/messages, subscriptions, notifications, bookmarks, test history, and the AI usage audit log — 39 tables total, each with RLS so users can only read/write their own rows, and public content tables (lessons, questions, etc.) readable by anyone.
 

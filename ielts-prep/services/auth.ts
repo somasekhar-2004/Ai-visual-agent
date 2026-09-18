@@ -6,8 +6,18 @@ import { supabase } from '@/lib/supabase';
 const ONBOARDING_KEY = 'ielts-prep/auth/onboarding-complete';
 
 // Where Supabase sends the browser after verifying a signup confirmation
-// link (must be added to the project's Auth → URL Configuration → Redirect
-// URLs allowlist — see app/confirm.tsx, which is what this resolves to).
+// link. In a production/preview (standalone) build this resolves to
+// `ieltsprep://confirm` — app.json's top-level "scheme" — via Expo Router's
+// file-based linking to app/confirm.tsx, which is what this resolves to.
+//
+// This exact value (or a wildcard covering it, e.g. `ieltsprep://*`) MUST be
+// added to the Supabase project's Auth → URL Configuration → Redirect URLs
+// allowlist. If it isn't, Supabase does NOT error — it silently falls back
+// to the project's "Site URL" instead (every fresh Supabase project's Site
+// URL defaults to `http://localhost:3000`), which is exactly the
+// `localhost:3000` / ERR_FAILED bug real-device testing found: the app side
+// was already building the correct deep link, but Supabase never used it
+// because nothing had allowlisted it in the Dashboard.
 export const EMAIL_CONFIRMATION_REDIRECT_URL = Linking.createURL('confirm');
 
 export type AuthResult =
@@ -126,18 +136,27 @@ export async function signUpWithEmail(email: string, password: string, fullName:
  * signUpWithEmail again), with the same friendly error mapping (in
  * particular, this is what surfaces Supabase's per-address send-rate-limit
  * clearly, with the exact cooldown, instead of a raw
- * "over_email_send_rate_limit" message). */
+ * "over_email_send_rate_limit" message). Never throws — a genuine network
+ * failure (no connectivity, DNS failure) can make auth.resend()'s
+ * underlying fetch reject outright rather than resolve with { error }, so
+ * that's caught here too and folded into the same { ok: false } shape every
+ * caller already handles, instead of leaving an unhandled rejection that
+ * left the resend button stuck showing "Sending…" forever. */
 export async function resendConfirmationEmail(email: string): Promise<{ ok: boolean; error?: string; retryAfterSeconds?: number }> {
-  const { error } = await supabase!.auth.resend({
-    type: 'signup',
-    email,
-    options: { emailRedirectTo: EMAIL_CONFIRMATION_REDIRECT_URL },
-  });
-  if (error) {
-    const { message, retryAfterSeconds } = friendlyAuthErrorMessage(error);
-    return { ok: false, error: message, retryAfterSeconds };
+  try {
+    const { error } = await supabase!.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: EMAIL_CONFIRMATION_REDIRECT_URL },
+    });
+    if (error) {
+      const { message, retryAfterSeconds } = friendlyAuthErrorMessage(error);
+      return { ok: false, error: message, retryAfterSeconds };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || 'Could not resend the confirmation email. Check your connection and try again.' };
   }
-  return { ok: true };
 }
 
 /** Exchanges the one-time `code` from a tapped email-confirmation link

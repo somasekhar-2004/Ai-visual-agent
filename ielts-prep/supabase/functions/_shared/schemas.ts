@@ -51,7 +51,9 @@ export const CoachContextSchema = z.object({
   weakestSkill: z.enum(['listening', 'reading', 'writing', 'speaking']).nullable(),
   bandBySkill: z.record(z.string(), z.number()),
   streakDays: z.number().int().min(0),
-  dailyStudyMinutes: z.number().int().min(0),
+  // null means "no daily study-time goal set yet" — same "never fabricate a
+  // default" contract as targetBand above.
+  dailyStudyMinutes: z.number().int().min(0).nullable(),
   overallAccuracy: z.number().min(0).max(1).nullable().optional(),
   questionsCompleted: z.number().int().min(0).optional(),
 });

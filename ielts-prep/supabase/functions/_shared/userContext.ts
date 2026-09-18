@@ -82,7 +82,11 @@ export async function fetchAuthoritativeCoachContext(supabase: SupabaseClient, u
     // whatever the client sent rather than inventing a number. Honest today
     // because that client value is itself always 0 in real mode.
     streakDays: clientContext.streakDays,
-    dailyStudyMinutes: goal?.daily_study_minutes ?? clientContext.dailyStudyMinutes,
+    // Same "never fabricate" contract as targetBand above: fall through to
+    // whatever the client sent only when this account genuinely has no
+    // goal row (client-side already sends null in that case — see
+    // lib/coachContext.ts) — never invent a number here either.
+    dailyStudyMinutes: goal?.daily_study_minutes ?? clientContext.dailyStudyMinutes ?? null,
     overallAccuracy,
     questionsCompleted,
   };

@@ -83,4 +83,32 @@ describe('buildCoachContext', () => {
     expect(context.questionsCompleted).toBe(0);
     expect(context.overallAccuracy).toBeNull();
   });
+
+  // Regression coverage for a second real-device release blocker in the
+  // same family as the file header's Band 7 bug: Home correctly showed a
+  // just-edited target band of 8.0, but Today's Study Plan's AI note still
+  // said "Since you are aiming for a Band 7 with 30 minutes a day..." — a
+  // stale React Query cache issue (see lib/studyPlanQueryKeys.ts), not a
+  // fabricated value here, but this file's own "never fabricate" contract
+  // covers dailyStudyMinutes too and used to have the exact same class of
+  // bug: a hardcoded `?? 30` fallback.
+  it('a missing goal never fabricates daily study minutes (e.g. the hardcoded 30 this bug shipped) — it is null', () => {
+    const context = buildCoachContext({ profile: PROFILE, goal: null, bandScores: {}, streak: { count: 0 }, attempts: [] });
+    expect(context.dailyStudyMinutes).toBeNull();
+    expect(context.dailyStudyMinutes).not.toBe(30);
+  });
+
+  it('an explicit target band of 8.0 is never silently reported as 7 — the exact real-device symptom', () => {
+    const context = buildCoachContext({
+      profile: PROFILE,
+      goal: { ...GOAL, targetBand: 8.0, dailyStudyMinutes: 45 },
+      bandScores: {},
+      streak: { count: 0 },
+      attempts: [],
+    });
+    expect(context.targetBand).toBe(8.0);
+    expect(context.targetBand).not.toBe(7);
+    expect(context.dailyStudyMinutes).toBe(45);
+    expect(context.dailyStudyMinutes).not.toBe(30);
+  });
 });

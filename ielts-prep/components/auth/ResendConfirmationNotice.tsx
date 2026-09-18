@@ -50,6 +50,12 @@ export function ResendConfirmationNotice({
   );
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // React state updates (and therefore the Button's own loading-derived
+  // `disabled`) aren't reflected in the already-rendered tree until the next
+  // render — a genuinely rapid double-tap can fire twice before that render
+  // happens. This ref is checked synchronously, before any `await` or state
+  // update, so it closes that gap regardless of render timing.
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     if (justResent) startCooldown(DEFAULT_RESEND_COOLDOWN_SECONDS);
@@ -74,17 +80,39 @@ export function ResendConfirmationNotice({
   }
 
   async function handleResend() {
+    // Checked and set synchronously, before the `sending` status (and the
+    // Button's derived `disabled`) has had a chance to actually re-render —
+    // see sendingRef's own comment above for why the render-based guard
+    // alone isn't enough to prevent an accidental double-tap.
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setStatus('sending');
     setMessage(null);
-    const result = await resendConfirmationEmail(email);
-    if (result.ok) {
-      setStatus('sent');
-      setMessage('Confirmation email sent again — check your inbox and spam folder.');
-      startCooldown(DEFAULT_RESEND_COOLDOWN_SECONDS);
-    } else {
+    // Every other Supabase call in services/auth.ts returns { error } rather
+    // than throwing, but auth.resend()'s underlying fetch can still reject
+    // outright on a genuine network failure (no connectivity, DNS failure —
+    // a well-known React Native fetch failure mode). Without this catch, that
+    // rejection left `status` stuck at 'sending' forever: the button (whose
+    // `loading` prop already disables it) never re-enabled and showed no
+    // error, so a resend after a flaky connection looked like it silently
+    // "didn't work" with no way to retry short of leaving and re-entering
+    // this screen.
+    try {
+      const result = await resendConfirmationEmail(email);
+      if (result.ok) {
+        setStatus('sent');
+        setMessage('Confirmation email sent again — check your inbox and spam folder.');
+        startCooldown(DEFAULT_RESEND_COOLDOWN_SECONDS);
+      } else {
+        setStatus('error');
+        setMessage(result.error ?? 'Could not resend the confirmation email.');
+        if (result.retryAfterSeconds) startCooldown(result.retryAfterSeconds);
+      }
+    } catch (err) {
       setStatus('error');
-      setMessage(result.error ?? 'Could not resend the confirmation email.');
-      if (result.retryAfterSeconds) startCooldown(result.retryAfterSeconds);
+      setMessage((err as Error).message || 'Could not resend the confirmation email. Check your connection and try again.');
+    } finally {
+      sendingRef.current = false;
     }
   }
 

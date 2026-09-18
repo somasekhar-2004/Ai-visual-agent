@@ -1,12 +1,10 @@
 // Generates an optional short AI note (focus summary + motivational note)
 // for a student's study plan, using the same real-performance signals as
-// the deterministic plan builder (services/repository/studyPlan.ts). This
-// endpoint exists so a future UI can layer an AI-written note on top of the
-// existing heuristic plan without another security migration — the mobile
-// app does not currently call it (the study plan screen's logic was not
-// changed as part of this migration), but it follows the exact same
-// auth/validation/rate-limit/logging contract as every other AI function
-// here so it's ready to wire in.
+// the deterministic plan builder (services/repository/studyPlan.ts). Called
+// by app/(tabs)/index.tsx's focusQuery via services/ai's
+// suggestStudyPlanFocus -> EdgeFunctionProvider.suggestStudyPlanFocus, and
+// follows the exact same auth/validation/rate-limit/logging contract as
+// every other AI function here.
 import { getConfiguredTextProvider, runStudyPlanSuggestion } from '../_shared/aiProviders.ts';
 import { handleCorsPreflight } from '../_shared/cors.ts';
 import { healthCheckResponse, isHealthCheckPing } from '../_shared/healthCheck.ts';

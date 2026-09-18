@@ -25,6 +25,19 @@ describe('signUpWithEmail — real backend', () => {
     expect(result).toEqual({ userId: 'user-1' });
   });
 
+  // Same regression as resendConfirmationEmail's "never localhost" test
+  // below — this is the redirect the very first confirmation email uses.
+  it('signs up with a non-localhost, app-deep-link emailRedirectTo', async () => {
+    auth.signUp.mockResolvedValue({
+      data: { user: { id: 'user-1', identities: [{ id: 'identity-1' }] }, session: null },
+      error: null,
+    });
+    await signUpWithEmail('a@b.com', 'password123', 'Alex');
+    const sentOptions = auth.signUp.mock.calls[0][0].options;
+    expect(sentOptions.emailRedirectTo).not.toMatch(/localhost/i);
+    expect(sentOptions.emailRedirectTo).toMatch(/confirm/);
+  });
+
   it('returns pendingConfirmation instead of a userId when the project requires email confirmation (no session yet)', async () => {
     // This is the exact shape supabase-js returns for signUp() on a project
     // with email confirmation required: a user row exists, but no session,
@@ -130,6 +143,22 @@ describe('resendConfirmationEmail — real backend', () => {
     expect(auth.signUp).not.toHaveBeenCalled();
   });
 
+  // Regression coverage for the release-blocking real-device bug: the
+  // confirmation email pointed at localhost:3000 because Supabase's
+  // Redirect URLs allowlist (a Dashboard setting) didn't include the app's
+  // deep link, so Supabase silently used its default Site URL instead. This
+  // test guards the app-side half of that fix: the value actually sent must
+  // never be a localhost URL and must be the app's own custom-scheme deep
+  // link — see services/auth.ts's EMAIL_CONFIRMATION_REDIRECT_URL comment
+  // for the Dashboard-side half, which no app code change can fix.
+  it('never sends a localhost redirectTo — always the app deep link', async () => {
+    auth.resend.mockResolvedValue({ error: null });
+    await resendConfirmationEmail('a@b.com');
+    const sentOptions = auth.resend.mock.calls[0][0].options;
+    expect(sentOptions.emailRedirectTo).not.toMatch(/localhost/i);
+    expect(sentOptions.emailRedirectTo).toMatch(/confirm/);
+  });
+
   it('surfaces a clear, generic message when rate-limited with no parseable wait time', async () => {
     auth.resend.mockResolvedValue({ error: { code: 'over_email_send_rate_limit', message: 'Email rate limit exceeded' } });
     const result = await resendConfirmationEmail('a@b.com');
@@ -146,6 +175,24 @@ describe('resendConfirmationEmail — real backend', () => {
     expect(result.ok).toBe(false);
     expect(result.retryAfterSeconds).toBe(42);
     expect(result.error).toBe('Please wait 42 seconds before requesting another email.');
+  });
+
+  it('surfaces a plain error (e.g. "already confirmed") rather than a raw Supabase code', async () => {
+    auth.resend.mockResolvedValue({ error: { code: 'validation_failed', message: 'Email already confirmed' } });
+    const result = await resendConfirmationEmail('a@b.com');
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('Email already confirmed');
+  });
+
+  // Regression coverage: every other Supabase call in services/auth.ts
+  // returns { error } rather than throwing, but auth.resend()'s underlying
+  // fetch can reject outright on a genuine network failure (no
+  // connectivity, DNS failure). Before this fix that unhandled rejection
+  // left components/auth/ResendConfirmationNotice.tsx's button stuck
+  // showing "Sending…" forever with no error and no way to retry.
+  it('never throws on a network failure — resolves { ok: false } instead', async () => {
+    auth.resend.mockRejectedValue(new Error('Network request failed'));
+    await expect(resendConfirmationEmail('a@b.com')).resolves.toEqual({ ok: false, error: 'Network request failed' });
   });
 });
 

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, View } from 'react-native';
@@ -16,6 +17,7 @@ const STUDY_MINUTES = [15, 30, 45, 60, 90];
 export default function ProfileEditScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { preference, setPreference } = useThemePreference();
   const { userId, profile, goal, refreshUserData } = useAppStore(useShallow((s) => ({
     userId: s.userId,
@@ -48,6 +50,16 @@ export default function ProfileEditScreen() {
         dailyStudyMinutes,
       });
       await refreshUserData(userId);
+      // saveOnboardingGoal always inserts a new goal row (a new goal.id),
+      // which app/(tabs)/index.tsx's study-plan/study-plan-focus query keys
+      // already include — so those refetch on their own once the store's
+      // `goal` (read above) propagates. This invalidation is a
+      // belt-and-braces measure for anything still holding the previous
+      // goal.id's cache entry, so Home/Study Plan never keep showing a
+      // stale target band or daily study time after this save — see
+      // lib/studyPlanQueryKeys.ts for why the key includes goal.id at all.
+      queryClient.invalidateQueries({ queryKey: ['study-plan-focus', userId] });
+      queryClient.invalidateQueries({ queryKey: ['study-plan', userId] });
       router.back();
     } catch (err) {
       Alert.alert('Could not save changes', (err as Error).message);
