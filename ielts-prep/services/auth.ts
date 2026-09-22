@@ -1,34 +1,36 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { SUPABASE_URL } from '@/lib/env';
 import { supabase } from '@/lib/supabase';
 
 const ONBOARDING_KEY = 'ielts-prep/auth/onboarding-complete';
 
 // Where Supabase sends the browser after verifying a signup confirmation
-// link — a static, always-rendering page in a public Supabase Storage
-// bucket (supabase/static/email-confirmation.html, whose logic is tested
-// via lib/confirmationPageState.ts), NOT the app itself.
+// link — a static, always-rendering page hosted on GitHub Pages
+// (github.com/somasekhar-2004/bandpath-public, a small public repo
+// containing only this page — no app source code), NOT the app itself.
 //
-// This used to be `Linking.createURL('confirm')` — `ieltsprep://confirm`,
-// handled by app/confirm.tsx — but real-device testing found that even once
-// Supabase's redirect was correctly allowlisted (see below) and the email
-// really was verified, tapping the link left the user on a blank white
-// page: a browser failing to hand off to the app's custom URL scheme is a
-// real, common failure mode that varies by browser/in-app-webview and isn't
-// something app code can fix. app/confirm.tsx is kept in the codebase for
-// possible future real deep-link work, but is no longer reachable from the
-// actual confirmation email — this URL is.
+// Two earlier approaches were tried and ruled out by real-device testing:
+//  1. `ieltsprep://confirm` (app/confirm.tsx, still in the codebase but
+//     unused by the live flow): the email really was verified, but tapping
+//     the link left the user on a blank white page — a browser failing to
+//     hand off to the app's custom URL scheme, which varies by browser/
+//     in-app-webview and isn't fixable from app code.
+//  2. A public Supabase Storage bucket
+//     (supabase/static/email-confirmation.html — file kept in this repo as
+//     the source GitHub Pages serves, but no longer uploaded to Storage):
+//     confirmed live that Supabase Storage's public object endpoint
+//     deliberately forces any text/html object to be served as text/plain
+//     (an anti-stored-XSS platform control with no per-object override),
+//     so it can never render as a page.
+// GitHub Pages has neither limitation.
 //
 // This exact value MUST be added to the Supabase project's Auth → URL
 // Configuration → Redirect URLs allowlist. If it isn't, Supabase does NOT
 // error — it silently falls back to the project's "Site URL" instead (every
 // fresh Supabase project's Site URL defaults to `http://localhost:3000`),
 // which is exactly the `localhost:3000` / ERR_FAILED bug real-device
-// testing originally found for the old deep-link value too.
-// Derived from SUPABASE_URL (never hardcoded) so this stays correct for
-// whatever Supabase project is actually configured — see lib/env.ts.
-export const EMAIL_CONFIRMATION_REDIRECT_URL = `${SUPABASE_URL}/storage/v1/object/public/public-pages/email-confirmation.html`;
+// testing originally found before any redirect URL was allowlisted at all.
+export const EMAIL_CONFIRMATION_REDIRECT_URL = 'https://somasekhar-2004.github.io/bandpath-public/';
 
 export type AuthResult =
   | { userId: string }

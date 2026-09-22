@@ -1,5 +1,5 @@
-// Regression coverage for two release-blocking real-device bugs in the
-// signup confirmation flow, both fixed without touching email verification
+// Regression coverage for three release-blocking real-device bugs in the
+// signup confirmation flow, all fixed without touching email verification
 // itself (still Supabase's own /auth/v1/verify):
 //
 // 1. Tapping a confirmation link opened localhost:3000 and failed with
@@ -13,61 +13,42 @@
 //    pointed at the app's ieltsprep://confirm deep link, and a browser
 //    failing to hand off to a custom URL scheme is a real, common failure
 //    mode that varies by browser/in-app-webview and isn't fixable from app
-//    code. The redirect now points at a static, always-rendering page
-//    instead (supabase/static/email-confirmation.html, hosted in a public
-//    Supabase Storage bucket) — see lib/confirmationPageState.ts for its
-//    tested logic and __tests__/confirmationPageState.test.ts for coverage
-//    that it can never render blank.
+//    code.
 //
-// See services/auth.ts's EMAIL_CONFIRMATION_REDIRECT_URL comment and
-// README.md's "Auth redirect URL" section for the full explanation and the
-// exact manual Dashboard step this can't automate.
+// 3. Redirecting to a public Supabase Storage bucket instead was verified
+//    live to still fail: Supabase Storage's public object endpoint
+//    deliberately forces any text/html object to be served as text/plain
+//    (an anti-stored-XSS platform control with no per-object override), so
+//    it could never render as a page either.
+//
+// The redirect now points at a static page hosted on GitHub Pages, in the
+// separate github.com/somasekhar-2004/bandpath-public repo (a small public
+// repo containing only static pages, no app source code) — verified live
+// end-to-end (HTTP 200, Content-Type text/html, correct rendered content
+// for every state) before this URL was wired in. See
+// lib/confirmationPageState.ts (this repo's tested source of truth for the
+// page's state logic, mirrored in that repo's index.html) and
+// __tests__/confirmationPageState.test.ts for coverage that the logic can
+// never render blank. README.md's "Auth redirect URL" section has the full
+// explanation and the exact manual Dashboard step this can't automate.
 
 import fs from 'fs';
 import path from 'path';
 
-describe('EMAIL_CONFIRMATION_REDIRECT_URL — a static Supabase Storage page, never a localhost/deep-link URL', () => {
-  afterEach(() => jest.resetModules());
-
-  it('is derived from SUPABASE_URL and points at the public-pages storage bucket, never localhost', () => {
-    jest.doMock('@/lib/env', () => ({ SUPABASE_URL: 'https://kudgtxdwbpfqobteyeqy.supabase.co' }));
+describe('EMAIL_CONFIRMATION_REDIRECT_URL — the GitHub Pages page, never localhost/deep-link/Storage', () => {
+  it('is the exact GitHub Pages URL', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { EMAIL_CONFIRMATION_REDIRECT_URL } = require('@/services/auth') as typeof import('@/services/auth');
-    expect(EMAIL_CONFIRMATION_REDIRECT_URL).toBe(
-      'https://kudgtxdwbpfqobteyeqy.supabase.co/storage/v1/object/public/public-pages/email-confirmation.html'
-    );
-    expect(EMAIL_CONFIRMATION_REDIRECT_URL).not.toMatch(/localhost/i);
-    expect(EMAIL_CONFIRMATION_REDIRECT_URL).not.toMatch(/^ieltsprep:\/\//);
+    expect(EMAIL_CONFIRMATION_REDIRECT_URL).toBe('https://somasekhar-2004.github.io/bandpath-public/');
   });
 
-  it('always resolves to a real https:// URL, never a custom-scheme deep link, regardless of which project is configured', () => {
-    jest.doMock('@/lib/env', () => ({ SUPABASE_URL: 'https://some-other-project.supabase.co' }));
+  it('is a real https:// URL, never localhost, a custom-scheme deep link, or a Supabase Storage URL', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { EMAIL_CONFIRMATION_REDIRECT_URL } = require('@/services/auth') as typeof import('@/services/auth');
     expect(EMAIL_CONFIRMATION_REDIRECT_URL).toMatch(/^https:\/\//);
-    expect(EMAIL_CONFIRMATION_REDIRECT_URL).toMatch(/\/storage\/v1\/object\/public\/public-pages\/email-confirmation\.html$/);
-  });
-});
-
-describe('supabase/static/email-confirmation.html — the static page the redirect points at', () => {
-  const filePath = path.join(__dirname, '..', 'supabase', 'static', 'email-confirmation.html');
-
-  it('exists in the repo (the file that gets uploaded to the public-pages bucket)', () => {
-    expect(fs.existsSync(filePath)).toBe(true);
-  });
-
-  it('never calls the Supabase API itself — reads only the redirect URL\'s own query string', () => {
-    const html = fs.readFileSync(filePath, 'utf8');
-    expect(html).not.toMatch(/supabase-js|createClient\(/);
-    expect(html).toMatch(/window\.location\.search/);
-  });
-
-  it('always renders a visible heading and message element regardless of state (never blank markup)', () => {
-    const html = fs.readFileSync(filePath, 'utf8');
-    expect(html).toMatch(/id="heading"/);
-    expect(html).toMatch(/id="message"/);
-    // A <noscript> fallback in case JS itself fails to run at all.
-    expect(html).toMatch(/<noscript>/);
+    expect(EMAIL_CONFIRMATION_REDIRECT_URL).not.toMatch(/localhost/i);
+    expect(EMAIL_CONFIRMATION_REDIRECT_URL).not.toMatch(/^ieltsprep:\/\//);
+    expect(EMAIL_CONFIRMATION_REDIRECT_URL).not.toMatch(/supabase\.co\/storage/);
   });
 });
 

@@ -27,7 +27,7 @@ describe('signUpWithEmail — real backend', () => {
 
   // Same regression as resendConfirmationEmail's "never localhost" test
   // below — this is the redirect the very first confirmation email uses.
-  it('signs up with a non-localhost, app-deep-link emailRedirectTo', async () => {
+  it('signs up with a non-localhost, GitHub Pages emailRedirectTo', async () => {
     auth.signUp.mockResolvedValue({
       data: { user: { id: 'user-1', identities: [{ id: 'identity-1' }] }, session: null },
       error: null,
@@ -35,7 +35,7 @@ describe('signUpWithEmail — real backend', () => {
     await signUpWithEmail('a@b.com', 'password123', 'Alex');
     const sentOptions = auth.signUp.mock.calls[0][0].options;
     expect(sentOptions.emailRedirectTo).not.toMatch(/localhost/i);
-    expect(sentOptions.emailRedirectTo).toMatch(/confirm/);
+    expect(sentOptions.emailRedirectTo).toBe('https://somasekhar-2004.github.io/bandpath-public/');
   });
 
   it('returns pendingConfirmation instead of a userId when the project requires email confirmation (no session yet)', async () => {
@@ -146,17 +146,18 @@ describe('resendConfirmationEmail — real backend', () => {
   // Regression coverage for the release-blocking real-device bug: the
   // confirmation email pointed at localhost:3000 because Supabase's
   // Redirect URLs allowlist (a Dashboard setting) didn't include the app's
-  // deep link, so Supabase silently used its default Site URL instead. This
-  // test guards the app-side half of that fix: the value actually sent must
-  // never be a localhost URL and must be the app's own custom-scheme deep
-  // link — see services/auth.ts's EMAIL_CONFIRMATION_REDIRECT_URL comment
-  // for the Dashboard-side half, which no app code change can fix.
-  it('never sends a localhost redirectTo — always the app deep link', async () => {
+  // redirect URL, so Supabase silently used its default Site URL instead.
+  // This test guards the app-side half of that fix: the value actually
+  // sent must never be a localhost URL and must be the real GitHub Pages
+  // confirmation page — see services/auth.ts's
+  // EMAIL_CONFIRMATION_REDIRECT_URL comment for the Dashboard-side half,
+  // which no app code change can fix.
+  it('never sends a localhost redirectTo — always the GitHub Pages confirmation page', async () => {
     auth.resend.mockResolvedValue({ error: null });
     await resendConfirmationEmail('a@b.com');
     const sentOptions = auth.resend.mock.calls[0][0].options;
     expect(sentOptions.emailRedirectTo).not.toMatch(/localhost/i);
-    expect(sentOptions.emailRedirectTo).toMatch(/confirm/);
+    expect(sentOptions.emailRedirectTo).toBe('https://somasekhar-2004.github.io/bandpath-public/');
   });
 
   it('surfaces a clear, generic message when rate-limited with no parseable wait time', async () => {

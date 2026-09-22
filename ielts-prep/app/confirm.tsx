@@ -21,8 +21,8 @@ type Status = 'exchanging' | 'success' | 'error';
  * verified, tapping the link left the user on a blank white page — a
  * browser failing to hand off to the app's custom URL scheme, which isn't
  * something app code can fix. The redirect now points at a static,
- * always-rendering page instead (supabase/static/email-confirmation.html,
- * hosted in a public Supabase Storage bucket — see
+ * always-rendering page hosted on GitHub Pages instead (source:
+ * github.com/somasekhar-2004/bandpath-public — see
  * lib/confirmationPageState.ts for its tested logic).
  *
  * Left in place (unused by the live flow) for possible future real

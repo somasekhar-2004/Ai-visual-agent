@@ -1,17 +1,22 @@
 /**
- * Canonical state logic for the email-confirmation landing page
- * (supabase/static/email-confirmation.html — a static page hosted in a
- * public Supabase Storage bucket, NOT part of this app's bundle).
+ * Canonical state logic for the email-confirmation landing page — served
+ * from GitHub Pages at https://somasekhar-2004.github.io/bandpath-public/
+ * (source: index.html in the separate github.com/somasekhar-2004/
+ * bandpath-public repo, a small public repo containing only static pages,
+ * no app source code). NOT part of this app's bundle.
  *
- * Why a static page instead of app/confirm.tsx (the previous
- * `ieltsprep://confirm` deep-link target): real-device testing showed
- * Supabase does successfully verify the email, but tapping the link then
- * left the user on a blank white page — most likely a browser failing to
- * hand off to the app's custom URL scheme (behavior that varies by browser/
- * in-app-webview and isn't something this app's code can guarantee). A
- * plain, always-rendering HTTPS page sidesteps that entirely: it never
- * depends on the app being installed, cold-starting, or successfully
- * intercepting a custom scheme.
+ * Two earlier hosting approaches were tried and ruled out by real-device
+ * testing:
+ *  1. app/confirm.tsx (the `ieltsprep://confirm` deep-link target): the
+ *     email really was verified, but tapping the link left the user on a
+ *     blank white page — a browser failing to hand off to the app's custom
+ *     URL scheme, which varies by browser/in-app-webview and isn't
+ *     something app code can fix.
+ *  2. A public Supabase Storage bucket: confirmed live that Supabase
+ *     Storage's public object endpoint deliberately forces any text/html
+ *     object to be served as text/plain (an anti-stored-XSS platform
+ *     control with no per-object override), so it could never render.
+ * GitHub Pages has neither limitation — it always renders, in any browser.
  *
  * The confirmation itself already happened server-side by the time this
  * page's URL is even reached — Supabase's own /auth/v1/verify endpoint
@@ -20,9 +25,9 @@
  * message; it never calls the Supabase API itself, so there is no
  * "network state" for it beyond the page's own static assets loading.
  *
- * This file is the tested source of truth for that logic. The static HTML
- * page's inline <script> mirrors it in plain JS (see the comment there) —
- * keep both in sync if this changes.
+ * This file is the tested source of truth for that logic. The
+ * bandpath-public repo's index.html mirrors it in plain inline JS (that
+ * repo has no build step) — keep both in sync if this changes.
  */
 
 export type ConfirmationPageStatus = 'success' | 'expired' | 'invalid' | 'error';
