@@ -89,7 +89,7 @@ export default function PaywallScreen() {
       <View style={{ alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
         <IconCircle name="star" size={64} backgroundColor={theme.colors.warningSoft} color={theme.colors.warning} />
         <Text variant="h2" align="center">
-          Unlock everything IELTS Prep offers
+          Unlock everything Bandpath IELTS offers
         </Text>
       </View>
 

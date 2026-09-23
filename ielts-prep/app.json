@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "IELTS Prep",
+    "name": "Bandpath IELTS",
     "slug": "ielts-prep",
     "scheme": "ieltsprep",
     "version": "1.0.0",
@@ -12,8 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.ieltsprep.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "IELTS Prep uses your microphone to record your Speaking test answers so the AI examiner can transcribe and evaluate your fluency and pronunciation.",
-        "NSSpeechRecognitionUsageDescription": "IELTS Prep uses speech recognition to transcribe your spoken answers during Speaking practice."
+        "NSMicrophoneUsageDescription": "Bandpath IELTS uses your microphone to record your Speaking test answers so the AI examiner can transcribe and evaluate your fluency and pronunciation.",
+        "NSSpeechRecognitionUsageDescription": "Bandpath IELTS uses speech recognition to transcribe your spoken answers during Speaking practice."
       }
     },
     "android": {
@@ -44,15 +44,15 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 180,
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#F7F8FB"
+          "backgroundColor": "#0B5FFF"
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "IELTS Prep uses your microphone to record your Speaking test answers."
+          "microphonePermission": "Bandpath IELTS uses your microphone to record your Speaking test answers."
         }
       ],
       "expo-secure-store",

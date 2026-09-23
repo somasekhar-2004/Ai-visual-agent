@@ -37,7 +37,7 @@ export default function HelpScreen() {
       <Card style={{ marginBottom: theme.spacing.md, gap: theme.spacing.sm }}>
         <Text variant="bodyMedium">Privacy Policy</Text>
         <Text variant="caption" color="secondary">
-          Last updated: this build. This policy describes what IELTS Prep actually does with your data today.
+          Last updated: this build. This policy describes what Bandpath IELTS actually does with your data today.
         </Text>
         <Text variant="caption" color="secondary">
           {'•'} Data we store: your profile (name, email, target band, exam date), practice/test attempts, vocabulary and grammar progress,
@@ -68,7 +68,7 @@ export default function HelpScreen() {
       <Card style={{ marginBottom: theme.spacing.lg, gap: theme.spacing.sm }}>
         <Text variant="bodyMedium">Terms of Service</Text>
         <Text variant="caption" color="secondary">
-          By using IELTS Prep, you agree to the following terms.
+          By using Bandpath IELTS, you agree to the following terms.
         </Text>
         <Text variant="caption" color="secondary">
           {'•'} Practice tool, not an official result: every band score in this app — including AI-generated Writing and Speaking feedback —

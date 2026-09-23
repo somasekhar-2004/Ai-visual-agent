@@ -14,7 +14,7 @@ export default function WelcomeScreen() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: theme.spacing.lg }}>
         <IconCircle name="school-outline" size={88} />
         <Text variant="display" align="center">
-          IELTS Prep
+          Bandpath IELTS
         </Text>
         <Text variant="bodyLg" color="secondary" align="center" style={{ maxWidth: 320 }}>
           Your personal path to the band score you need — Reading, Listening, Writing, and Speaking, with AI feedback on every attempt.

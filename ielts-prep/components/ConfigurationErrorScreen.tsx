@@ -29,7 +29,7 @@ export function ConfigurationErrorScreen() {
           This build isn&apos;t configured yet
         </Text>
         <Text color="secondary" align="center">
-          IELTS Prep can&apos;t reach its backend. This is a build configuration problem, not something you can fix from here — please contact support or try again once a corrected build is published.
+          Bandpath IELTS can&apos;t reach its backend. This is a build configuration problem, not something you can fix from here — please contact support or try again once a corrected build is published.
         </Text>
         {issue ? (
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.xs, marginTop: theme.spacing.sm }}>
