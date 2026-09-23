@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { supabase } from '@/lib/supabase';
+import { supabase, supabasePasswordResetClient } from '@/lib/supabase';
 
 const ONBOARDING_KEY = 'ielts-prep/auth/onboarding-complete';
 
@@ -31,6 +31,18 @@ const ONBOARDING_KEY = 'ielts-prep/auth/onboarding-complete';
 // which is exactly the `localhost:3000` / ERR_FAILED bug real-device
 // testing originally found before any redirect URL was allowlisted at all.
 export const EMAIL_CONFIRMATION_REDIRECT_URL = 'https://somasekhar-2004.github.io/bandpath-public/';
+
+// Where Supabase sends the browser after a password-recovery link is
+// tapped — a SEPARATE static page from the one above, at a different path
+// in the same GitHub Pages repo. This must never be the same URL as
+// EMAIL_CONFIRMATION_REDIRECT_URL: that page only ever displays "email
+// confirmed" copy and never establishes a session or shows a password
+// form, so a recovery link redirected there would leave the user with no
+// way to actually set a new password (the real-device bug this fixes —
+// see supabasePasswordResetClient's own comment in lib/supabase.ts for why
+// resetPasswordForEmail() also needs its own, implicit-flow client, not
+// just its own redirect URL).
+export const PASSWORD_RESET_REDIRECT_URL = 'https://somasekhar-2004.github.io/bandpath-public/reset-password/';
 
 export type AuthResult =
   | { userId: string }
@@ -196,9 +208,34 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return { userId: data.user.id };
 }
 
-export async function sendPasswordReset(email: string): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase!.auth.resetPasswordForEmail(email);
-  return error ? { ok: false, error: error.message } : { ok: true };
+/** Requests a password-recovery email via the dedicated implicit-flow
+ * client (see lib/supabase.ts's supabasePasswordResetClient for exactly why
+ * this can't use the main `supabase` client) and PASSWORD_RESET_REDIRECT_URL
+ * — never EMAIL_CONFIRMATION_REDIRECT_URL. Returns the same rich
+ * { ok, error, retryAfterSeconds } shape as resendConfirmationEmail (and
+ * with the same never-throws guarantee: a genuine network failure that
+ * makes the underlying fetch reject outright is caught here too) so the
+ * forgot-password screen can drive an identical resend-cooldown UI.
+ *
+ * Supabase's anti-user-enumeration behavior already means `ok: true` here
+ * does NOT imply the email belongs to a real account — resetPasswordForEmail
+ * reports success either way. Only a genuine error (network failure, real
+ * rate limit) should ever be surfaced as anything other than the neutral
+ * "if an account exists…" message; this function must never be told to lie
+ * about a real error by returning `ok: true` regardless of outcome. */
+export async function sendPasswordReset(email: string): Promise<{ ok: boolean; error?: string; retryAfterSeconds?: number }> {
+  try {
+    const { error } = await supabasePasswordResetClient!.auth.resetPasswordForEmail(email, {
+      redirectTo: PASSWORD_RESET_REDIRECT_URL,
+    });
+    if (error) {
+      const { message, retryAfterSeconds } = friendlyAuthErrorMessage(error);
+      return { ok: false, error: message, retryAfterSeconds };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || 'Could not send the password reset email. Check your connection and try again.' };
+  }
 }
 
 /**

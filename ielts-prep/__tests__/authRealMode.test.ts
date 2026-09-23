@@ -1,9 +1,20 @@
-import { supabase } from '@/lib/supabase';
-import { exchangeConfirmationCode, resendConfirmationEmail, signInWithEmail, signUpWithEmail } from '@/services/auth';
+import { supabase, supabasePasswordResetClient } from '@/lib/supabase';
+import {
+  EMAIL_CONFIRMATION_REDIRECT_URL,
+  PASSWORD_RESET_REDIRECT_URL,
+  exchangeConfirmationCode,
+  resendConfirmationEmail,
+  sendPasswordReset,
+  signInWithEmail,
+  signUpWithEmail,
+} from '@/services/auth';
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     auth: { signUp: jest.fn(), signInWithPassword: jest.fn(), resend: jest.fn(), exchangeCodeForSession: jest.fn() },
+  },
+  supabasePasswordResetClient: {
+    auth: { resetPasswordForEmail: jest.fn() },
   },
 }));
 
@@ -12,6 +23,8 @@ const auth = (
     auth: { signUp: jest.Mock; signInWithPassword: jest.Mock; resend: jest.Mock; exchangeCodeForSession: jest.Mock };
   }
 ).auth;
+
+const passwordResetAuth = (supabasePasswordResetClient as unknown as { auth: { resetPasswordForEmail: jest.Mock } }).auth;
 
 describe('signUpWithEmail — real backend', () => {
   afterEach(() => jest.clearAllMocks());
@@ -215,5 +228,85 @@ describe('exchangeConfirmationCode — real backend', () => {
     const result = await exchangeConfirmationCode('expired-code');
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/invalid or has expired/i);
+  });
+});
+
+// Regression coverage for the FINAL AUTH RELEASE AUDIT: Forgot Password was
+// opening the signup-confirmation success page instead of a "Set new
+// password" screen. See lib/passwordResetPageState.test.ts and lib/
+// supabase.ts's supabasePasswordResetClient comment for the full root-cause
+// writeup; this covers the app-side half of the fix.
+describe('EMAIL_CONFIRMATION_REDIRECT_URL vs PASSWORD_RESET_REDIRECT_URL — must never be the same URL', () => {
+  it('are two distinct, real https:// URLs, neither pointing at localhost', () => {
+    expect(PASSWORD_RESET_REDIRECT_URL).not.toBe(EMAIL_CONFIRMATION_REDIRECT_URL);
+    for (const url of [EMAIL_CONFIRMATION_REDIRECT_URL, PASSWORD_RESET_REDIRECT_URL]) {
+      expect(url).toMatch(/^https:\/\//);
+      expect(url).not.toMatch(/localhost/i);
+    }
+  });
+
+  it('the password-reset URL is a dedicated sub-path, not the confirmation page itself', () => {
+    expect(PASSWORD_RESET_REDIRECT_URL).toBe('https://somasekhar-2004.github.io/bandpath-public/reset-password/');
+  });
+});
+
+describe('sendPasswordReset — real backend', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('uses the dedicated implicit-flow client, never the main PKCE client', async () => {
+    passwordResetAuth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+    await sendPasswordReset('a@b.com');
+    expect(passwordResetAuth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+    // The main `supabase` client's auth methods are all unused by this call.
+    expect(auth.signUp).not.toHaveBeenCalled();
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('always sends PASSWORD_RESET_REDIRECT_URL, never the signup confirmation URL', async () => {
+    passwordResetAuth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+    await sendPasswordReset('a@b.com');
+    const [sentEmail, sentOptions] = passwordResetAuth.resetPasswordForEmail.mock.calls[0];
+    expect(sentEmail).toBe('a@b.com');
+    expect(sentOptions.redirectTo).toBe(PASSWORD_RESET_REDIRECT_URL);
+    expect(sentOptions.redirectTo).not.toBe(EMAIL_CONFIRMATION_REDIRECT_URL);
+  });
+
+  it('returns ok:true on success', async () => {
+    passwordResetAuth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+    await expect(sendPasswordReset('a@b.com')).resolves.toEqual({ ok: true });
+  });
+
+  it('never reports ok:true when Supabase actually returned an error', async () => {
+    passwordResetAuth.resetPasswordForEmail.mockResolvedValue({ data: null, error: { code: 'validation_failed', message: 'Unable to validate email address' } });
+    const result = await sendPasswordReset('not-an-email');
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('Unable to validate email address');
+  });
+
+  it('surfaces the exact countdown when Supabase reports a specific rate-limit wait time', async () => {
+    passwordResetAuth.resetPasswordForEmail.mockResolvedValue({
+      data: null,
+      error: { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 42 seconds.' },
+    });
+    const result = await sendPasswordReset('a@b.com');
+    expect(result.ok).toBe(false);
+    expect(result.retryAfterSeconds).toBe(42);
+    expect(result.error).toBe('Please wait 42 seconds before requesting another email.');
+  });
+
+  it('surfaces a clear generic message when rate-limited with no parseable wait time', async () => {
+    passwordResetAuth.resetPasswordForEmail.mockResolvedValue({
+      data: null,
+      error: { code: 'over_email_send_rate_limit', message: 'Email rate limit exceeded' },
+    });
+    const result = await sendPasswordReset('a@b.com');
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/too many emails/i);
+    expect(result.retryAfterSeconds).toBeUndefined();
+  });
+
+  it('never throws on a network failure — resolves { ok: false } instead', async () => {
+    passwordResetAuth.resetPasswordForEmail.mockRejectedValue(new Error('Network request failed'));
+    await expect(sendPasswordReset('a@b.com')).resolves.toEqual({ ok: false, error: 'Network request failed' });
   });
 });

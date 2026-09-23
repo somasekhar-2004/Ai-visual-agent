@@ -7,6 +7,6 @@ module.exports = [
     // specifiers, no @/ path alias) — a different runtime and toolchain
     // from the Expo/Node code this config is written for. Lint it with
     // `deno lint` instead (see supabase/functions/README.md).
-    ignores: ['dist/*', 'scripts/*', 'jest.config.js', 'jest.setup.js', '.expo/**', 'supabase/functions/**'],
+    ignores: ['dist/*', 'scripts/*', 'jest.config.js', 'jest.setup.js', 'jest.setup.afterEnv.js', '.expo/**', 'supabase/functions/**'],
   },
 ];
