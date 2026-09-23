@@ -1,6 +1,9 @@
 import { computeOverallBand, roundIeltsBand } from '@/lib/bandScore';
+import { computeCurrentStreak } from '@/lib/streak';
 import { supabase } from '@/lib/supabase';
 import { throwIfSupabaseError } from '@/lib/supabaseErrors';
+import { getDeviceTimeZone, getLocalDateString } from '@/lib/timezone';
+import { checkAndUnlockStreakAchievements } from '@/services/repository/social';
 import { getPurchasesProvider } from '@/services/purchases';
 import type {
   IeltsType,
@@ -281,18 +284,68 @@ export async function setNotificationPref(userId: string, category: Notification
   throwIfSupabaseError(error, 'saving notification preference');
 }
 
-// Streak/XP have no persisted real-backend representation yet — a brand-new
-// (or any real) account always reads 0/null here rather than a fabricated
-// nonzero value. recordDailyActivity is a deliberate no-op for the same
-// reason: there is nothing yet to write these to server-side.
+/** Reads every local-calendar-day the user has a recorded qualifying
+ * activity for (supabase/migrations/0015_streak_activity.sql's
+ * user_daily_activity — one row per user per local day, never per
+ * activity) and derives the current streak from them (lib/streak.ts). Not
+ * capped/paginated: at most one row per calendar day of the account's
+ * entire lifetime, so even a years-long streak is a tiny, cheap read — an
+ * arbitrary limit here would silently under-report a genuinely long streak
+ * once it's exceeded. */
 export async function getStreak(userId: string): Promise<{ count: number; lastActiveDate: string | null }> {
-  return { count: 0, lastActiveDate: null };
+  const { data, error } = await supabase!
+    .from('user_daily_activity')
+    .select('activity_date_local')
+    .eq('user_id', userId)
+    .order('activity_date_local', { ascending: false });
+  throwIfSupabaseError(error, 'loading your streak');
+  const activityDates = (data ?? []).map((row: { activity_date_local: string }) => row.activity_date_local);
+  const todayLocal = getLocalDateString(getDeviceTimeZone());
+  return computeCurrentStreak(activityDates, todayLocal);
 }
 
 export async function getXp(userId: string): Promise<number> {
-  return 0;
+  const { data, error } = await supabase!.from('profiles').select('xp').eq('id', userId).maybeSingle();
+  throwIfSupabaseError(error, 'loading your XP');
+  return (data as { xp: number } | null)?.xp ?? 0;
 }
 
-/** Call whenever the user completes a meaningful unit of study — currently a
- * no-op (see the comment on getStreak/getXp above). */
-export async function recordDailyActivity(userId: string, xpEarned: number): Promise<void> {}
+/**
+ * Call whenever the user completes a meaningful unit of study — a real
+ * Reading/Listening/Writing/Speaking submission, a finished Grammar
+ * practice set, a completed lesson, or a scored Practice session. Never on
+ * merely opening a screen, starting-but-not-submitting, or a failed
+ * submission — see each call site's own comment for why that exact point
+ * is where this is called.
+ *
+ * Computes the LOCAL calendar day (never UTC) via this device's current
+ * timezone at the moment of the call, then upserts it through the
+ * `record_daily_activity` Postgres function (0015_streak_activity.sql),
+ * whose ON CONFLICT (user_id, activity_date_local) is what makes this safe
+ * against concurrent/duplicate calls for the same user on the same day —
+ * it can never create two rows for one day no matter how many times or how
+ * concurrently this is called; it only ever increments that day's
+ * activity_count and adds to the running XP total. A network/DB failure
+ * throws (the caller's own try/catch — see e.g. app/reading-test.tsx —
+ * decides what a failed submission means for that screen); the streak
+ * achievement check that follows is best-effort and never turns a failure
+ * there into a false "your activity wasn't recorded" for the caller, since
+ * the activity itself has already been durably written by that point. */
+export async function recordDailyActivity(userId: string, xpEarned: number): Promise<void> {
+  const timezone = getDeviceTimeZone();
+  const activityDateLocal = getLocalDateString(timezone);
+  const { error } = await supabase!.rpc('record_daily_activity', {
+    p_user_id: userId,
+    p_activity_date_local: activityDateLocal,
+    p_timezone: timezone,
+    p_xp_earned: xpEarned,
+  });
+  throwIfSupabaseError(error, 'recording today\'s study activity');
+
+  try {
+    const streak = await getStreak(userId);
+    await checkAndUnlockStreakAchievements(userId, streak.count);
+  } catch (err) {
+    console.warn('[app] streak-achievement check failed (activity was still recorded):', (err as Error).message);
+  }
+}

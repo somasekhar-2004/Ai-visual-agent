@@ -39,7 +39,7 @@ It covers all four IELTS skills (Listening, Reading, Writing, Speaking), realist
 - **Full mock test** — chains Listening → Reading → Writing (x2) → Speaking into one timed flow with autosave/resume, ending in a full band report (per-skill + overall, strongest/weakest skill, readiness score, recommendation).
 - **AI Coach** — a context-aware chat that knows the user's goals, band history, and weak areas, with suggested prompts and conversation history.
 - **Vocabulary & Grammar** — 11 topic word packs with flashcards, a spaced-repetition review ladder, and a quiz mode; targeted IELTS grammar lessons.
-- **Gamification** — streaks, XP, and achievements.
+- **Gamification** — streaks, XP, and achievements, backed by real per-user data (`user_daily_activity`, migration `0015_streak_activity.sql`) — a day counts once the user completes a real Reading/Listening/Writing/Speaking/Grammar/Lesson/Practice submission (never just opening a screen), keyed by the user's own **local** calendar day (device timezone via `Intl`, never UTC) so travel and DST never miscount it. See `lib/streak.ts`'s own header comment for the exact current-streak rule (a streak isn't broken until a full local day is skipped).
 - **Notifications** — daily reminder, streak reminder, exam countdown, and weekly summary (local scheduled notifications).
 - **Subscription/Paywall** — Free vs. Premium gating with a RevenueCat abstraction (mock purchases when RevenueCat isn't configured).
 - **Demo Mode** — the entire app works offline, seeded with a demo user ("Alex") and realistic content, no backend or API keys required.

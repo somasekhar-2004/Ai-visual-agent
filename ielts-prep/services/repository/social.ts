@@ -69,6 +69,31 @@ export async function checkAndUnlockAchievements(userId: string, stats: Achievem
   return newlyUnlocked;
 }
 
+/** A narrower sibling of checkAndUnlockAchievements, called from
+ * recordDailyActivity() after every qualifying study activity (not just
+ * after a Full Mock, which is the only place the full stats needed for
+ * checkAndUnlockAchievements — mock count, band-by-skill, etc. — are ever
+ * assembled). Without this, a user who only ever does standalone practice
+ * and never completes a Full Mock could reach a real 7- or 30-day streak
+ * and have the matching achievement (a-streak-7/a-streak-30) never get
+ * checked at all. Only evaluates `streak_days`-type criteria — cheap
+ * enough to run after every activity, unlike fetching mock/band/question
+ * counts on every Reading/Listening/Writing/Speaking/Grammar/Lesson
+ * completion. */
+export async function checkAndUnlockStreakAchievements(userId: string, streakDays: number): Promise<Achievement[]> {
+  const already = new Set((await getUserAchievements(userId)).map((a) => a.achievementId));
+  const newlyUnlocked: Achievement[] = [];
+  for (const achievement of content.achievements) {
+    if (already.has(achievement.id)) continue;
+    const criteria = achievement.criteria as { type?: string; value?: number };
+    if (criteria.type !== 'streak_days') continue;
+    if (streakDays >= (criteria.value ?? Infinity) && (await unlock(userId, achievement.id))) {
+      newlyUnlocked.push(achievement);
+    }
+  }
+  return newlyUnlocked;
+}
+
 export async function listConversations(userId: string): Promise<AiConversation[]> {
   const { data, error } = await supabase!
     .from('ai_conversations')

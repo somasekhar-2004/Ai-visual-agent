@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Badge, Button, Card, IconCircle, ProgressBar, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
-import { listGrammarQuestions, recordGrammarAttempt, weakGrammarTopics, getGrammarQuestionAttempts } from '@/services/repository';
+import { listGrammarQuestions, recordDailyActivity, recordGrammarAttempt, weakGrammarTopics, getGrammarQuestionAttempts } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -41,6 +41,22 @@ export default function GrammarPracticeScreen() {
 
   const current = questions[index];
   const isCorrect = current ? normalize(answer) === normalize(current.correctAnswer) : false;
+
+  // Fires exactly once per completed set, when the results screen is
+  // reached (every question in the set has been answered) — never per
+  // question, which would count each individual answer as its own
+  // "completion" and never merely for opening this screen. Guarded by a
+  // ref rather than relying on the effect's own dependency array alone,
+  // since re-rendering with the same `index >= questions.length` (e.g. a
+  // parent re-render, or `attemptsQuery` refetching) must not fire this a
+  // second time for the same completed set.
+  const recordedCompletionRef = useRef(false);
+  useEffect(() => {
+    if (questions.length > 0 && index >= questions.length && userId && !recordedCompletionRef.current) {
+      recordedCompletionRef.current = true;
+      void recordDailyActivity(userId, score * 5);
+    }
+  }, [index, questions.length, userId, score]);
 
   async function handleSubmit() {
     if (!current || !answer.trim()) return;
@@ -102,6 +118,10 @@ export default function GrammarPracticeScreen() {
           <Button
             label="Practice again"
             onPress={() => {
+              // A genuinely new, separately-completed set must still be
+              // recordable — this only guards against the SAME completed
+              // set re-firing on an unrelated re-render.
+              recordedCompletionRef.current = false;
               setIndex(0);
               setScore(0);
               setSubmitted(false);

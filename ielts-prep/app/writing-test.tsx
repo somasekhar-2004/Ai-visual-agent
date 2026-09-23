@@ -20,7 +20,7 @@ import { nextFlowHref } from '@/lib/mockFlow';
 import { countWords } from '@/lib/textAnalysis';
 import { assessWritingEvidence } from '@/lib/writingEvidence';
 import { evaluateWriting, getAiProviderName, type WritingEvaluationResult } from '@/services/ai';
-import { getTestHistory, saveWritingFeedback, submitWriting } from '@/services/repository';
+import { getTestHistory, recordDailyActivity, saveWritingFeedback, submitWriting } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -147,6 +147,11 @@ export default function WritingTestScreen() {
         aiModel: result.aiSource === 'real' ? getAiProviderName() : 'mock',
       });
       await AsyncStorage.removeItem(draftKey);
+      // Only once the essay has actually been submitted, passed the
+      // sufficient-evidence gate above, and been evaluated and saved — the
+      // same "genuinely complete" bar Reading/Listening/Speaking already
+      // use, not merely having typed something and pressed Submit.
+      await recordDailyActivity(userId, 20);
       setPhase('result');
     } catch (err) {
       // A real evaluator failure must surface visibly, never leave the
