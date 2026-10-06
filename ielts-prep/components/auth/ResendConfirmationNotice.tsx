@@ -10,6 +10,52 @@ import { resendConfirmationEmail } from '@/services/auth';
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
 
+// resendConfirmationEmail() is designed to never throw or hang (see its own
+// comment in services/auth.ts) — but that guarantee is only as good as the
+// underlying supabase-js call actually settling. A stalled connection, or a
+// wedged state in the shared Supabase auth client (it serializes auth calls
+// through an internal lock — see lib/supabase.ts), can leave that network
+// request neither resolving nor rejecting. Without a bound on how long this
+// screen will wait, that leaves `status` stuck at 'sending' — the button
+// disabled, showing "Sending…" — until the user kills and reopens the app,
+// which is one of the exact symptoms reported for this flow. Racing against
+// a fixed timeout turns an indefinite hang into an honest, recoverable error
+// state the user can retry from immediately, without claiming a delivery
+// outcome the app never actually learned.
+//
+// IMPORTANT LIMITATION: this timeout does not, and cannot, cancel the
+// underlying request. supabase-js's `auth.resend()` takes no AbortSignal or
+// fetch-options override in the installed version (checked against
+// node_modules/@supabase/auth-js's ResendParams type) — there is no public
+// way to actually abort it. So after a timeout, the original network call
+// keeps running in the background; if it was merely slow rather than truly
+// hung, Supabase may still receive and act on it for real. Retrying after a
+// timeout therefore CAN result in two real `/resend` requests reaching
+// Supabase for the same email — this is an accepted trade-off (risking an
+// extra email, which Supabase's own per-address rate limit also guards
+// against) rather than leaving the user stuck until they restart the app.
+// What this code DOES guarantee, via requestIdRef below, is that the
+// component's own displayed state can never be corrupted by that abandoned
+// request's late response — only the most recent handleResend() invocation
+// is ever allowed to call setStatus/setMessage/cooldown.start.
+const RESEND_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 /** Shown after signUpWithEmail/signInWithEmail return `pendingConfirmation`
  * — the account exists but has no confirmed session yet. Offers the
  * purpose-built resend path instead of leaving the user to guess whether a
@@ -50,6 +96,12 @@ export function ResendConfirmationNotice({
   // happens. This ref is checked synchronously, before any `await` or state
   // update, so it closes that gap regardless of render timing.
   const sendingRef = useRef(false);
+  // Incremented at the start of every handleResend() call; each call
+  // captures its own snapshot and checks it again after the await — see
+  // RESEND_TIMEOUT_MS's comment above for why an abandoned (timed-out)
+  // request's eventual real response must never be allowed to overwrite
+  // whatever a later, newer request already set.
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     if (justResent) void cooldown.start(AUTH_RESEND_COOLDOWN_SECONDS);
@@ -63,6 +115,7 @@ export function ResendConfirmationNotice({
     // alone isn't enough to prevent an accidental double-tap.
     if (sendingRef.current) return;
     sendingRef.current = true;
+    const myRequestId = ++requestIdRef.current;
     setStatus('sending');
     setMessage(null);
     // Every other Supabase call in services/auth.ts returns { error } rather
@@ -75,7 +128,19 @@ export function ResendConfirmationNotice({
     // "didn't work" with no way to retry short of leaving and re-entering
     // this screen.
     try {
-      const result = await resendConfirmationEmail(email);
+      const result = await withTimeout(
+        resendConfirmationEmail(email),
+        RESEND_TIMEOUT_MS,
+        'This is taking longer than expected. Check your connection and try again.'
+      );
+      // A newer handleResend() call has started (and bumped requestIdRef)
+      // since this one began — this invocation's outcome is stale and must
+      // not touch status/message/cooldown, which the newer call already
+      // owns. In the current withTimeout implementation this branch is not
+      // actually reachable (the race's promise can only settle once, so
+      // there's no code left to run after a timeout already won), but it's
+      // kept as an explicit, cheap invariant rather than relying on that.
+      if (requestIdRef.current !== myRequestId) return;
       if (result.ok) {
         setStatus('sent');
         setMessage('Confirmation email sent again — check your inbox and spam folder.');
@@ -86,10 +151,16 @@ export function ResendConfirmationNotice({
         if (result.retryAfterSeconds) await cooldown.start(result.retryAfterSeconds);
       }
     } catch (err) {
+      if (requestIdRef.current !== myRequestId) return;
+      // Reached either by the timeout above, or (belt-and-suspenders,
+      // since resendConfirmationEmail already catches its own network
+      // errors) a genuine unexpected rejection — either way `status` must
+      // still clear to 'error' so the button re-enables for an immediate
+      // retry rather than staying stuck on "Sending…".
       setStatus('error');
       setMessage((err as Error).message || 'Could not resend the confirmation email. Check your connection and try again.');
     } finally {
-      sendingRef.current = false;
+      if (requestIdRef.current === myRequestId) sendingRef.current = false;
     }
   }
 

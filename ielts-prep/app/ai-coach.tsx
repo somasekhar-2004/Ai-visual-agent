@@ -44,6 +44,13 @@ export default function AiCoachScreen() {
   const [sending, setSending] = useState(false);
   const [lastReplySource, setLastReplySource] = useState<AiSource | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  // `sending` state alone can't prevent a rapid double-tap on the send
+  // button from firing two chatWithCoach calls: both taps read `sending`
+  // from whichever render was current when each was dispatched, and
+  // setSending(true) doesn't take effect in that closure until the next
+  // render. This ref is checked and set synchronously, before either, so
+  // the second call sees it immediately regardless of render timing.
+  const sendingRef = useRef(false);
 
   const conversationsQuery = useQuery({
     queryKey: ['ai-conversations', userId],
@@ -101,7 +108,8 @@ export default function AiCoachScreen() {
     // the coach a hardcoded fallback target band instead of the real one —
     // `goal` (and everything else read below) can still be sitting at its
     // unloaded initial value at this point otherwise.
-    if (!text.trim() || !userId || !conversationId || sending || !limitStatus.allowed || !dataLoaded) return;
+    if (!text.trim() || !userId || !conversationId || sending || !limitStatus.allowed || !dataLoaded || sendingRef.current) return;
+    sendingRef.current = true;
     setInput('');
     setSending(true);
     setSendError(null);
@@ -131,6 +139,7 @@ export default function AiCoachScreen() {
       // just retry.
       setSendError((err as Error).message || 'The coach is unavailable right now. Please try again.');
     } finally {
+      sendingRef.current = false;
       setSending(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }

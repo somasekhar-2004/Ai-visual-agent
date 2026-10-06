@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useShallow } from 'zustand/react/shallow';
 
 import { SpeakingFeedbackView } from '@/components/testing/SpeakingFeedbackView';
@@ -24,7 +24,9 @@ import {
   completeSpeakingSession,
   createSpeakingSession,
   getTestHistory,
+  recordBandScore,
   recordDailyActivity,
+  refreshOverallBand,
   saveSpeakingFeedback,
 } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
@@ -46,7 +48,12 @@ export default function SpeakingSessionScreen() {
     mockTestId && mockAttemptId && stepIndex != null
       ? nextFlowHref(mockTestId, mockAttemptId, Number(stepIndex))
       : firstParam(raw.nextHref);
-  const { userId, isPremium } = useAppStore(useShallow((s) => ({ userId: s.userId, isPremium: s.subscription?.plan !== 'free' })));
+  const { userId, isPremium, refreshUserData } = useAppStore(useShallow((s) => ({
+    userId: s.userId,
+    isPremium: s.subscription?.plan !== 'free',
+    refreshUserData: s.refreshUserData,
+  })));
+  const queryClient = useQueryClient();
   const recorder = useVoiceRecorder();
 
   // Only enforce the free daily limit for standalone practice — a speaking
@@ -268,6 +275,14 @@ export default function SpeakingSessionScreen() {
           suggestedExercises: result.suggestedExercises,
         });
         await recordDailyActivity(userId, 20);
+        // Standalone only — a Full Mock's Speaking part is recorded by
+        // mock-result.tsx once the whole mock finishes, not here.
+        if (isStandalone) {
+          await recordBandScore(userId, 'speaking', result.overallBand, 'practice');
+          await refreshOverallBand(userId).catch((err) => console.warn('[speaking-session] refreshOverallBand failed:', (err as Error).message));
+        }
+        queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+        await refreshUserData(userId);
       }
       setPhase('result');
     } catch (err) {

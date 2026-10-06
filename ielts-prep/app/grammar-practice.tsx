@@ -19,6 +19,7 @@ export default function GrammarPracticeScreen() {
   const queryClient = useQueryClient();
   const { topic, mode } = useLocalSearchParams<{ topic?: string; mode?: string }>();
   const userId = useAppStore((s) => s.userId);
+  const refreshUserData = useAppStore((s) => s.refreshUserData);
 
   const attemptsQuery = useQuery({
     queryKey: ['grammar-attempts', userId],
@@ -54,9 +55,12 @@ export default function GrammarPracticeScreen() {
   useEffect(() => {
     if (questions.length > 0 && index >= questions.length && userId && !recordedCompletionRef.current) {
       recordedCompletionRef.current = true;
-      void recordDailyActivity(userId, score * 5);
+      // Home reads streak/XP from the zustand store, which only
+      // refreshUserData() updates — without this, a completed grammar set
+      // only shows up on Home after a full app restart.
+      void recordDailyActivity(userId, score * 5).then(() => refreshUserData(userId));
     }
-  }, [index, questions.length, userId, score]);
+  }, [index, questions.length, userId, score, refreshUserData]);
 
   async function handleSubmit() {
     if (!current || !answer.trim()) return;

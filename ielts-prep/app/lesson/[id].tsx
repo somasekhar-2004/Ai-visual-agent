@@ -14,6 +14,7 @@ export default function LessonDetailScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = useAppStore((s) => s.userId);
+  const refreshUserData = useAppStore((s) => s.refreshUserData);
   const queryClient = useQueryClient();
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
@@ -49,6 +50,9 @@ export default function LessonDetailScreen() {
       // now throws instead of silently no-op'ing, but without awaiting this
       // the button could still flash "Completed" for a stale cache tick.
       await queryClient.invalidateQueries({ queryKey: ['lesson-progress', userId] });
+      // Home reads streak/XP from the zustand store, which only
+      // refreshUserData() updates.
+      await refreshUserData(userId);
     } catch (err) {
       setCompleteError((err as Error).message);
     } finally {

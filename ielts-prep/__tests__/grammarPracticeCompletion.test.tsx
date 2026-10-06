@@ -45,6 +45,17 @@ jest.mock('@/services/repository', () => ({
   getGrammarQuestionAttempts: jest.fn().mockResolvedValue([]),
   recordGrammarAttempt: jest.fn().mockResolvedValue(undefined),
   recordDailyActivity: jest.fn().mockResolvedValue(undefined),
+  // Completing a grammar set now also calls the store's refreshUserData()
+  // (see app/grammar-practice.tsx) so Home's streak/XP reflect it without
+  // an app restart — refreshUserData() is the real store action (not
+  // mocked here), and its own Promise.allSettled fans out to exactly
+  // these six repository reads, so each needs a resolvable stub.
+  getProfile: jest.fn().mockResolvedValue(null),
+  getActiveGoal: jest.fn().mockResolvedValue(null),
+  getLatestBandScores: jest.fn().mockResolvedValue({}),
+  getSubscription: jest.fn().mockResolvedValue(null),
+  getStreak: jest.fn().mockResolvedValue({ count: 0, lastActiveDate: null }),
+  getXp: jest.fn().mockResolvedValue(0),
 }));
 
 const recordDailyActivityMock = recordDailyActivity as jest.Mock;

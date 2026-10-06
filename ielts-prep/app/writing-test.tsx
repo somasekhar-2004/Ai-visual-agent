@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { WritingFeedbackView } from '@/components/testing/WritingFeedbackView';
 import { WritingChart } from '@/components/writing/WritingChart';
@@ -20,7 +20,14 @@ import { nextFlowHref } from '@/lib/mockFlow';
 import { countWords } from '@/lib/textAnalysis';
 import { assessWritingEvidence } from '@/lib/writingEvidence';
 import { evaluateWriting, getAiProviderName, type WritingEvaluationResult } from '@/services/ai';
-import { getTestHistory, recordDailyActivity, saveWritingFeedback, submitWriting } from '@/services/repository';
+import {
+  getTestHistory,
+  recordBandScore,
+  recordDailyActivity,
+  refreshOverallBand,
+  saveWritingFeedback,
+  submitWriting,
+} from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -38,11 +45,13 @@ export default function WritingTestScreen() {
     mockTestId && mockAttemptId && stepIndex != null
       ? nextFlowHref(mockTestId, mockAttemptId, Number(stepIndex))
       : firstParam(raw.nextHref);
-  const { userId, ieltsType, isPremium } = useAppStore(useShallow((s) => ({
+  const { userId, ieltsType, isPremium, refreshUserData } = useAppStore(useShallow((s) => ({
     userId: s.userId,
     ieltsType: s.goal?.ieltsType ?? 'academic',
     isPremium: s.subscription?.plan !== 'free',
+    refreshUserData: s.refreshUserData,
   })));
+  const queryClient = useQueryClient();
   // Only enforce the free daily limit for standalone practice — a writing
   // task that's part of an already-unlocked mock attempt must not be
   // blocked mid-mock.
@@ -67,6 +76,8 @@ export default function WritingTestScreen() {
   const [evaluation, setEvaluation] = useState<WritingEvaluationResult | null>(null);
   const [insufficientEvidence, setInsufficientEvidence] = useState<{ reason: string; explanation: string } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // See reading-test.tsx's submittingRef for why this must be a ref, not state.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     AsyncStorage.getItem(draftKey).then((saved) => {
@@ -99,7 +110,8 @@ export default function WritingTestScreen() {
   }
 
   async function doSubmit() {
-    if (!userId) return;
+    if (!userId || submittingRef.current) return;
+    submittingRef.current = true;
     setPhase('evaluating');
     try {
       const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
@@ -152,6 +164,15 @@ export default function WritingTestScreen() {
       // same "genuinely complete" bar Reading/Listening/Speaking already
       // use, not merely having typed something and pressed Submit.
       await recordDailyActivity(userId, 20);
+      // Standalone only — a Full Mock's Writing task is aggregated and
+      // recorded by mock-result.tsx once the whole mock finishes (it needs
+      // both Task 1 and Task 2 to produce one Writing band), not here.
+      if (isStandalone) {
+        await recordBandScore(userId, 'writing', result.overallBand, 'practice');
+        await refreshOverallBand(userId).catch((err) => console.warn('[writing-test] refreshOverallBand failed:', (err as Error).message));
+      }
+      queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+      await refreshUserData(userId);
       setPhase('result');
     } catch (err) {
       // A real evaluator failure must surface visibly, never leave the
@@ -207,7 +228,7 @@ export default function WritingTestScreen() {
         <Text color="secondary" align="center">
           {errorMessage ?? 'We could not evaluate your essay. Check your connection and try again.'}
         </Text>
-        <Button label="Try again" onPress={() => { setErrorMessage(null); setPhase('writing'); }} fullWidth />
+        <Button label="Try again" onPress={() => { submittingRef.current = false; setErrorMessage(null); setPhase('writing'); }} fullWidth />
       </SafeAreaView>
     );
   }

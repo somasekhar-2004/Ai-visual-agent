@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { useShallow } from 'zustand/react/shallow';
@@ -32,11 +32,38 @@ export default function PracticeSessionScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { skill, mode, questionType } = useLocalSearchParams<Params>();
-  const { userId, isPremium } = useAppStore(useShallow((s) => ({ userId: s.userId, isPremium: s.subscription?.plan !== 'free' })));
+  const { userId, isPremium, refreshUserData } = useAppStore(useShallow((s) => ({
+    userId: s.userId,
+    isPremium: s.subscription?.plan !== 'free',
+    refreshUserData: s.refreshUserData,
+  })));
 
   const [difficulty, setDifficulty] = useState<Difficulty | 'all'>('all');
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState<boolean[]>([]);
+  // Synchronous re-entrancy guard for handleNext's "finish the session" path
+  // below — a plain ref (not state) so a second rapid tap on "Finish",
+  // dispatched before the await on recordDailyActivity resolves and before
+  // any state update re-renders the screen, is still seen immediately by
+  // the second call and bails out rather than double-recording the day's
+  // activity/XP.
+  const finishingRef = useRef(false);
+  // Fires exactly once per session (reset on "Practice again" below) the
+  // moment the FIRST answer is actually saved — never on merely opening
+  // practice or viewing a question, and never required to reach the end of
+  // the (potentially very long, unfiltered) question pool. This is
+  // deliberately separate from handleNext's finish-time
+  // recordDailyActivity call below: that one still awards the session's
+  // real XP (results.length * 5) only on a genuine Finish, exactly as
+  // before — this one awards 0 XP and exists solely to qualify today for
+  // the streak, so leaving after a few questions without finishing still
+  // counts as a qualifying day without double-awarding XP once a later
+  // Finish (in this session or a later one today) adds the real amount.
+  // The daily-activity RPC's own (user, local day) upsert already makes
+  // calling it twice in one day a no-op for the day itself — this ref only
+  // avoids firing the extra network call once per session, not a
+  // correctness requirement.
+  const dayQualifiedRef = useRef(false);
 
   const attemptsQuery = useQuery({
     queryKey: ['question-attempts', userId],
@@ -85,6 +112,16 @@ export default function PracticeSessionScreen() {
     if (!userId || !current) return;
     await recordQuestionAttempt(userId, current.id, _answer, isCorrect, current.estimatedTimeSeconds);
     setResults((r) => [...r, isCorrect]);
+    if (!dayQualifiedRef.current) {
+      dayQualifiedRef.current = true;
+      // Best-effort and intentionally not awaited: qualifying today for the
+      // streak must never block or delay answering the next question. A
+      // failure here is logged, not surfaced — the question attempt above
+      // (the thing the user actually did) is already saved either way.
+      recordDailyActivity(userId, 0)
+        .then(() => refreshUserData(userId))
+        .catch((err) => console.warn("[practice-session] failed to qualify today's streak activity:", (err as Error).message));
+    }
   }
 
   async function handleToggleBookmark() {
@@ -95,7 +132,19 @@ export default function PracticeSessionScreen() {
 
   async function handleNext() {
     if (index + 1 >= questions.length) {
-      if (userId) await recordDailyActivity(userId, results.length * 5);
+      if (userId && !finishingRef.current) {
+        finishingRef.current = true;
+        await recordDailyActivity(userId, results.length * 5);
+        // Home's "Questions done" stat and the ProgressDashboard read
+        // question-attempts from this same react-query key, and its
+        // streak/XP from the zustand store — neither refetches on its own
+        // just because this screen navigates back to Home (the tab stays
+        // mounted, so there's no remount to trigger it). Without these two
+        // calls, a completed session only shows up after a full app
+        // restart (which re-runs hydrate()/refreshUserData from scratch).
+        queryClient.invalidateQueries({ queryKey: ['question-attempts', userId] });
+        await refreshUserData(userId);
+      }
       setIndex(index + 1); // moves past the end to show the summary screen
       return;
     }
@@ -142,7 +191,7 @@ export default function PracticeSessionScreen() {
             {correctCount}/{results.length}
           </Text>
           <Text color="secondary">questions correct this session</Text>
-          <Button label="Practice again" onPress={() => { setIndex(0); setResults([]); }} fullWidth />
+          <Button label="Practice again" onPress={() => { finishingRef.current = false; dayQualifiedRef.current = false; setIndex(0); setResults([]); }} fullWidth />
           <Button label="Back to Practice" variant="ghost" onPress={() => router.back()} fullWidth />
         </View>
       </Screen>

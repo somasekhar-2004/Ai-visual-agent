@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,7 +17,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
-import { recordDailyActivity, saveReadingAttempt } from '@/services/repository';
+import { recordBandScore, recordDailyActivity, refreshOverallBand, saveReadingAttempt } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
 type Params = {
@@ -45,6 +46,8 @@ export default function ReadingTestScreen() {
       : firstParam(raw.nextHref);
   const userId = useAppStore((s) => s.userId);
   const ieltsType = useAppStore((s) => s.goal?.ieltsType ?? 'academic');
+  const refreshUserData = useAppStore((s) => s.refreshUserData);
+  const queryClient = useQueryClient();
 
   const passages = useMemo(() => {
     const ids = passageIds ? passageIds.split(',') : passageId ? [passageId] : [];
@@ -75,6 +78,11 @@ export default function ReadingTestScreen() {
   const [showNotes, setShowNotes] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [startTime] = useState(() => Date.now());
+  // Synchronous guard against a rapid double-tap on "Submit" firing
+  // finalizeSubmit() twice before `submitted` state re-renders the Submit
+  // button away — see practice-session.tsx's finishingRef for the same
+  // pattern and why a ref (not state) is required here.
+  const submittingRef = useRef(false);
 
   const { label: timerLabel } = useCountdown(Number(durationMinutes ?? 20) * 60, () => !submitted && handleSubmit(true));
 
@@ -111,6 +119,8 @@ export default function ReadingTestScreen() {
   }
 
   async function finalizeSubmit() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitted(true);
     if (!userId) return;
     const rawScore = questions.filter((q) => isAnswerCorrect(q, answers[q.id] ?? null)).length;
@@ -128,6 +138,18 @@ export default function ReadingTestScreen() {
       answers,
     });
     await recordDailyActivity(userId, 20);
+    // Only for a standalone practice test, never a step inside a Full
+    // Mock — mock-result.tsx already records this skill's band (source
+    // 'mock') once the whole mock finishes, using this same attempt's
+    // band. Recording it again here under a mock flow would double-write
+    // band_scores for one real test and skew the "predicted band over
+    // time" chart with two near-identical points.
+    if (!mockAttemptId) {
+      await recordBandScore(userId, 'reading', band, 'practice');
+      await refreshOverallBand(userId).catch((err) => console.warn('[reading-test] refreshOverallBand failed:', (err as Error).message));
+    }
+    queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+    await refreshUserData(userId);
   }
 
   if (submitted) {

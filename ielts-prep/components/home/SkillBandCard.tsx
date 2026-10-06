@@ -19,10 +19,20 @@ export function SkillBandCard({ skill, band, onPress }: { skill: SkillKey; band:
   const color = theme.skillColors[skill];
 
   return (
-    <Card onPress={onPress} style={{ flex: 1, gap: theme.spacing.xs }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+    <Card onPress={onPress} style={{ flex: 1, gap: theme.spacing.xs, paddingHorizontal: theme.spacing.xxs }}>
+      {/* Icon above label (not side-by-side) so the full word always fits on
+          one line in the narrow ~1/4-screen-width card on small Android
+          phones — see SkillBandCard layout fix. */}
+      <View style={{ alignItems: 'center', gap: 4 }}>
         <Ionicons name={meta.icon} size={16} color={color} />
-        <Text variant="caption" color="secondary">
+        <Text
+          variant="micro"
+          color="secondary"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+          style={{ textAlign: 'center' }}
+        >
           {meta.label}
         </Text>
       </View>

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,7 +17,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
-import { recordDailyActivity, saveListeningAttempt } from '@/services/repository';
+import { recordBandScore, recordDailyActivity, refreshOverallBand, saveListeningAttempt } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
 type Params = { trackIds?: string; mockAttemptId?: string; mockTestId?: string; stepIndex?: string; nextHref?: string; durationMinutes?: string };
@@ -35,6 +36,8 @@ export default function ListeningTestScreen() {
       ? nextFlowHref(mockTestId, mockAttemptId, Number(stepIndex))
       : firstParam(raw.nextHref);
   const userId = useAppStore((s) => s.userId);
+  const refreshUserData = useAppStore((s) => s.refreshUserData);
+  const queryClient = useQueryClient();
 
   const tracks = useMemo(() => {
     if (trackIds) {
@@ -60,6 +63,8 @@ export default function ListeningTestScreen() {
   const [flagged, setFlagged] = useState<Set<number>>(new Set());
   const [index, setIndex] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  // See reading-test.tsx's submittingRef for why this must be a ref, not state.
+  const submittingRef = useRef(false);
 
   const { label: timerLabel } = useCountdown(Number(durationMinutes ?? 30) * 60, () => !submitted && handleSubmit(true));
 
@@ -95,6 +100,8 @@ export default function ListeningTestScreen() {
   }
 
   async function finalizeSubmit() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitted(true);
     if (!userId) return;
     const rawScore = questions.filter((q) => isAnswerCorrect(q, answers[q.id] ?? null)).length;
@@ -108,6 +115,14 @@ export default function ListeningTestScreen() {
       answers,
     });
     await recordDailyActivity(userId, 20);
+    // Standalone only — see reading-test.tsx's finalizeSubmit for why a
+    // mock-flow attempt must not also record its band here.
+    if (!mockAttemptId) {
+      await recordBandScore(userId, 'listening', band, 'practice');
+      await refreshOverallBand(userId).catch((err) => console.warn('[listening-test] refreshOverallBand failed:', (err as Error).message));
+    }
+    queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+    await refreshUserData(userId);
   }
 
   if (submitted) {

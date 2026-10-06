@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
@@ -102,6 +102,63 @@ describe('ResendConfirmationNotice — resend button behavior', () => {
     // back to its normal label, not permanently showing the spinner state.
     expect(getByText('Resend confirmation email')).toBeTruthy();
   });
+
+  // These two use REAL timers and really wait out RESEND_TIMEOUT_MS (15s):
+  // jest.useFakeTimers() here reliably corrupted the test *renderer* itself
+  // (a subsequent, unrelated test in this same file rendered as a bare
+  // empty tree) — a Jest/RTL/mocked-AsyncStorage interaction that didn't
+  // reduce to something safely fixable in this change without risking the
+  // rest of the suite, so this trades test speed for not touching that
+  // interaction at all. Both get a longer per-test timeout accordingly.
+  it(
+    'times out rather than hanging on "Sending…" forever if resendConfirmationEmail never settles, and re-enables immediately for a retry',
+    async () => {
+      mockResend.mockReturnValue(new Promise(() => {})); // never settles — simulates a wedged/stalled request
+      const { getByText, queryByText } = await renderNotice({ email: 'student@example.com' });
+
+      await fireEvent.press(getByText('Resend confirmation email'));
+      // Button.tsx swaps the label for a bare spinner while loading={true}
+      // (see other tests' own comment on this) — the idle label's absence
+      // is what proves the button actually entered the sending state.
+      expect(queryByText('Resend confirmation email')).toBeNull();
+
+      await waitFor(() => expect(getByText(/taking longer than expected/)).toBeTruthy(), { timeout: 17_000 });
+      // Re-enabled, not stuck — the exact behavior the original bug ("only
+      // fixed by closing and reopening the app") was missing.
+      expect(getByText('Resend confirmation email')).toBeTruthy();
+    },
+    20_000
+  );
+
+  it(
+    'a late response from a timed-out attempt cannot overwrite the state of a newer retry',
+    async () => {
+      let resolveFirst!: (value: { ok: boolean }) => void;
+      mockResend
+        .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; })) // first call: never settles until we say so, well past its own timeout
+        .mockResolvedValueOnce({ ok: false, error: 'Please wait 42 seconds before requesting another email.', retryAfterSeconds: 42 }); // second call (the retry): a real, different outcome
+
+      const { getByText, queryByText, unmount } = await renderNotice({ email: 'student@example.com' });
+
+      await fireEvent.press(getByText('Resend confirmation email'));
+      await waitFor(() => expect(getByText(/taking longer than expected/)).toBeTruthy(), { timeout: 17_000 }); // first attempt times out client-side
+
+      await fireEvent.press(getByText('Resend confirmation email')); // retry — the second, genuinely new request
+      await waitFor(() => expect(getByText('Please wait 42 seconds before requesting another email.')).toBeTruthy());
+
+      // The first request's real network call was never cancelled (see
+      // RESEND_TIMEOUT_MS's comment — supabase-js's resend() exposes no
+      // abort signal) and only now "arrives" — it must be silently ignored,
+      // never stomping the retry's own, newer, already-displayed outcome.
+      await act(async () => {
+        resolveFirst({ ok: true });
+      });
+      expect(getByText('Please wait 42 seconds before requesting another email.')).toBeTruthy();
+      expect(queryByText(/Confirmation email sent again/)).toBeNull();
+      unmount(); // the retry's cooldown started a real setInterval — see other tests' own comment on this
+    },
+    20_000
+  );
 
   it('does not allow a second resend while one is already in flight (loading disables the button)', async () => {
     let resolveResend!: (value: { ok: boolean }) => void;

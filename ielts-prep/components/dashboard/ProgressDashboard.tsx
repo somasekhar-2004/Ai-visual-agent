@@ -97,6 +97,9 @@ export function ProgressDashboard({ onSetGoal, onUpgrade }: { onSetGoal: () => v
         </Card>
       ) : null}
 
+      <Text color="secondary" style={{ marginBottom: theme.spacing.sm }}>
+        Complete a full skill test or mock test to see your estimated bands. Quick practice doesn&apos;t update these scores.
+      </Text>
       <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
         {(['listening', 'reading', 'writing', 'speaking'] as SkillKey[]).map((skill) => (
           <SkillBandCard key={skill} skill={skill} band={bandScores[skill] ?? null} />
