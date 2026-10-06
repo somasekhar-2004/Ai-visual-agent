@@ -40,9 +40,9 @@ function makePackage(overrides: { packageType: 'MONTHLY' | 'ANNUAL'; identifier:
       identifier: `com.ieltsprep.app.premium.${overrides.packageType === 'ANNUAL' ? 'yearly' : 'monthly'}`,
       title: overrides.packageType === 'ANNUAL' ? 'Premium Yearly' : 'Premium Monthly',
       description: 'Full access.',
-      priceString: overrides.packageType === 'ANNUAL' ? '₹2,499/year' : '₹299/month',
-      price: overrides.packageType === 'ANNUAL' ? 2499 : 299,
-      pricePerMonth: overrides.packageType === 'ANNUAL' ? 2499 / 12 : 299,
+      priceString: overrides.packageType === 'ANNUAL' ? '₹2,499/year' : '₹149/month',
+      price: overrides.packageType === 'ANNUAL' ? 2499 : 149,
+      pricePerMonth: overrides.packageType === 'ANNUAL' ? 2499 / 12 : 149,
     },
   };
 }

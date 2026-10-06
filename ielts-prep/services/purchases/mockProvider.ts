@@ -2,23 +2,25 @@ import type { EntitlementStatus, PurchaseProduct, PurchaseResult, PurchasesProvi
 
 // Placeholder pricing used only by this test double (never wired into the
 // runtime provider selection in services/purchases/index.ts — see that
-// file) — reflects the app's initial India launch pricing direction
-// (₹299/month, ₹2,499/year) purely so tests exercising the paywall have
-// realistic-looking data. This is NEVER what a real purchase charges: with
+// file) — reflects the app's India launch pricing direction (₹149/month,
+// ₹2,499/year) purely so tests exercising the paywall have realistic-
+// looking data. This is NEVER what a real purchase charges: with
 // RevenueCat actually configured, every price shown anywhere in the app
 // comes from `PurchasesPackage.product.priceString` (see
 // revenuecatProvider.ts), already formatted and localized by the store for
 // the buyer's own country/currency — nothing about a real price is ever
-// hardcoded here or in the UI that renders it.
+// hardcoded here or in the UI that renders it. Changing this value alone
+// does NOT change what anyone is actually charged — see README's "Pricing"
+// section for the required Google Play Console step.
 const PRODUCTS: PurchaseProduct[] = [
   {
     identifier: 'premium_monthly',
     plan: 'premium_monthly',
     title: 'Premium Monthly',
     description: 'Full access to all Bandpath IELTS features, billed monthly.',
-    priceString: '₹299/month',
-    price: 299,
-    pricePerMonth: 299,
+    priceString: '₹149/month',
+    price: 149,
+    pricePerMonth: 149,
     period: 'monthly',
     trialDays: 7,
   },
