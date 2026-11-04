@@ -25,6 +25,11 @@ jest.mock('@/services/repository', () => ({
 // never calls useRouter.
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  // Real behavior (see ProgressDashboard's focus-refetch effect) only
+  // matters once there's a second screen to navigate away to and back
+  // from — nothing these render-only tests exercise — so a no-op here
+  // just keeps this file's existing "first render" expectations true.
+  useFocusEffect: () => {},
 }));
 
 const mockGetQuestionAttempts = getQuestionAttempts as jest.Mock;

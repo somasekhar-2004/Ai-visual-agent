@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import React from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -59,9 +60,36 @@ export function ProgressDashboard({ onSetGoal, onUpgrade }: { onSetGoal: () => v
     isPremium: s.subscription?.plan !== 'free',
   })));
 
+  const queryClient = useQueryClient();
   const attemptsQuery = useQuery({ queryKey: ['question-attempts', userId], queryFn: () => getQuestionAttempts(userId!), enabled: Boolean(userId) });
   const historyQuery = useQuery({ queryKey: ['test-history', userId], queryFn: () => getTestHistory(userId!), enabled: Boolean(userId) });
   const bandHistoryQuery = useQuery({ queryKey: ['band-history', userId], queryFn: () => getBandScoreHistory(userId!), enabled: Boolean(userId) });
+
+  // Home is a persistent tab — Expo Router/React Navigation never unmounts
+  // it when you navigate to Practice (or a mock/writing/speaking session)
+  // and back, so useQuery's own "fetch on mount" never fires again and
+  // these three queries just keep serving their stale in-memory cache.
+  // That's exactly why question count/accuracy previously only updated
+  // after a full app restart (a fresh QueryClient) — nothing on this
+  // screen ever told React Query the underlying data might have changed.
+  // Invalidating on focus fixes it for every path that writes a question
+  // attempt/test-history/band-score row (practice, mock tests, writing,
+  // speaking, grammar) without needing each of those screens to remember
+  // to invalidate these specific keys themselves. Skips the very first
+  // focus (right after mount) since useQuery already fetches then.
+  const hasFocusedBefore = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedBefore.current) {
+        hasFocusedBefore.current = true;
+        return;
+      }
+      if (!userId) return;
+      queryClient.invalidateQueries({ queryKey: ['question-attempts', userId] });
+      queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+      queryClient.invalidateQueries({ queryKey: ['band-history', userId] });
+    }, [userId, queryClient])
+  );
 
   const overallHistory = (bandHistoryQuery.data ?? []).filter((b) => b.skill === 'overall').map((b) => b.band);
   const accuracy = overallAccuracy(attemptsQuery.data ?? []);
