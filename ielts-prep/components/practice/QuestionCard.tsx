@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { Fragment, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Badge, Button, Card, Text, TextField } from '@/components/ui';
@@ -41,7 +41,8 @@ export function QuestionCard({
   const correct = revealed && finalAnswer ? isAnswerCorrect(question, finalAnswer) : null;
 
   return (
-    <Card style={{ gap: theme.spacing.md }}>
+    <Fragment>
+      <Card style={{ gap: theme.spacing.md }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Badge label={question.questionType.replace(/_/g, ' ')} tone="neutral" />
         <Pressable onPress={onToggleBookmark} hitSlop={10}>
@@ -91,9 +92,7 @@ export function QuestionCard({
         />
       )}
 
-      {!revealed ? (
-        <Button label="Check answer" onPress={submit} disabled={freeText ? !textAnswer.trim() : !selected} fullWidth />
-      ) : (
+      {revealed ? (
         <View
           style={{
             backgroundColor: correct ? theme.colors.successSoft : theme.colors.errorSoft,
@@ -116,7 +115,19 @@ export function QuestionCard({
             </Text>
           ) : null}
         </View>
-      )}
-    </Card>
+      ) : null}
+      </Card>
+      {/* Deliberately a sibling of the Card, not nested inside it — matching
+          practice-session.tsx's "Next question"/"Finish" button, which is
+          also a sibling of this whole component rather than inside the
+          Card. Nested inside the Card's own padding, this button's visible
+          fill still looked full-width, but structurally it sat behind an
+          extra layer of padding/inset that "Next question" never had,
+          which was the suspected (not device-confirmed) cause of the
+          reported "Check answer only responds near the centre" bug. */}
+      {!revealed ? (
+        <Button label="Check answer" onPress={submit} disabled={freeText ? !textAnswer.trim() : !selected} fullWidth style={{ marginTop: theme.spacing.md }} />
+      ) : null}
+    </Fragment>
   );
 }
