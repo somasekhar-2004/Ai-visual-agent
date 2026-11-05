@@ -346,9 +346,11 @@ export default function SpeakingSessionScreen() {
 
   if (phase === 'evaluating') {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', gap: theme.spacing.md }}>
-        <Text variant="h3">Evaluating your speaking...</Text>
-        <Text color="secondary">Analyzing fluency, vocabulary, grammar, and pronunciation.</Text>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl, gap: theme.spacing.md }}
+      >
+        <Text variant="h3" align="center">Evaluating your speaking...</Text>
+        <Text color="secondary" align="center">Analyzing fluency, vocabulary, grammar, and pronunciation.</Text>
       </SafeAreaView>
     );
   }

@@ -139,9 +139,18 @@ describe('weakestAndStrongestSkill', () => {
     expect(result).toEqual({ weakest: 'reading', strongest: 'speaking' });
   });
 
-  it('ignores a skill with no recorded band rather than treating it as 0', () => {
-    const result = weakestAndStrongestSkill({ listening: 6, reading: undefined });
-    expect(result).toEqual({ weakest: 'listening', strongest: 'listening' });
+  it('ignores a skill with no recorded band rather than treating it as 0, while still comparing the two that are defined', () => {
+    const result = weakestAndStrongestSkill({ listening: 6, reading: 8, writing: undefined });
+    expect(result).toEqual({ weakest: 'listening', strongest: 'reading' });
+  });
+
+  // Regression coverage for a real bug: with only one skill scored, the
+  // single entry used to sort to both ends of a one-item list and come
+  // back as both "weakest" and "strongest" — a meaningless comparison, not
+  // a real insight (e.g. Home showing "Weakest: Speaking" and "Strongest:
+  // Speaking" for a user who had only ever taken a Speaking test).
+  it('returns null/null with fewer than two real scores — a single score has nothing to compare against', () => {
+    expect(weakestAndStrongestSkill({ listening: 6, reading: undefined })).toEqual({ weakest: null, strongest: null });
   });
 });
 

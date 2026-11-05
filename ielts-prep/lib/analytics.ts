@@ -69,7 +69,11 @@ export function estimatedMinutesStudied(history: TestHistoryEntry[]): number {
 
 export function weakestAndStrongestSkill(bandBySkill: Partial<Record<SkillKey, number>>): { weakest: SkillKey | null; strongest: SkillKey | null } {
   const entries = (Object.entries(bandBySkill) as [SkillKey, number | undefined][]).filter((e): e is [SkillKey, number] => typeof e[1] === 'number');
-  if (entries.length === 0) return { weakest: null, strongest: null };
+  // With fewer than two scored skills there's nothing to compare — a
+  // single scored skill used to come back as both "weakest" and
+  // "strongest" (the only entry sorts to both ends of a one-item list),
+  // which is a meaningless comparison, not a real insight.
+  if (entries.length < 2) return { weakest: null, strongest: null };
   const sorted = [...entries].sort((a, b) => a[1] - b[1]);
   return { weakest: sorted[0][0], strongest: sorted[sorted.length - 1][0] };
 }

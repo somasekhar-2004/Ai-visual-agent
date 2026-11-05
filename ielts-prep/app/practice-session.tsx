@@ -1,7 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, View } from 'react-native';
 
 import { useShallow } from 'zustand/react/shallow';
 
@@ -11,6 +13,7 @@ import { HighlightablePassage } from '@/components/testing/HighlightablePassage'
 import { TranscriptAudioPlayer } from '@/components/testing/TranscriptAudioPlayer';
 import { Button, Chip, DailyLimitCard, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
 import { checkDailyLimit, FREE_DAILY_PRACTICE_QUESTIONS, practiceQuestionsUsedToday } from '@/lib/entitlements';
 import { groupQuestions } from '@/lib/practiceGrouping';
@@ -64,6 +67,74 @@ export default function PracticeSessionScreen() {
   // avoids firing the extra network call once per session, not a
   // correctness requirement.
   const dayQualifiedRef = useRef(false);
+
+  // Scoped to exactly the session this screen instance represents (which
+  // user, which skill/mode/questionType filter) so returning to a
+  // different filter combination never resumes into the wrong session's
+  // progress. `difficulty` is deliberately NOT part of the key — it's a
+  // sub-filter of the same session, persisted as part of the session's own
+  // state below instead.
+  const sessionKey = `ielts-prep/practice-session/${userId ?? 'anon'}/${skill ?? 'all'}/${mode ?? 'none'}/${questionType ?? 'all'}`;
+  // True once this session's saved progress (or the lack of it) has been
+  // read from AsyncStorage — guards the persist effect below from firing
+  // with the fresh {0, []} initial state and overwriting real saved
+  // progress before it's even been loaded.
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    hydratedRef.current = false;
+    let cancelled = false;
+    AsyncStorage.getItem(sessionKey).then((raw) => {
+      if (cancelled) return;
+      if (raw) {
+        try {
+          const saved = JSON.parse(raw) as { results?: boolean[]; difficulty?: Difficulty | 'all' };
+          if (Array.isArray(saved.results)) {
+            setResults(saved.results);
+            // Resuming always lands on the next UNANSWERED question —
+            // results.length is exactly that index, since each answer
+            // pushes one result and index only ever advances once the
+            // current question already has a matching result (see
+            // handleNext below), so the two can never drift apart.
+            setIndex(saved.results.length);
+          }
+          if (saved.difficulty) setDifficulty(saved.difficulty);
+        } catch (err) {
+          console.warn('[practice-session] failed to parse saved session progress, starting fresh:', (err as Error).message);
+        }
+      }
+      hydratedRef.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionKey]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    AsyncStorage.setItem(sessionKey, JSON.stringify({ results, difficulty })).catch(() => {});
+  }, [sessionKey, results, difficulty]);
+
+  /** The one place "start over" happens — Restart, a difficulty change, and
+   * "Practice again" after finishing all call this, so XP/streak-qualifying
+   * guards and saved progress are reset the exact same way every time
+   * rather than three separately-maintained copies of the same reset. */
+  function resetToFreshSession(nextDifficulty: Difficulty | 'all' = difficulty) {
+    finishingRef.current = false;
+    dayQualifiedRef.current = false;
+    setIndex(0);
+    setResults([]);
+    setDifficulty(nextDifficulty);
+  }
+
+  async function handleRestart() {
+    const confirmed = await confirmAsync(
+      'Restart this practice session?',
+      'Your progress on these questions will be cleared and you’ll start again from question 1. Answers you’ve already recorded stay recorded.',
+      'Restart'
+    );
+    if (confirmed) resetToFreshSession();
+  }
 
   const attemptsQuery = useQuery({
     queryKey: ['question-attempts', userId],
@@ -191,16 +262,28 @@ export default function PracticeSessionScreen() {
             {correctCount}/{results.length}
           </Text>
           <Text color="secondary">questions correct this session</Text>
-          <Button label="Practice again" onPress={() => { finishingRef.current = false; dayQualifiedRef.current = false; setIndex(0); setResults([]); }} fullWidth />
+          <Button label="Practice again" onPress={() => resetToFreshSession()} fullWidth />
           <Button label="Back to Practice" variant="ghost" onPress={() => router.back()} fullWidth />
         </View>
       </Screen>
     );
   }
 
+  const hasProgress = index > 0 || results.length > 0;
+
   return (
     <Screen scroll>
-      <ScreenHeader title="Practice" showBack />
+      <ScreenHeader
+        title="Practice"
+        showBack
+        right={
+          hasProgress ? (
+            <Pressable onPress={handleRestart} hitSlop={10} accessibilityRole="button" accessibilityLabel="Restart">
+              <Ionicons name="refresh-outline" size={22} color={theme.colors.textSecondary} />
+            </Pressable>
+          ) : null
+        }
+      />
       <ProgressBar progress={index / questions.length} />
       <Text variant="caption" color="tertiary" style={{ marginTop: theme.spacing.xs, marginBottom: theme.spacing.md }}>
         Question {index + 1} of {questions.length}
@@ -209,7 +292,7 @@ export default function PracticeSessionScreen() {
       {!mode ? (
         <View style={{ flexDirection: 'row', gap: theme.spacing.xs, marginBottom: theme.spacing.md, flexWrap: 'wrap' }}>
           {(['all', 'easy', 'medium', 'hard'] as const).map((d) => (
-            <Chip key={d} label={d} selected={difficulty === d} onPress={() => { setDifficulty(d); setIndex(0); setResults([]); }} />
+            <Chip key={d} label={d} selected={difficulty === d} onPress={() => resetToFreshSession(d)} />
           ))}
         </View>
       ) : null}

@@ -37,10 +37,16 @@ export function DemoAiBadge({ source }: { source?: AiSource }) {
         borderRadius: theme.radius.pill,
         paddingHorizontal: theme.spacing.sm,
         paddingVertical: 4,
+        // The practice-mode label is long enough to clip or overflow its
+        // sibling in a flexDirection: 'row' parent (e.g. alongside the
+        // focus-note text on Home) unless this badge is explicitly allowed
+        // to shrink and its own text allowed to wrap within it.
+        flexShrink: 1,
+        maxWidth: '100%',
       }}
     >
       <Ionicons name={real ? 'sparkles' : 'flask-outline'} size={12} color={fg} />
-      <Text variant="micro" style={{ color: fg }}>
+      <Text variant="micro" style={{ color: fg, flexShrink: 1 }}>
         {real ? 'AI Evaluation' : 'AI Evaluation (practice mode, offline estimate)'}
       </Text>
     </View>

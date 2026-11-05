@@ -157,4 +157,46 @@ describe('ProgressDashboard', () => {
     await waitFor(() => expect(getByText("Some progress stats couldn't load")).toBeTruthy());
     expect(getByText(/may be incomplete/)).toBeTruthy();
   });
+
+  // Regression coverage for a real bug: with only one skill scored (e.g.
+  // Speaking 5.0), Home showed "Predicted band 0.0" and "0% ready" — a
+  // fabricated overall estimate, since bandScores.overall is only ever
+  // recorded once all four skills have a real score (see
+  // services/repository/core.ts's refreshOverallBand). The same single
+  // score also showed as both "Weakest" and "Strongest", which is a
+  // meaningless comparison with nothing to compare against.
+  it('with only one skill scored, shows an incomplete-results message instead of a fabricated 0.0/0% overall estimate, and no weakest/strongest comparison', async () => {
+    resetStore({ goal: GOAL, bandScores: { speaking: 5.0 }, streak: { count: 0, lastActiveDate: null } });
+    mockGetQuestionAttempts.mockResolvedValue([]);
+    mockGetTestHistory.mockResolvedValue([]);
+    mockGetBandScoreHistory.mockResolvedValue([]);
+
+    const { getAllByText, getByText, queryByText } = await renderDashboard();
+
+    await waitFor(() => expect(getAllByText('Not enough data yet').length).toBeGreaterThan(0));
+    expect(getByText(/Complete all four skills/)).toBeTruthy();
+    expect(queryByText(/Predicted band 0\.0/)).toBeNull();
+    expect(queryByText('0% ready')).toBeNull();
+    expect(queryByText(/Weakest:/)).toBeNull();
+    expect(queryByText(/Strongest:/)).toBeNull();
+  });
+
+  // Once a second real skill score exists, overall is still not computed
+  // (refreshOverallBand still needs all four), but weakest/strongest
+  // becomes a meaningful comparison between the two real scores that do
+  // exist.
+  it('with two skills scored, shows a real weakest/strongest comparison even though overall still isn\'t computable', async () => {
+    resetStore({ goal: GOAL, bandScores: { writing: 8.0, speaking: 5.0 }, streak: { count: 0, lastActiveDate: null } });
+    mockGetQuestionAttempts.mockResolvedValue([]);
+    mockGetTestHistory.mockResolvedValue([]);
+    mockGetBandScoreHistory.mockResolvedValue([]);
+
+    const { getAllByText, getByText, queryByText } = await renderDashboard();
+
+    await waitFor(() => expect(getByText('Weakest: Speaking')).toBeTruthy());
+    expect(getByText('Strongest: Writing')).toBeTruthy();
+    // Still no fabricated overall estimate — only two of four skills are scored.
+    expect(getAllByText('Not enough data yet').length).toBeGreaterThan(0);
+    expect(queryByText(/Predicted band 0\.0/)).toBeNull();
+  });
 });

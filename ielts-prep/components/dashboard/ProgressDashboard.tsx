@@ -95,8 +95,15 @@ export function ProgressDashboard({ onSetGoal, onUpgrade }: { onSetGoal: () => v
   const accuracy = overallAccuracy(attemptsQuery.data ?? []);
   const typeAccuracy = accuracyByQuestionType(attemptsQuery.data ?? []);
   const weekly = weeklyActivityCounts(historyQuery.data ?? []);
-  const readiness = goal ? Math.min(100, Math.round(((bandScores.overall ?? 0) / goal.targetBand) * 100)) : 0;
-  const targetGap = goal ? Math.max(0, Math.round((goal.targetBand - (bandScores.overall ?? 0)) * 2) / 2) : null;
+  // Overall is only ever recorded once all four skills have a real score
+  // (see refreshOverallBand) — bandScores.overall undefined means "not
+  // computable yet", never "actually zero". Readiness/predicted-band must
+  // reflect that distinction instead of defaulting to 0 and showing a
+  // fabricated "0.0" / "0% ready" for a user who, say, only has a Speaking
+  // score so far.
+  const hasOverallBand = typeof bandScores.overall === 'number';
+  const readiness = goal && hasOverallBand ? Math.min(100, Math.round((bandScores.overall! / goal.targetBand) * 100)) : null;
+  const targetGap = goal && hasOverallBand ? Math.max(0, Math.round((goal.targetBand - bandScores.overall!) * 2) / 2) : null;
   const { weakest, strongest } = weakestAndStrongestSkill(bandScores);
   const last7 = activityCountInWindow(historyQuery.data ?? [], 7);
   const last30 = activityCountInWindow(historyQuery.data ?? [], 30);
@@ -126,7 +133,7 @@ export function ProgressDashboard({ onSetGoal, onUpgrade }: { onSetGoal: () => v
       ) : null}
 
       <Text color="secondary" style={{ marginBottom: theme.spacing.sm }}>
-        Complete a full skill test or mock test to see your estimated bands. Quick practice doesn&apos;t update these scores.
+        Writing and Speaking tasks always count toward your estimated bands, however you reach them. For Reading and Listening, only a full skill test or mock test updates your band — Quick Practice (individual questions) doesn&apos;t.
       </Text>
       <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
         {(['listening', 'reading', 'writing', 'speaking'] as SkillKey[]).map((skill) => (
@@ -137,7 +144,7 @@ export function ProgressDashboard({ onSetGoal, onUpgrade }: { onSetGoal: () => v
       <Card style={{ marginBottom: theme.spacing.lg }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.sm }}>
           <Text variant="h3">Target progress</Text>
-          <Badge label={`${readiness}% ready`} tone={readiness >= 90 ? 'success' : 'brand'} />
+          <Badge label={readiness != null ? `${readiness}% ready` : 'Not enough data yet'} tone={readiness != null && readiness >= 90 ? 'success' : 'brand'} />
         </View>
         {goal ? (
           <>
@@ -145,11 +152,19 @@ export function ProgressDashboard({ onSetGoal, onUpgrade }: { onSetGoal: () => v
               <Badge label={goal.ieltsType === 'academic' ? 'IELTS Academic' : 'IELTS General Training'} tone="brand" />
               {days !== null ? <Badge label={`${days} days until your test`} tone="brand" /> : <Badge label="No exam date yet" tone="neutral" />}
             </View>
-            <ProgressBar progress={readiness / 100} />
-            <Text variant="caption" color="secondary" style={{ marginTop: theme.spacing.xs }}>
-              Predicted band {(bandScores.overall ?? 0).toFixed(1)} of target {goal.targetBand.toFixed(1)}
-              {targetGap != null ? ` — ${targetGap > 0 ? `${targetGap.toFixed(1)} band(s) to go` : 'target reached'}` : ''}
-            </Text>
+            {readiness != null ? (
+              <>
+                <ProgressBar progress={readiness / 100} />
+                <Text variant="caption" color="secondary" style={{ marginTop: theme.spacing.xs }}>
+                  Predicted band {bandScores.overall!.toFixed(1)} of target {goal.targetBand.toFixed(1)}
+                  {targetGap != null ? ` — ${targetGap > 0 ? `${targetGap.toFixed(1)} band(s) to go` : 'target reached'}` : ''}
+                </Text>
+              </>
+            ) : (
+              <Text variant="caption" color="secondary" style={{ marginTop: theme.spacing.xs }}>
+                Complete all four skills (Listening, Reading, Writing, Speaking) at least once to see your predicted overall band and readiness.
+              </Text>
+            )}
             {weakest || strongest ? (
               <View style={{ flexDirection: 'row', gap: theme.spacing.xs, marginTop: theme.spacing.sm }}>
                 {weakest ? <Badge label={`Weakest: ${weakest[0].toUpperCase()}${weakest.slice(1)}`} tone="warning" /> : null}

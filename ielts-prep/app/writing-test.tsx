@@ -90,6 +90,7 @@ export default function WritingTestScreen() {
   }, [essay, draftKey]);
 
   const wordCount = countWords(essay);
+  const isEmpty = essay.trim().length === 0;
   const belowMinimum = wordCount < prompt.minWords;
 
   async function handleExit() {
@@ -111,6 +112,17 @@ export default function WritingTestScreen() {
 
   async function doSubmit() {
     if (!userId || submittingRef.current) return;
+    // Guards the auto-submit-on-timeout path too (useCountdown's callback
+    // below calls doSubmit() directly, bypassing handleSubmit's "Submit
+    // anyway?" confirmation entirely) — an empty/whitespace-only essay
+    // must never create a submission row at all, not just fail the
+    // evidence gate after already writing one.
+    if (isEmpty) {
+      const evidence = assessWritingEvidence(0);
+      if (!evidence.sufficient) setInsufficientEvidence({ reason: evidence.reason, explanation: evidence.explanation });
+      setPhase('insufficient_evidence');
+      return;
+    }
     submittingRef.current = true;
     setPhase('evaluating');
     try {
@@ -187,9 +199,11 @@ export default function WritingTestScreen() {
 
   if (phase === 'evaluating') {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', gap: theme.spacing.md }}>
-        <Text variant="h3">Evaluating your writing...</Text>
-        <Text color="secondary">Checking Task Achievement, Coherence, Vocabulary, and Grammar.</Text>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xl, gap: theme.spacing.md }}
+      >
+        <Text variant="h3" align="center">Evaluating your writing...</Text>
+        <Text color="secondary" align="center">Checking Task Achievement, Coherence, Vocabulary, and Grammar.</Text>
       </SafeAreaView>
     );
   }
@@ -251,7 +265,7 @@ export default function WritingTestScreen() {
           {timerLabel}
         </Text>
         <Badge label={prompt.taskType.replace(/_/g, ' ')} tone="brand" />
-        <Button label="Submit" size="sm" onPress={handleSubmit} />
+        <Button label="Submit" size="sm" onPress={handleSubmit} disabled={isEmpty} />
       </View>
 
       <ScrollView style={{ flex: 1 }}>
