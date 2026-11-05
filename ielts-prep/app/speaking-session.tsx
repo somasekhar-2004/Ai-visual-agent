@@ -16,6 +16,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_SPEAKING_PRACTICE_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
+import { stableOperationId } from '@/lib/operationId';
 import { assessSpeakingEvidence } from '@/lib/speakingEvidence';
 import { buildSpeakingTurns } from '@/lib/speakingFlow';
 import { evaluateSpeaking, transcribeAudio, type SpeakingEvaluationResult } from '@/services/ai';
@@ -199,9 +200,15 @@ export default function SpeakingSessionScreen() {
       // happened.
       if (!uri) throw new Error('No recording was captured — please try recording your answer again.');
       if (__DEV__) console.log(`[speaking] recorded ${durationSeconds}s, uri=${uri}`);
-      const transcript = await transcribeAudio(uri);
-      setTranscripts((t) => [...t, transcript]);
-      setTotalDuration((d) => d + durationSeconds);
+      // Per-recording, content-stable operation ID (lib/operationId.ts) —
+      // retrying the exact same recording (same uri) reuses it; a fresh
+      // re-recording naturally gets a new one since its uri differs.
+      const operationId = stableOperationId([sessionIdRef.current, turnIndex, uri]);
+      const transcript = await transcribeAudio(uri, operationId);
+      const updatedTranscripts = [...transcripts, transcript];
+      const updatedDuration = totalDuration + durationSeconds;
+      setTranscripts(updatedTranscripts);
+      setTotalDuration(updatedDuration);
 
       if (sessionIdRef.current) {
         await addSpeakingResponse(sessionIdRef.current, {
@@ -217,8 +224,20 @@ export default function SpeakingSessionScreen() {
         setTurnIndex((i) => i + 1);
         setPhase('intro');
       } else {
-        const allTranscripts = [...transcripts, transcript];
-        await finishSession(allTranscripts, totalDuration + durationSeconds);
+        try {
+          await finishSession(updatedTranscripts, updatedDuration);
+        } catch (finishErr) {
+          // finishSession (evaluateSpeaking/save) failed after this turn's
+          // own recording+transcription already succeeded. "Try this
+          // question again" re-records this same (last) turn from
+          // scratch — roll back the transcript/duration just added above
+          // first, or the retry would feed this turn's answer into
+          // evaluateSpeaking twice (this failed attempt's + the retry's)
+          // instead of once. See the Bandpath recovery handover's item 5.
+          setTranscripts(transcripts);
+          setTotalDuration(totalDuration);
+          throw finishErr;
+        }
       }
     } catch (err) {
       // The screen must never get stuck on "Transcribing your answer..."
@@ -231,64 +250,67 @@ export default function SpeakingSessionScreen() {
     }
   }
 
+  // Errors are intentionally NOT caught here — its one caller (stopRecording)
+  // needs to see a thrown failure to roll back this turn's just-added
+  // transcript/duration before showing the error state (see the comment at
+  // that call site), so this function lets them propagate instead of
+  // swallowing them itself.
   async function finishSession(allTranscripts: string[], durationSeconds: number) {
     setPhase('evaluating');
-    try {
-      if (sessionIdRef.current) await completeSpeakingSession(sessionIdRef.current);
+    if (sessionIdRef.current) await completeSpeakingSession(sessionIdRef.current);
 
-      // Mandatory gate, run before any provider (real or mock) is ever
-      // asked for a band — see lib/speakingEvidence.ts. This is what
-      // closes the real-device bug where a near-silent recording ("Yeah.
-      // Gods [no speech detected] [no speech detected]") still produced a
-      // full Overall Band 5.5 with fabricated criteria and strengths.
-      const evidence = assessSpeakingEvidence(allTranscripts);
-      if (!evidence.sufficient) {
-        setInsufficientEvidence({ reason: evidence.reason, explanation: evidence.explanation });
-        setPhase('insufficient_evidence');
-        return;
-      }
-
-      const fullTranscript = allTranscripts.join(' ');
-      const result = await evaluateSpeaking({
-        part,
-        topicCategory: turn.part,
-        transcript: fullTranscript,
-        questionCount: turns.length,
-        totalDurationSeconds: durationSeconds,
-        // The server verifies this independently before counting it
-        // against the separate Full Mock quota — see SpeakingEvalInput.
-        // One evaluateSpeaking call per whole session regardless of how
-        // many turns were transcribed, so this is never claimed twice.
-        mockAttemptId: mockAttemptId ?? null,
-      });
-      setEvaluation(result);
-      if (userId && sessionIdRef.current) {
-        await saveSpeakingFeedback(sessionIdRef.current, userId, {
-          overallBand: result.overallBand,
-          fluencyCoherence: result.fluencyCoherence,
-          lexicalResource: result.lexicalResource,
-          grammaticalRange: result.grammaticalRange,
-          pronunciation: result.pronunciation,
-          fillerWordCount: result.fillerWordCount,
-          strengths: result.strengths,
-          weaknesses: result.weaknesses,
-          suggestedExercises: result.suggestedExercises,
-        });
-        await recordDailyActivity(userId, 20);
-        // Standalone only — a Full Mock's Speaking part is recorded by
-        // mock-result.tsx once the whole mock finishes, not here.
-        if (isStandalone) {
-          await recordBandScore(userId, 'speaking', result.overallBand, 'practice');
-          await refreshOverallBand(userId).catch((err) => console.warn('[speaking-session] refreshOverallBand failed:', (err as Error).message));
-        }
-        queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
-        await refreshUserData(userId);
-      }
-      setPhase('result');
-    } catch (err) {
-      setErrorMessage((err as Error).message);
-      setPhase('error');
+    // Mandatory gate, run before any provider (real or mock) is ever
+    // asked for a band — see lib/speakingEvidence.ts. This is what
+    // closes the real-device bug where a near-silent recording ("Yeah.
+    // Gods [no speech detected] [no speech detected]") still produced a
+    // full Overall Band 5.5 with fabricated criteria and strengths.
+    const evidence = assessSpeakingEvidence(allTranscripts);
+    if (!evidence.sufficient) {
+      setInsufficientEvidence({ reason: evidence.reason, explanation: evidence.explanation });
+      setPhase('insufficient_evidence');
+      return;
     }
+
+    const fullTranscript = allTranscripts.join(' ');
+    const result = await evaluateSpeaking({
+      part,
+      topicCategory: turn.part,
+      transcript: fullTranscript,
+      questionCount: turns.length,
+      totalDurationSeconds: durationSeconds,
+      // The server verifies this independently before counting it
+      // against the separate Full Mock quota — see SpeakingEvalInput.
+      // One evaluateSpeaking call per whole session regardless of how
+      // many turns were transcribed, so this is never claimed twice.
+      mockAttemptId: mockAttemptId ?? null,
+      // Content-stable (see lib/operationId.ts) — retrying this exact
+      // session's full transcript reuses the same ID.
+      operationId: stableOperationId([sessionIdRef.current, userId, mockAttemptId, fullTranscript]),
+    });
+    setEvaluation(result);
+    if (userId && sessionIdRef.current) {
+      await saveSpeakingFeedback(sessionIdRef.current, userId, {
+        overallBand: result.overallBand,
+        fluencyCoherence: result.fluencyCoherence,
+        lexicalResource: result.lexicalResource,
+        grammaticalRange: result.grammaticalRange,
+        pronunciation: result.pronunciation,
+        fillerWordCount: result.fillerWordCount,
+        strengths: result.strengths,
+        weaknesses: result.weaknesses,
+        suggestedExercises: result.suggestedExercises,
+      });
+      await recordDailyActivity(userId, 20);
+      // Standalone only — a Full Mock's Speaking part is recorded by
+      // mock-result.tsx once the whole mock finishes, not here.
+      if (isStandalone) {
+        await recordBandScore(userId, 'speaking', result.overallBand, 'practice');
+        await refreshOverallBand(userId).catch((err) => console.warn('[speaking-session] refreshOverallBand failed:', (err as Error).message));
+      }
+      queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+      await refreshUserData(userId);
+    }
+    setPhase('result');
   }
 
   useEffect(() => clearTimer, []);

@@ -161,7 +161,7 @@ describe('EdgeFunctionProvider — every call eventually settles, even if the ne
 
     const resultPromise = provider.transcribeAudio('file:///recording.m4a');
     const assertion = expect(resultPromise).rejects.toThrow(/took too long to respond/);
-    await jest.advanceTimersByTimeAsync(45_000);
+    await jest.advanceTimersByTimeAsync(130_000);
     await assertion;
   });
 
@@ -171,7 +171,7 @@ describe('EdgeFunctionProvider — every call eventually settles, even if the ne
 
     const resultPromise = provider.evaluateWriting({ taskType: 'task2', promptText: 'p', essayText: 'e', wordCount: 1, minWords: 1 });
     const assertion = expect(resultPromise).rejects.toThrow(AiRequestError);
-    await jest.advanceTimersByTimeAsync(30_000);
+    await jest.advanceTimersByTimeAsync(70_000);
     await assertion;
   });
 
@@ -207,6 +207,6 @@ describe('EdgeFunctionProvider.transcribeAudio — validates the recorded file b
     const provider = new EdgeFunctionProvider();
     const result = await provider.transcribeAudio('file:///real.m4a');
     expect(result).toBe('Hello, this is my answer.');
-    expect(mockInvoke).toHaveBeenCalledWith('transcribe-audio', { body: { audioBase64: 'ZmFrZS1hdWRpby1ieXRlcw==', mimeType: 'audio/m4a' } });
+    expect(mockInvoke).toHaveBeenCalledWith('transcribe-audio', { body: { audioBase64: 'ZmFrZS1hdWRpby1ieXRlcw==', mimeType: 'audio/m4a', operationId: null } });
   });
 });

@@ -14,13 +14,31 @@ import {
 } from './schemas';
 import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, StudyPlanSuggestionInput, WritingEvalInput } from './types';
 
-// Plain JSON calls (writing/speaking evaluation, coach chat, study plan
-// suggestion) are small and fast; give them a generous but bounded window.
-const DEFAULT_TIMEOUT_MS = 30_000;
-// transcribe-audio uploads a base64-encoded recording — meaningfully larger
-// and slower on a real mobile connection than the JSON-only calls above —
-// so it gets more time before the client gives up.
-const TRANSCRIBE_TIMEOUT_MS = 45_000;
+// Writing/speaking evaluation is a structured-output LLM call, not a cheap
+// lookup — and per the Bandpath recovery handover, a prior investigation
+// found real-device "intermittent provider errors, then success on retry"
+// caused by the CLIENT timing out and giving up before the SERVER's own
+// (legitimate) retry budget for a transient provider error had finished —
+// the abort didn't cancel the server-side work, it just stopped the client
+// from ever seeing the eventual success. 30s is comfortably shorter than a
+// single slow LLM call plus any server-side retry, so it reproduces that
+// same failure mode. Raised to a bound that gives a server-side retry real
+// room, while still eventually giving up rather than hanging forever.
+// NOT verified against the current live Edge Function's actual total retry
+// budget or the hosting platform's own execution-time ceiling (no backend
+// access this session) — reconcile against both before treating this as
+// final. Coach chat/study-plan-suggestion calls are simpler single-shot
+// prompts and stay on this same budget rather than a separate, shorter one.
+const DEFAULT_TIMEOUT_MS = 70_000;
+// transcribe-audio uploads a base64-encoded recording and (per the
+// handover) previously needed its OWN server-side retry-budget fix — raised
+// from 3×60s to 2 attempts (~120.6s total) specifically because the
+// client's prior timeout here (45s) was shorter than even that reduced
+// budget. Set comfortably above that known total so a legitimate
+// server-side retry has room to finish; same caveat as DEFAULT_TIMEOUT_MS
+// above — not verified against whatever the currently deployed function
+// actually does.
+const TRANSCRIBE_TIMEOUT_MS = 130_000;
 
 /** Supabase-js's `functions.invoke` has no built-in timeout: on a real
  * device, a stalled upload or a connection that never completes leaves that
@@ -100,7 +118,7 @@ export class EdgeFunctionProvider implements AiProvider {
     return data.reply;
   }
 
-  async transcribeAudio(audioUri: string): Promise<string> {
+  async transcribeAudio(audioUri: string, operationId?: string | null): Promise<string> {
     // Validate the actual recorded file before spending a network round
     // trip on it — a missing or empty file is a client-side problem no
     // amount of server retrying will fix, and should surface immediately
@@ -118,7 +136,7 @@ export class EdgeFunctionProvider implements AiProvider {
     }
     const data = await this.invoke<{ text: string; provider: string }>(
       'transcribe-audio',
-      { audioBase64, mimeType: 'audio/m4a' },
+      { audioBase64, mimeType: 'audio/m4a', operationId: operationId ?? null },
       TRANSCRIBE_TIMEOUT_MS,
     );
     this.name = data.provider;

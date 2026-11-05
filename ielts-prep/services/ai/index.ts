@@ -77,13 +77,13 @@ export async function chatWithCoach(messages: ChatMessage[], context: CoachConte
   return { reply: await provider.chat(messages, context), aiSource: 'real' };
 }
 
-export async function transcribeAudio(audioUri: string): Promise<string> {
+export async function transcribeAudio(audioUri: string, operationId?: string | null): Promise<string> {
   // Deliberately never silently substitutes a fabricated transcript when
   // the real one fails — that would let the rest of the Speaking flow carry
   // on as if nothing was wrong. A transcription failure must surface to the
   // user visibly and let them retry with their real answer, not silently
   // reword it.
-  return provider.transcribeAudio(audioUri);
+  return provider.transcribeAudio(audioUri, operationId);
 }
 
 export async function suggestStudyPlanFocus(input: StudyPlanSuggestionInput): Promise<StudyPlanSuggestionResult> {

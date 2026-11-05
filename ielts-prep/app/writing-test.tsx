@@ -17,6 +17,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_WRITING_PRACTICE_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
+import { stableOperationId } from '@/lib/operationId';
 import { countWords } from '@/lib/textAnalysis';
 import { assessWritingEvidence } from '@/lib/writingEvidence';
 import { evaluateWriting, getAiProviderName, type WritingEvaluationResult } from '@/services/ai';
@@ -29,6 +30,7 @@ import {
   submitWriting,
 } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
+import type { WritingSubmission } from '@/types/models';
 import { useShallow } from 'zustand/react/shallow';
 
 type Params = { promptId?: string; mockAttemptId?: string; mockTestId?: string; stepIndex?: string; nextHref?: string };
@@ -78,6 +80,15 @@ export default function WritingTestScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // See reading-test.tsx's submittingRef for why this must be a ref, not state.
   const submittingRef = useRef(false);
+  // Retrying after a failed evaluateWriting call (the "Try again" button)
+  // re-runs doSubmit() from scratch. Without this, every retry of the exact
+  // same unchanged essay called submitWriting() again, inserting another
+  // writing_submissions row for the one real essay — see the Bandpath
+  // recovery handover's item 5. Keyed by a content-stable operation ID
+  // (lib/operationId.ts): retrying the same essay reuses the same DB row;
+  // editing the essay and submitting again (a genuinely new attempt) gets a
+  // fresh one.
+  const lastSubmissionRef = useRef<{ operationId: string; submission: WritingSubmission } | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(draftKey).then((saved) => {
@@ -127,14 +138,24 @@ export default function WritingTestScreen() {
     setPhase('evaluating');
     try {
       const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
-      const submission = await submitWriting(userId, {
-        mockAttemptId,
-        promptId: prompt.id,
-        taskType: prompt.taskType,
-        essayText: essay,
-        wordCount,
-        timeSpentSeconds,
-      });
+      const operationId = stableOperationId([userId, prompt.id, mockAttemptId, essay]);
+      let submission: WritingSubmission;
+      if (lastSubmissionRef.current?.operationId === operationId) {
+        // Same user + prompt + mock attempt + exact essay text as the
+        // previous attempt — this is a retry of that same submission, not a
+        // new one. Reuse its row instead of inserting a duplicate.
+        submission = lastSubmissionRef.current.submission;
+      } else {
+        submission = await submitWriting(userId, {
+          mockAttemptId,
+          promptId: prompt.id,
+          taskType: prompt.taskType,
+          essayText: essay,
+          wordCount,
+          timeSpentSeconds,
+        });
+        lastSubmissionRef.current = { operationId, submission };
+      }
 
       // Mandatory gate, run before any provider (real or mock) is ever
       // asked for a band — see lib/writingEvidence.ts. A blank or
@@ -156,6 +177,7 @@ export default function WritingTestScreen() {
         // The server verifies this independently before counting it
         // against the separate Full Mock quota — see WritingEvalInput.
         mockAttemptId: mockAttemptId ?? null,
+        operationId,
       });
       setEvaluation(result);
       await saveWritingFeedback(submission.id, userId, {

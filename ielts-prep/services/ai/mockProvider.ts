@@ -244,7 +244,7 @@ export class MockAiProvider implements AiProvider {
     return `That's a great question, ${name}. Based on your profile — targeting ${targetLabel}${context.examDate ? ` with your test on ${context.examDate}` : ''} and currently strongest outside of ${weak} — I'd suggest focusing today's session there. Ask me things like "give me today's plan", "explain True False Not Given", or "give me a speaking topic" and I'll tailor the answer to your progress.`;
   }
 
-  async transcribeAudio(_audioUri: string): Promise<string> {
+  async transcribeAudio(_audioUri: string, _operationId?: string | null): Promise<string> {
     return '[Demo transcript — configure a real AI provider in .env to transcribe actual speech. This simulated transcript lets you preview the full Speaking flow: "I think this topic is quite interesting because it relates to my own experience. For example, when I was younger, I often thought about this, and it has shaped how I see things today."]';
   }
 

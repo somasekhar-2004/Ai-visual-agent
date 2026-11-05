@@ -16,6 +16,13 @@ export type WritingEvalInput = {
    * bare boolean: an id the server can actually look up, not a flag it
    * would have to take on faith. */
   mockAttemptId?: string | null;
+  /** A client-derived, content-stable ID (see lib/operationId.ts) — retrying
+   * this exact essay reuses the same ID; a genuinely edited essay gets a
+   * new one. Lets the server tell "the same submission, retried" apart from
+   * "a new submission" without the client having to track any server-side
+   * state itself. Omit/null is always safe — the server's legacy path (no
+   * operationId) still works, just without retry-deduplication. */
+  operationId?: string | null;
 };
 
 export type SpeakingEvalInput = {
@@ -26,6 +33,9 @@ export type SpeakingEvalInput = {
   totalDurationSeconds: number;
   /** See WritingEvalInput.mockAttemptId — identical contract. */
   mockAttemptId?: string | null;
+  /** See WritingEvalInput.operationId — identical contract, derived from
+   * the full transcript this call evaluates. */
+  operationId?: string | null;
 };
 
 export type CoachContext = {
@@ -76,8 +86,11 @@ export interface AiProvider {
   evaluateSpeaking(input: SpeakingEvalInput): Promise<SpeakingEvaluation>;
   chat(messages: ChatMessage[], context: CoachContext): Promise<string>;
   /** Transcribes a recorded audio file (local URI) to text. Providers without
-   * real speech-to-text should throw so callers can fall back gracefully. */
-  transcribeAudio(audioUri: string): Promise<string>;
+   * real speech-to-text should throw so callers can fall back gracefully.
+   * `operationId` is the same content-stable-ID contract as
+   * WritingEvalInput.operationId, derived per-recording — optional, and
+   * ignored by providers (e.g. the mock) that have no use for it. */
+  transcribeAudio(audioUri: string, operationId?: string | null): Promise<string>;
   /** A short, personalized note (focus summary + motivational line) layered
    * on top of the deterministic study plan built by
    * services/repository/studyPlan.ts — that plan's items/durations/links
