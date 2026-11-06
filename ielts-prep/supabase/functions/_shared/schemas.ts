@@ -11,6 +11,19 @@ import { z } from 'npm:zod@3';
 // evaluation; see _shared/mockAttempt.ts. null/omitted means Practice.
 const mockAttemptIdField = z.string().uuid().nullable().optional();
 
+// RECOVERY NOTE (added 2026-11-06, Bandpath recovery session): operationId
+// was missing from this git branch's copy of this file entirely — recovered
+// verbatim from the live "Bandpath IELTS" project via the Supabase
+// Management API (read-only token). Optional, client-generated idempotency
+// key for the paid AI provider call itself — see supabase/migrations/
+// 0017_ai_operation_idempotency.sql and _shared/aiOperations.ts. Omitted
+// entirely means a caller that predates this (every client build before it
+// was added), which keeps the exact original, non-idempotent-but-unchanged
+// behavior — this is never required. Must be a real UUID if present at all:
+// z.string().uuid() rejects any other format outright with a 400, including
+// any other string shape a client might otherwise send.
+const operationIdField = z.string().uuid().optional();
+
 export const WritingEvalRequestSchema = z.object({
   taskType: z.enum(['task1_academic', 'task1_general', 'task2']),
   promptText: z.string().min(1).max(4000),
@@ -18,6 +31,7 @@ export const WritingEvalRequestSchema = z.object({
   wordCount: z.number().int().min(0).max(20000),
   minWords: z.number().int().min(0).max(2000),
   mockAttemptId: mockAttemptIdField,
+  operationId: operationIdField,
 });
 export type WritingEvalRequest = z.infer<typeof WritingEvalRequestSchema>;
 
@@ -28,6 +42,7 @@ export const SpeakingEvalRequestSchema = z.object({
   questionCount: z.number().int().min(0).max(100),
   totalDurationSeconds: z.number().min(0).max(7200),
   mockAttemptId: mockAttemptIdField,
+  operationId: operationIdField,
 });
 export type SpeakingEvalRequest = z.infer<typeof SpeakingEvalRequestSchema>;
 
@@ -68,6 +83,7 @@ export type AiCoachRequest = z.infer<typeof AiCoachRequestSchema>;
 export const TranscribeRequestSchema = z.object({
   audioBase64: z.string().min(1),
   mimeType: z.string().min(1).max(100).default('audio/m4a'),
+  operationId: operationIdField,
 });
 export type TranscribeRequest = z.infer<typeof TranscribeRequestSchema>;
 

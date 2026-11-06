@@ -5,7 +5,13 @@
 // Anthropic key is configured server-side, this returns ai_not_configured so
 // the client falls back to its own simulated transcript, exactly like a
 // missing key does for the other operations.
+// RECOVERY NOTE (added 2026-11-06, Bandpath recovery session): the
+// operationId idempotency check below was missing from this git branch's
+// copy of this file — recovered verbatim from the live "Bandpath IELTS"
+// project (v7, last updated 2026-10-29T11:22:59Z) via the Supabase
+// Management API (read-only token).
 import { getConfiguredTranscriptionProvider, transcribeWithGemini, transcribeWithOpenAi } from '../_shared/aiProviders.ts';
+import { claimOrGetCachedResult, recordOperationFailure, recordOperationSuccess } from '../_shared/aiOperations.ts';
 import { handleCorsPreflight } from '../_shared/cors.ts';
 import { healthCheckResponse, isHealthCheckPing } from '../_shared/healthCheck.ts';
 import { friendlyAiErrorMessage } from '../_shared/httpClient.ts';
@@ -48,11 +54,28 @@ Deno.serve(async (req) => {
     return errorResponse(413, 'payload_too_large', 'Audio recording is too large to transcribe.');
   }
 
+  const { operationId } = parsedInput.data;
+  // See evaluate-writing/index.ts's identical check for the full
+  // reasoning — must run before the rate limit and before the provider.
+  // Especially important here: transcription is the slowest of the three
+  // calls (up to ~120.6s server-side, see aiProviders.ts) and the one
+  // most likely to actually hit a client retry in practice.
+  if (operationId) {
+    const decision = await claimOrGetCachedResult(supabase, user, operationId, 'transcription');
+    if (decision.action === 'return_cached') {
+      return jsonResponse({ text: (decision.result as { text: string }).text, provider: decision.provider });
+    }
+    if (decision.action === 'in_progress') {
+      return errorResponse(409, 'operation_in_progress', 'This recording is still being transcribed — please wait a moment and try again.');
+    }
+  }
+
   const provider = getConfiguredTranscriptionProvider();
   if (!provider) return errorResponse(503, 'ai_not_configured', 'Transcription is not configured on the server yet.');
 
   const rateLimit = await checkRateLimit(supabase, user, 'transcription');
   if (!rateLimit.allowed) {
+    if (operationId) await recordOperationFailure(supabase, user, operationId, 'rate_limited');
     return errorResponse(429, 'rate_limited', `Daily transcription limit reached (${rateLimit.used}/${rateLimit.limit}). Try again tomorrow.`);
   }
 
@@ -62,9 +85,11 @@ Deno.serve(async (req) => {
         ? await transcribeWithGemini(parsedInput.data.audioBase64, parsedInput.data.mimeType)
         : await transcribeWithOpenAi(decodeBase64(parsedInput.data.audioBase64), parsedInput.data.mimeType);
     await recordUsage(supabase, user, 'transcription', provider, true);
+    if (operationId) await recordOperationSuccess(supabase, user, operationId, { text }, provider);
     return jsonResponse({ text, provider });
   } catch (err) {
     await recordUsage(supabase, user, 'transcription', provider, false);
+    if (operationId) await recordOperationFailure(supabase, user, operationId, (err as Error).message);
     console.error('[transcribe-audio] provider call failed:', err);
     return errorResponse(502, 'upstream_error', friendlyAiErrorMessage(err));
   }

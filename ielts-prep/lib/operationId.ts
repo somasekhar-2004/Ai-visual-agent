@@ -1,44 +1,41 @@
 /**
- * Deterministic operation IDs for AI evaluation/transcription calls — see
- * the Bandpath recovery handover's item 5 ("Writing/Speaking AI
- * reliability"). The problem this fixes: retrying a failed evaluateWriting/
- * evaluateSpeaking/transcribeAudio call with a fresh, random request ID made
- * every retry look like a brand-new operation to the server, so a provider
- * failure that happened *after* the model had actually produced a result
- * (or a slow-but-eventually-successful call the client gave up on) could be
- * paid for and attempted again from scratch — exactly the "intermittent
- * errors, then success on retry" pattern the handover describes.
+ * Client-generated operation IDs for the three paid AI provider calls
+ * (Writing eval, Speaking eval, transcription) — see the Bandpath recovery
+ * handover's item 5 ("Writing/Speaking AI reliability") and the deployed
+ * `ai_operations` table (supabase/migrations/0017_ai_operation_idempotency.sql,
+ * recovered from the live project — see that file's header for the full
+ * server-side reasoning).
  *
- * The fix is for the *client* to derive a stable ID from the exact content
- * being submitted, so retrying unchanged content reuses the same ID (lets
- * the already-deployed server-side claim/cache logic recognise it as the
- * same operation) while genuinely different content (an edited essay, a
- * re-recorded answer) naturally gets a different ID with no extra
- * bookkeeping. This file only computes that ID — it has no knowledge of,
- * and makes no assumptions about, what the server does with it.
+ * Reconciled against the live backend (api.supabase.com, read-only token,
+ * 2026-11-06): the deployed Edge Functions validate this field with Zod's
+ * `z.string().uuid()` (supabase/functions/_shared/schemas.ts) — a stable
+ * content-hash in some other format, which an earlier version of this file
+ * used, is REJECTED outright with a 400 before the request ever reaches the
+ * idempotency check at all. This must be a real RFC 4122 v4 UUID string.
  *
- * Not a cryptographic hash: operation IDs only need to be stable and
- * practically collision-free for this one essay/transcript against this
- * one user's other submissions, not resistant to deliberate forgery.
- * FNV-1a (32-bit, applied twice over disjoint seeds for 64 bits of output)
- * is a standard, fast, dependency-free choice for exactly that.
+ * Design (matches migration 0016's own comment on the sibling XP-idempotency
+ * ledger, which names this exact file/function): generate ONE id per logical
+ * attempt, have the CALLER persist it (a ref is enough — it only needs to
+ * survive across retries of the same in-progress attempt, not across app
+ * restarts) and reuse it for every retry of that attempt; generate a fresh
+ * one only when starting a genuinely new attempt (a new essay, a new
+ * recording). The server's claim/cache logic (ai_operations table) is what
+ * actually makes a reused id safe — this function only produces the id.
+ *
+ * Not from `expo-crypto` (not a dependency of this project) or
+ * `crypto.randomUUID` (not reliably present in this React Native runtime) —
+ * Math.random() has more than enough entropy for this: the only collision
+ * space that matters is one user's own concurrent/recent operations, not
+ * resistance to a deliberate attacker.
  */
-function fnv1a32(input: string, seed: number): number {
-  let hash = seed;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
-}
-
-/** Hashes an ordered list of string parts into a stable hex ID. Parts are
- * joined with a separator that cannot appear inside any part's own content
- * by construction (a NUL byte), so distinct part boundaries never collide
- * (e.g. parts ['ab', 'c'] vs ['a', 'bc'] hash differently). */
-export function stableOperationId(parts: (string | number | null | undefined)[]): string {
-  const joined = parts.map((p) => (p ?? '')).join('\u0000');
-  const high = fnv1a32(joined, 0x811c9dc5);
-  const low = fnv1a32(joined, 0x12345678);
-  return `${high.toString(16).padStart(8, '0')}${low.toString(16).padStart(8, '0')}`;
+export function generateOperationId(): string {
+  const bytes = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+  // RFC 4122 v4: version nibble = 4, variant bits = 10xxxxxx. The deployed
+  // schema's z.string().uuid() check enforces both exactly — a UUID-shaped
+  // string with the wrong version/variant nibble still fails validation.
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }

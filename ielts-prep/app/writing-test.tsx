@@ -17,7 +17,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_WRITING_PRACTICE_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
-import { stableOperationId } from '@/lib/operationId';
+import { generateOperationId } from '@/lib/operationId';
 import { countWords } from '@/lib/textAnalysis';
 import { assessWritingEvidence } from '@/lib/writingEvidence';
 import { evaluateWriting, getAiProviderName, type WritingEvaluationResult } from '@/services/ai';
@@ -84,11 +84,13 @@ export default function WritingTestScreen() {
   // re-runs doSubmit() from scratch. Without this, every retry of the exact
   // same unchanged essay called submitWriting() again, inserting another
   // writing_submissions row for the one real essay — see the Bandpath
-  // recovery handover's item 5. Keyed by a content-stable operation ID
-  // (lib/operationId.ts): retrying the same essay reuses the same DB row;
-  // editing the essay and submitting again (a genuinely new attempt) gets a
-  // fresh one.
-  const lastSubmissionRef = useRef<{ operationId: string; submission: WritingSubmission } | null>(null);
+  // recovery handover's item 5. Keyed by essay-text equality: an unchanged
+  // retry reuses the same DB row AND the same operation ID (so the
+  // deployed server-side idempotency in supabase/functions/_shared/
+  // aiOperations.ts also recognizes it as the same operation, not a new
+  // provider call); editing the essay and submitting again gets a fresh
+  // row and a fresh ID, since it genuinely is a new attempt.
+  const lastAttemptRef = useRef<{ essayText: string; operationId: string; submission: WritingSubmission } | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(draftKey).then((saved) => {
@@ -138,14 +140,16 @@ export default function WritingTestScreen() {
     setPhase('evaluating');
     try {
       const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
-      const operationId = stableOperationId([userId, prompt.id, mockAttemptId, essay]);
+      let operationId: string;
       let submission: WritingSubmission;
-      if (lastSubmissionRef.current?.operationId === operationId) {
-        // Same user + prompt + mock attempt + exact essay text as the
-        // previous attempt — this is a retry of that same submission, not a
-        // new one. Reuse its row instead of inserting a duplicate.
-        submission = lastSubmissionRef.current.submission;
+      if (lastAttemptRef.current?.essayText === essay) {
+        // The exact same essay text as the previous attempt — this is a
+        // retry of that same submission, not a new one. Reuse its DB row
+        // and its operation ID rather than creating a duplicate of either.
+        operationId = lastAttemptRef.current.operationId;
+        submission = lastAttemptRef.current.submission;
       } else {
+        operationId = generateOperationId();
         submission = await submitWriting(userId, {
           mockAttemptId,
           promptId: prompt.id,
@@ -154,7 +158,7 @@ export default function WritingTestScreen() {
           wordCount,
           timeSpentSeconds,
         });
-        lastSubmissionRef.current = { operationId, submission };
+        lastAttemptRef.current = { essayText: essay, operationId, submission };
       }
 
       // Mandatory gate, run before any provider (real or mock) is ever

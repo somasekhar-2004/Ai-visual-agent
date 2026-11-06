@@ -16,7 +16,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_SPEAKING_PRACTICE_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
-import { stableOperationId } from '@/lib/operationId';
+import { generateOperationId } from '@/lib/operationId';
 import { assessSpeakingEvidence } from '@/lib/speakingEvidence';
 import { buildSpeakingTurns } from '@/lib/speakingFlow';
 import { evaluateSpeaking, transcribeAudio, type SpeakingEvaluationResult } from '@/services/ai';
@@ -200,10 +200,12 @@ export default function SpeakingSessionScreen() {
       // happened.
       if (!uri) throw new Error('No recording was captured — please try recording your answer again.');
       if (__DEV__) console.log(`[speaking] recorded ${durationSeconds}s, uri=${uri}`);
-      // Per-recording, content-stable operation ID (lib/operationId.ts) —
-      // retrying the exact same recording (same uri) reuses it; a fresh
-      // re-recording naturally gets a new one since its uri differs.
-      const operationId = stableOperationId([sessionIdRef.current, turnIndex, uri]);
+      // A fresh operation ID per actual recording (lib/operationId.ts) —
+      // "Try this question again" always re-records (a genuinely new local
+      // file), so there is no same-content retry case to reuse an id
+      // across here; this only needs to be a real, server-schema-valid
+      // UUID, which generateOperationId guarantees.
+      const operationId = generateOperationId();
       const transcript = await transcribeAudio(uri, operationId);
       const updatedTranscripts = [...transcripts, transcript];
       const updatedDuration = totalDuration + durationSeconds;
@@ -283,9 +285,12 @@ export default function SpeakingSessionScreen() {
       // One evaluateSpeaking call per whole session regardless of how
       // many turns were transcribed, so this is never claimed twice.
       mockAttemptId: mockAttemptId ?? null,
-      // Content-stable (see lib/operationId.ts) — retrying this exact
-      // session's full transcript reuses the same ID.
-      operationId: stableOperationId([sessionIdRef.current, userId, mockAttemptId, fullTranscript]),
+      // A fresh operation ID per finishSession call (lib/operationId.ts).
+      // "Try this question again" after a failure here always re-records
+      // the last turn (see stopRecording's rollback above), so the retry's
+      // fullTranscript is already genuinely different content — there is
+      // no same-content retry case to reuse an id across in this flow.
+      operationId: generateOperationId(),
     });
     setEvaluation(result);
     if (userId && sessionIdRef.current) {

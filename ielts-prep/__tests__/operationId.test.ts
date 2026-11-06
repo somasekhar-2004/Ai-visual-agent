@@ -1,45 +1,30 @@
 // Regression coverage for the Bandpath recovery handover's item 5
-// ("Writing/Speaking AI reliability"): retrying a failed evaluateWriting/
-// evaluateSpeaking/transcribeAudio call with a fresh random ID made every
-// retry look like a brand-new operation to the server. lib/operationId.ts's
-// stableOperationId derives a content-stable ID instead, so retrying
-// unchanged content reuses the same ID while genuinely different content
-// gets a different one.
-import { stableOperationId } from '@/lib/operationId';
+// ("Writing/Speaking AI reliability"). generateOperationId() was reconciled
+// against the live, deployed backend (api.supabase.com, read-only token,
+// 2026-11-06): the real Edge Functions validate this field with Zod's
+// `z.string().uuid()` (supabase/functions/_shared/schemas.ts), which — per
+// an earlier, real zod@4.5.4 check run in this session — rejects a
+// UUID-shaped string with the wrong version/variant nibble, not just
+// anything matching the general xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx shape.
+import { generateOperationId } from '@/lib/operationId';
 
-describe('stableOperationId', () => {
-  it('is deterministic — the exact same parts always produce the exact same ID (a retry of unchanged content)', () => {
-    const a = stableOperationId(['user-1', 'prompt-1', null, 'My essay text.']);
-    const b = stableOperationId(['user-1', 'prompt-1', null, 'My essay text.']);
-    expect(a).toBe(b);
+describe('generateOperationId', () => {
+  const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  it('returns a real RFC 4122 v4 UUID — not just a UUID-shaped string', () => {
+    const id = generateOperationId();
+    expect(id).toMatch(UUID_V4_RE);
   });
 
-  it('changes when the actual content changes (an edited essay is a genuinely new submission)', () => {
-    const original = stableOperationId(['user-1', 'prompt-1', null, 'My essay text.']);
-    const edited = stableOperationId(['user-1', 'prompt-1', null, 'My edited essay text.']);
-    expect(edited).not.toBe(original);
-  });
-
-  it('treats null and undefined the same way a missing optional part would be', () => {
-    const withNull = stableOperationId(['user-1', null, 'x']);
-    const withUndefined = stableOperationId(['user-1', undefined, 'x']);
-    expect(withNull).toBe(withUndefined);
-  });
-
-  it('never collides two different part-boundary splits of the same concatenated characters', () => {
-    const a = stableOperationId(['ab', 'c']);
-    const b = stableOperationId(['a', 'bc']);
+  it('is not deterministic — two calls never return the same id (each is a genuinely new logical attempt)', () => {
+    const a = generateOperationId();
+    const b = generateOperationId();
     expect(a).not.toBe(b);
   });
 
-  it('is sensitive to which user/prompt/session the content belongs to, not just the content itself', () => {
-    const userA = stableOperationId(['user-a', 'prompt-1', 'Same text']);
-    const userB = stableOperationId(['user-b', 'prompt-1', 'Same text']);
-    expect(userA).not.toBe(userB);
-  });
-
-  it('returns a non-empty, stable-length hex string', () => {
-    const id = stableOperationId(['x']);
-    expect(id).toMatch(/^[0-9a-f]{16}$/);
+  it('every id in a large sample is valid and unique (no format drift, no accidental collision)', () => {
+    const ids = Array.from({ length: 200 }, () => generateOperationId());
+    expect(ids.every((id) => UUID_V4_RE.test(id))).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

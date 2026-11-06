@@ -80,6 +80,20 @@ describe('EdgeFunctionProvider — never touches a real AI provider directly', (
     });
   });
 
+  it('classifies an in-progress (409) response as retryable — the deployed server literally says "wait a moment and try again"', async () => {
+    const fakeResponse = {
+      status: 409,
+      json: async () => ({ error: { code: 'operation_in_progress', message: 'This submission is still being evaluated — please wait a moment and try again.' } }),
+    };
+    mockInvoke.mockResolvedValue({ data: null, error: new FunctionsHttpError(fakeResponse) });
+
+    const provider = new EdgeFunctionProvider();
+    await expect(provider.evaluateWriting({ taskType: 'task2', promptText: 'p', essayText: 'e', wordCount: 1, minWords: 1 })).rejects.toMatchObject({
+      status: 409,
+      retryable: true,
+    });
+  });
+
   it('classifies an unauthenticated (401) response as non-retryable', async () => {
     const fakeResponse = { status: 401, json: async () => ({ error: { code: 'unauthorized', message: 'Invalid or expired session — please sign in again.' } }) };
     mockInvoke.mockResolvedValue({ data: null, error: new FunctionsHttpError(fakeResponse) });
@@ -161,7 +175,7 @@ describe('EdgeFunctionProvider — every call eventually settles, even if the ne
 
     const resultPromise = provider.transcribeAudio('file:///recording.m4a');
     const assertion = expect(resultPromise).rejects.toThrow(/took too long to respond/);
-    await jest.advanceTimersByTimeAsync(130_000);
+    await jest.advanceTimersByTimeAsync(160_000);
     await assertion;
   });
 
@@ -171,7 +185,7 @@ describe('EdgeFunctionProvider — every call eventually settles, even if the ne
 
     const resultPromise = provider.evaluateWriting({ taskType: 'task2', promptText: 'p', essayText: 'e', wordCount: 1, minWords: 1 });
     const assertion = expect(resultPromise).rejects.toThrow(AiRequestError);
-    await jest.advanceTimersByTimeAsync(70_000);
+    await jest.advanceTimersByTimeAsync(110_000);
     await assertion;
   });
 
@@ -207,6 +221,21 @@ describe('EdgeFunctionProvider.transcribeAudio — validates the recorded file b
     const provider = new EdgeFunctionProvider();
     const result = await provider.transcribeAudio('file:///real.m4a');
     expect(result).toBe('Hello, this is my answer.');
-    expect(mockInvoke).toHaveBeenCalledWith('transcribe-audio', { body: { audioBase64: 'ZmFrZS1hdWRpby1ieXRlcw==', mimeType: 'audio/m4a', operationId: null } });
+    // No operationId passed to this call — the field must be OMITTED
+    // entirely (never sent as a literal null), since the deployed schema
+    // validates it as optional-but-not-nullable (z.string().uuid().
+    // optional()). See edgeFunctionProvider.ts's own comment on this.
+    expect(mockInvoke).toHaveBeenCalledWith('transcribe-audio', { body: { audioBase64: 'ZmFrZS1hdWRpby1ieXRlcw==', mimeType: 'audio/m4a' } });
+  });
+
+  it('passes a provided operationId through as a plain string field, never null', async () => {
+    fileSystemMock.getInfoAsync.mockResolvedValue({ exists: true, size: 48_213 });
+    fileSystemMock.readAsStringAsync.mockResolvedValue('ZmFrZS1hdWRpby1ieXRlcw==');
+    mockInvoke.mockResolvedValue({ data: { text: 'Hello.', provider: 'openai' }, error: null });
+    const provider = new EdgeFunctionProvider();
+    await provider.transcribeAudio('file:///real.m4a', '433e0336-5a05-4f0c-8b6d-6f88e235d720');
+    expect(mockInvoke).toHaveBeenCalledWith('transcribe-audio', {
+      body: { audioBase64: 'ZmFrZS1hdWRpby1ieXRlcw==', mimeType: 'audio/m4a', operationId: '433e0336-5a05-4f0c-8b6d-6f88e235d720' },
+    });
   });
 });

@@ -18,27 +18,27 @@ import type { AiProvider, ChatMessage, CoachContext, SpeakingEvalInput, StudyPla
 // lookup — and per the Bandpath recovery handover, a prior investigation
 // found real-device "intermittent provider errors, then success on retry"
 // caused by the CLIENT timing out and giving up before the SERVER's own
-// (legitimate) retry budget for a transient provider error had finished —
-// the abort didn't cancel the server-side work, it just stopped the client
-// from ever seeing the eventual success. 30s is comfortably shorter than a
-// single slow LLM call plus any server-side retry, so it reproduces that
-// same failure mode. Raised to a bound that gives a server-side retry real
-// room, while still eventually giving up rather than hanging forever.
-// NOT verified against the current live Edge Function's actual total retry
-// budget or the hosting platform's own execution-time ceiling (no backend
-// access this session) — reconcile against both before treating this as
-// final. Coach chat/study-plan-suggestion calls are simpler single-shot
-// prompts and stay on this same budget rather than a separate, shorter one.
-const DEFAULT_TIMEOUT_MS = 70_000;
-// transcribe-audio uploads a base64-encoded recording and (per the
-// handover) previously needed its OWN server-side retry-budget fix — raised
-// from 3×60s to 2 attempts (~120.6s total) specifically because the
-// client's prior timeout here (45s) was shorter than even that reduced
-// budget. Set comfortably above that known total so a legitimate
-// server-side retry has room to finish; same caveat as DEFAULT_TIMEOUT_MS
-// above — not verified against whatever the currently deployed function
-// actually does.
-const TRANSCRIBE_TIMEOUT_MS = 130_000;
+// (legitimate) retry budget for a transient provider error had finished.
+//
+// RECONCILED against the live backend (api.supabase.com, read-only token,
+// 2026-11-06) — pulled the actual deployed supabase/functions/_shared/
+// aiProviders.ts source: its own fetchWithRetry default is 3 attempts with
+// backoff, ≈91.8s worst case for these JSON-eval calls, and Supabase Edge
+// Functions have a 150s wall-clock ceiling on every plan (confirmed in that
+// same source's comments). 70s — this file's own prior value — is SHORTER
+// than that 91.8s server-side worst case, i.e. it was still exactly the bug
+// this is meant to fix. Set above 91.8s with real margin for the network
+// round trip on top of the server's own processing time, but not so far
+// past the 150s platform ceiling that it waits for a function the platform
+// has already killed.
+const DEFAULT_TIMEOUT_MS = 110_000;
+// transcribe-audio: the same live source confirms its own retry budget was
+// deliberately tightened to 2 attempts at 60s (≈120.6s worst case,
+// specifically to stay under the 150s platform ceiling — see that file's
+// own comment on why 3 attempts there would exceed it). 130s — this file's
+// prior value — left only ~9s of margin over that 120.6s for the network
+// round trip itself, uncomfortably tight. Raised for real headroom.
+const TRANSCRIBE_TIMEOUT_MS = 160_000;
 
 /** Supabase-js's `functions.invoke` has no built-in timeout: on a real
  * device, a stalled upload or a connection that never completes leaves that
@@ -88,7 +88,13 @@ export class EdgeFunctionProvider implements AiProvider {
         const parsed = await error.context.json().catch(() => null);
         const status = error.context.status as number | undefined;
         const message = parsed?.error?.message ?? error.message;
-        const retryable = status === 429 || (status ?? 0) >= 500;
+        // 409 is this API's `operation_in_progress` response (see the
+        // deployed evaluate-writing/evaluate-speaking/transcribe-audio
+        // source: a concurrent or just-prior request for the same
+        // operationId is still being claimed) — its own message literally
+        // says "please wait a moment and try again", so it's retryable by
+        // definition, not a terminal failure.
+        const retryable = status === 429 || status === 409 || (status ?? 0) >= 500;
         throw new AiRequestError(message, status ?? null, retryable);
       }
       throw new AiRequestError(error.message ?? 'Edge Function call failed.', null, true);
@@ -136,7 +142,12 @@ export class EdgeFunctionProvider implements AiProvider {
     }
     const data = await this.invoke<{ text: string; provider: string }>(
       'transcribe-audio',
-      { audioBase64, mimeType: 'audio/m4a', operationId: operationId ?? null },
+      // The deployed schema validates this with Zod's `z.string().uuid().
+      // optional()` — optional, not nullable, so a literal `operationId:
+      // null` fails validation outright (400 invalid_request) rather than
+      // being treated as "not provided." The key must be omitted entirely
+      // when there's no real id, never sent as null.
+      { audioBase64, mimeType: 'audio/m4a', ...(operationId ? { operationId } : {}) },
       TRANSCRIBE_TIMEOUT_MS,
     );
     this.name = data.provider;

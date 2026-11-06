@@ -117,7 +117,8 @@ async function geminiGenerateContent(
   jsonMode: boolean,
   temperature = 0.4,
   model = GEMINI_MODEL,
-  timeoutMs?: number
+  timeoutMs?: number,
+  maxAttempts?: number
 ): Promise<string> {
   const body: Record<string, unknown> = {
     contents,
@@ -131,7 +132,7 @@ async function geminiGenerateContent(
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
       body: JSON.stringify(body),
     },
-    timeoutMs ? { timeoutMs } : undefined
+    timeoutMs || maxAttempts ? { ...(timeoutMs ? { timeoutMs } : {}), ...(maxAttempts ? { maxAttempts } : {}) } : undefined
   );
   const data = await res.json();
   const candidate = data.candidates?.[0];
@@ -206,6 +207,34 @@ export async function runChat(provider: ProviderName, messages: { role: string; 
   return anthropicMessages(prompt, system);
 }
 
+// RECOVERY NOTE (added 2026-11-06, Bandpath recovery session): this comment
+// and TRANSCRIPTION_MAX_ATTEMPTS were missing from this git branch's copy of
+// aiProviders.ts — recovered verbatim from the live "Bandpath IELTS" project
+// (kudgtxdwbpfqobteyeqy) via the Supabase Management API (read-only token).
+// Confirmed this file's rest (fetchWithRetry's own 3-attempt default) was
+// already present and unchanged from this recovered version.
+//
+// Supabase Edge Functions have a 150-SECOND WALL-CLOCK REQUEST-IDLE
+// TIMEOUT ON EVERY PLAN (not just free) — see
+// https://supabase.com/docs/guides/troubleshooting/edge-function-wall-clock-time-limit-reached-Nk38bW
+// and https://github.com/orgs/supabase/discussions/40074 — the platform
+// itself kills a function that takes longer than that, independent of
+// anything the client does. fetchWithRetry's SHARED default (3 attempts
+// at a per-call timeoutMs, with exponential backoff between them) is
+// fine for the fast JSON-eval calls (3×30s + backoff ≈ 91.8s worst case,
+// safely under 150s), but transcription's per-attempt timeout is a much
+// longer 60s — 3 full attempts there would have a worst case of ≈181.8s,
+// which EXCEEDS the platform ceiling. That means the function could be
+// killed mid-retry before it ever reaches its own final success/failure
+// logic — and if the platform kill happens while the outbound fetch to
+// the provider is still in flight, the provider may still finish (and
+// bill for) that response with zero record of it on our side. Capping
+// transcription at 2 attempts brings its worst case down to
+// 60_000*2 + 600 ≈ 120.6s, comfortably under 150s with real margin left
+// for the rest of the function's own overhead (auth, rate-limit check,
+// idempotency claim — see aiOperations.ts).
+const TRANSCRIPTION_MAX_ATTEMPTS = 2;
+
 export async function transcribeWithOpenAi(audioBytes: Uint8Array, mimeType: string): Promise<string> {
   const ext = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a' : mimeType.includes('wav') ? 'wav' : 'm4a';
   const form = new FormData();
@@ -215,7 +244,7 @@ export async function transcribeWithOpenAi(audioBytes: Uint8Array, mimeType: str
   const res = await fetchWithRetry(
     `${OPENAI_BASE}/audio/transcriptions`,
     { method: 'POST', headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }, body: form },
-    { timeoutMs: 60_000 }
+    { timeoutMs: 60_000, maxAttempts: TRANSCRIPTION_MAX_ATTEMPTS }
   );
   const data = await res.json();
   if (!data.text) throw new Error('OpenAI transcription response missing text');
@@ -235,7 +264,7 @@ export async function transcribeWithGemini(audioBase64: string, mimeType: string
   const contents: GeminiContent[] = [
     { role: 'user', parts: [{ text: buildTranscriptionPromptText() }, { inlineData: { mimeType, data: audioBase64 } }] },
   ];
-  const text = await geminiGenerateContent(contents, undefined, false, 0, GEMINI_TRANSCRIBE_MODEL, 60_000);
+  const text = await geminiGenerateContent(contents, undefined, false, 0, GEMINI_TRANSCRIBE_MODEL, 60_000, TRANSCRIPTION_MAX_ATTEMPTS);
   const trimmed = text.trim().replace(/^["']|["']$/g, '');
   if (!trimmed) throw new Error('Gemini transcription response was empty');
   return trimmed;
