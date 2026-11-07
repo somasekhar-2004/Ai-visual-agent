@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { Fragment, useState } from 'react';
+import React, { Fragment, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Badge, Button, Card, Text, TextField } from '@/components/ui';
@@ -29,9 +29,19 @@ export function QuestionCard({
 
   const freeText = usesFreeTextInput(question) && !options;
 
+  // Synchronous re-entrancy guard — `revealed` becoming true already
+  // unmounts the Check-answer button (see the Fragment below), but that
+  // only takes effect once React re-renders; two taps landing close enough
+  // together to both be processed before that re-render would otherwise
+  // both call onAnswered, consuming two question attempts (and, upstream,
+  // two daily-limit slots) for the single answer actually given.
+  const submittingRef = useRef(false);
+
   function submit() {
+    if (submittingRef.current) return;
     const answer = freeText ? textAnswer.trim() : selected;
     if (!answer) return;
+    submittingRef.current = true;
     const correct = isAnswerCorrect(question, answer);
     setRevealed(true);
     onAnswered(answer, correct);

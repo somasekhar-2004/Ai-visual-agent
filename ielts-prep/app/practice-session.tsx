@@ -27,7 +27,7 @@ import {
   toggleQuestionBookmark,
 } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
-import type { Difficulty, QuestionType, SkillKey } from '@/types/models';
+import type { Difficulty, QuestionAttempt, QuestionType, SkillKey } from '@/types/models';
 
 type Params = { skill?: SkillKey; mode?: 'incorrect' | 'bookmarked'; questionType?: QuestionType };
 
@@ -95,6 +95,35 @@ export default function PracticeSessionScreen() {
   // correctness requirement.
   const dayQualifiedRef = useRef(false);
 
+  // Live enforcement of the free daily practice-question cap — see the
+  // "23/20 used today" bug this fixes. attemptsQuery only refetches once
+  // per SESSION (at Finish), so reading practiceQuestionsUsedToday(
+  // attemptsQuery.data) directly stays frozen at whatever it was when the
+  // session started, no matter how many questions get answered after that
+  // — the old blockedByLimit check also only ever ran once, at the very
+  // start (index === 0 && results.length === 0), so nothing re-checked the
+  // cap again for the rest of a long session either. Together those two
+  // gaps are exactly how usage could run past the cap at all (and, since
+  // the previous fix, switching difficulty no longer resets index/results
+  // back to a point that would have re-triggered the old check, which
+  // would have made this gap even easier to hit). Fixed with a plain local
+  // counter instead of depending on the query ever refetching:
+  // `baselineUsedToday` snapshots the server's real count once, the first
+  // time attemptsQuery settles for this exact session (see the sessionKey
+  // effect below, which resets it on a genuinely different skill/mode/
+  // questionType); `sessionAnsweredCount` increments by exactly 1 in
+  // handleAnswered for every attempt THIS screen instance itself records.
+  // Their sum (liveUsedToday below) is always accurate in real time, with
+  // no dependency on network timing.
+  const [baselineUsedToday, setBaselineUsedToday] = useState<number | null>(null);
+  const [sessionAnsweredCount, setSessionAnsweredCount] = useState(0);
+  // A frozen-per-session copy of attemptsQuery.data — see its own longer
+  // comment below, by the effect that sets it (needs `questions`'
+  // surrounding context to explain fully). Declared here, ahead of
+  // attemptsQuery itself, only so the early sessionKey-reset effect above
+  // can reset it alongside baselineUsedToday/sessionAnsweredCount.
+  const [attemptsSnapshot, setAttemptsSnapshot] = useState<QuestionAttempt[] | undefined>(undefined);
+
   // Scoped to exactly the session this screen instance represents (which
   // user, which skill/mode/questionType filter) so returning to a
   // different filter combination never resumes into the wrong session's
@@ -145,6 +174,13 @@ export default function PracticeSessionScreen() {
     let cancelled = false;
     AsyncStorage.getItem(sessionKey).then((raw) => {
       if (cancelled) return;
+      // See baselineUsedToday's and attemptsSnapshot's own comments above:
+      // reset alongside everything else this effect resets for a genuinely
+      // new session, inside this callback rather than synchronously at the
+      // top of the effect.
+      setBaselineUsedToday(null);
+      setSessionAnsweredCount(0);
+      setAttemptsSnapshot(undefined);
       if (raw) {
         try {
           const parsed = JSON.parse(raw) as Partial<PersistedSessionV2 & PersistedSessionV1Legacy>;
@@ -236,17 +272,46 @@ export default function PracticeSessionScreen() {
     enabled: Boolean(userId),
   });
 
+  // Snapshots attemptsQuery.data exactly once per session — both the "used
+  // today" baseline count above, and (for mode === 'incorrect') the
+  // `questions` list below. Previously attemptsQuery only ever refetched at
+  // the very end of a session, so reading it live throughout was
+  // effectively already a frozen snapshot by accident; handleAnswered now
+  // invalidates it after every answer (so OTHER screens — app/(tabs)/
+  // practice.tsx's "done/total", Home — stop showing a stale count), which
+  // means attemptsQuery.data CAN now change mid-session. For mode ===
+  // 'incorrect' specifically, answering a previously-wrong question
+  // correctly would otherwise shrink `questions` out from under the user
+  // mid-session, shifting every later index to a DIFFERENT question than
+  // the one they were actually looking at. Snapshotting once keeps this
+  // screen's own idea of "the question list for this session" stable,
+  // exactly like it always was, independent of that new invalidation.
+  // `sessionKey` is a dependency specifically so this re-fires after a
+  // skill/mode/questionType change even though attemptsQuery itself (keyed
+  // only by userId, shared across every skill) might not actually refetch.
+  useEffect(() => {
+    if (attemptsSnapshot !== undefined || !attemptsQuery.isSuccess) return;
+    const snapshot = attemptsQuery.data;
+    Promise.resolve().then(() => setAttemptsSnapshot(snapshot));
+  }, [sessionKey, attemptsSnapshot, attemptsQuery.isSuccess, attemptsQuery.data]);
+
+  useEffect(() => {
+    if (baselineUsedToday !== null || attemptsSnapshot === undefined) return;
+    const snapshot = practiceQuestionsUsedToday(attemptsSnapshot ?? []);
+    Promise.resolve().then(() => setBaselineUsedToday(snapshot));
+  }, [baselineUsedToday, attemptsSnapshot]);
+
   const questions = useMemo(() => {
     let list = listQuestions({ skill, questionType, difficulty: difficulty === 'all' ? undefined : difficulty });
     if (mode === 'incorrect') {
-      const incorrectIds = new Set(attemptsQuery.data?.filter((a) => !a.isCorrect).map((a) => a.questionId));
+      const incorrectIds = new Set(attemptsSnapshot?.filter((a) => !a.isCorrect).map((a) => a.questionId));
       list = list.filter((q) => incorrectIds.has(q.id));
     } else if (mode === 'bookmarked') {
       const bookmarkedIds = new Set(bookmarksQuery.data?.map((b) => b.questionId));
       list = list.filter((q) => bookmarkedIds.has(q.id));
     }
     return list;
-  }, [skill, mode, questionType, difficulty, attemptsQuery.data, bookmarksQuery.data]);
+  }, [skill, mode, questionType, difficulty, attemptsSnapshot, bookmarksQuery.data]);
 
   // Server-side resume fallback — see lib/resumeFromAttempts.ts. Only runs
   // when there was no local (same-install) save to restore from above, and
@@ -313,10 +378,17 @@ export default function PracticeSessionScreen() {
 
   const current = questions[index];
   const bookmarkedIds = new Set(bookmarksQuery.data?.map((b) => b.questionId));
-  const limitStatus = checkDailyLimit(practiceQuestionsUsedToday(attemptsQuery.data ?? []), FREE_DAILY_PRACTICE_QUESTIONS, isPremium);
-  // Once already-attempted-today reaches the free cap, block starting a NEW
-  // session — but never cut off a session already in progress mid-question.
-  const blockedByLimit = index === 0 && results.length === 0 && !limitStatus.allowed;
+  // See baselineUsedToday's comment above — live, not a frozen snapshot
+  // from whenever attemptsQuery last happened to fetch. Falls back to a
+  // direct read for the one render before the baseline effect has run.
+  const liveUsedToday = (baselineUsedToday ?? practiceQuestionsUsedToday(attemptsQuery.data ?? [])) + sessionAnsweredCount;
+  const limitStatus = checkDailyLimit(liveUsedToday, FREE_DAILY_PRACTICE_QUESTIONS, isPremium);
+  // Blocks the NEXT unanswered question once the cap is reached — never an
+  // already-answered one still showing its feedback (results.length >
+  // index) mid-reveal, and never once this difficulty's own question list
+  // is already exhausted (index >= questions.length — that's the "session
+  // complete" screen below's to show, not this one's).
+  const blockedByLimit = !limitStatus.allowed && results.length === index && index < questions.length;
 
   const groupByQuestionId = useMemo(() => {
     const map = new Map<string, ReturnType<typeof groupQuestions>[number]>();
@@ -333,7 +405,25 @@ export default function PracticeSessionScreen() {
 
   async function handleAnswered(_answer: string | null, isCorrect: boolean) {
     if (!userId || !current) return;
+    // Defensive backstop, not the primary guard — blockedByLimit above
+    // already keeps an unanswered question from ever being shown once the
+    // cap is reached, so this should be unreachable in the normal flow.
+    // Never trust a UI gate alone to protect a write, though.
+    if (!isPremium && liveUsedToday >= FREE_DAILY_PRACTICE_QUESTIONS) return;
     await recordQuestionAttempt(userId, current.id, _answer, isCorrect, current.estimatedTimeSeconds);
+    // Live counter for the cap above — see baselineUsedToday's comment.
+    setSessionAnsweredCount((c) => c + 1);
+    // Regression fix: previously only invalidated at the very end of a
+    // session (reaching the literal end of a possibly 1000+-question
+    // filtered list — see handleNext below). A user who answers a few
+    // questions and leaves via Back without ever reaching that point left
+    // every OTHER screen reading this same query key (app/(tabs)/
+    // practice.tsx's own "done/total questions attempted", Home's
+    // dashboard) showing a stale count indefinitely. Both screens stay
+    // mounted as tabs, so invalidating here is enough for them to pick
+    // this up the moment the user navigates back to them — no full app
+    // restart needed.
+    queryClient.invalidateQueries({ queryKey: ['question-attempts', userId] });
     // Kept in lockstep with the optimistic setResults call below — this is
     // what lets switching difficulty away and back find this question
     // already answered without waiting on attemptsQuery to refetch.

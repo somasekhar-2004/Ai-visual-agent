@@ -1,3 +1,4 @@
+import { getDeviceTimeZone, getLocalDateString } from '@/lib/timezone';
 import type { QuestionAttempt, TestHistoryEntry } from '@/types/models';
 
 // Free-tier daily limits. Premium users (see useAppStore.subscription) have
@@ -18,8 +19,16 @@ export const FREE_DAILY_SPEAKING_PRACTICE_EVALS = 10;
 export const FREE_VOCABULARY_TOPIC_LIMIT = 4;
 export const FREE_GRAMMAR_LESSON_LIMIT = 6;
 
+// Regression fix: this used to compare against the UTC calendar date
+// (`new Date().toISOString().slice(0, 10)`), not the device's local one —
+// the same class of bug fixed for Home's study plan (app/(tabs)/index.tsx)
+// and already avoided by streak/XP (lib/timezone.ts, lib/streak.ts). For
+// any user not in UTC+0, every one of this file's daily caps (practice
+// questions, AI messages, writing/speaking evals) could flip over at the
+// wrong moment relative to the user's own day.
 function isToday(iso: string): boolean {
-  return iso.slice(0, 10) === new Date().toISOString().slice(0, 10);
+  const timeZone = getDeviceTimeZone();
+  return getLocalDateString(timeZone, new Date(iso)) === getLocalDateString(timeZone);
 }
 
 export function practiceQuestionsUsedToday(attempts: QuestionAttempt[]): number {
