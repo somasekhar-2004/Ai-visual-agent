@@ -15,6 +15,8 @@ import { goalSetupRoute } from '@/lib/goalSetupNav';
 import { getHomeViewState } from '@/lib/homeViewState';
 import { studyPlanItemTarget } from '@/lib/studyPlanNav';
 import { studyPlanFocusQueryKey, studyPlanQueryKey } from '@/lib/studyPlanQueryKeys';
+import { formatRelativeTime, recentActivityForHome } from '@/lib/recentActivity';
+import { getDeviceTimeZone, getLocalDateString } from '@/lib/timezone';
 import type { CoachContext } from '@/services/ai';
 import {
   completeStudyPlanItem,
@@ -25,7 +27,16 @@ import {
 } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Regression fix: this used to be `new Date().toISOString().slice(0, 10)` —
+// the UTC calendar date, not the device's local one. For any user not in
+// UTC+0, that meant "today's" study plan (and its completions) actually
+// flipped over at UTC midnight, not local midnight — e.g. a user in India
+// (UTC+5:30) would still be shown the PREVIOUS day's plan, completions and
+// all, for the first 5.5 hours of their own local day. lib/timezone.ts's
+// getLocalDateString is the exact same local-day helper streak/XP
+// (lib/streak.ts, services/repository/core.ts) already uses to avoid this
+// identical class of bug — this just applies it here too.
+const today = () => getLocalDateString(getDeviceTimeZone());
 
 export default function HomeScreen() {
   const theme = useTheme();
@@ -131,7 +142,10 @@ export default function HomeScreen() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const freeMock = listMockTests().find((m) => m.isFree);
-  const recentActivity = historyQuery.data?.slice(0, 3) ?? [];
+  // See lib/recentActivity.ts: filtered to the last 7 days, and grouped so
+  // a continued AI Chat conversation shows as one row (with its latest
+  // time), not one row per message.
+  const recentActivity = recentActivityForHome(historyQuery.data ?? []);
 
   async function toggleItem(itemId: string, isCompleted: boolean) {
     if (!planQuery.data || isCompleted) return;
@@ -236,7 +250,7 @@ export default function HomeScreen() {
       </Text>
       <Card style={{ marginBottom: theme.spacing.lg }}>
         {recentActivity.length === 0 ? (
-          <Text color="secondary">No activity yet — complete a practice session to see it here.</Text>
+          <Text color="secondary">No activity in the last 7 days.</Text>
         ) : (
           recentActivity.map((entry, i) => (
             <View
@@ -244,14 +258,20 @@ export default function HomeScreen() {
               style={{
                 flexDirection: 'row',
                 justifyContent: 'space-between',
+                alignItems: 'center',
                 paddingVertical: theme.spacing.xs,
                 borderBottomWidth: i < recentActivity.length - 1 ? 1 : 0,
                 borderBottomColor: theme.colors.border,
               }}
             >
-              <Text variant="body" style={{ textTransform: 'capitalize' }}>
-                {entry.activityType.replace('_', ' ')}
-              </Text>
+              <View>
+                <Text variant="body" style={{ textTransform: 'capitalize' }}>
+                  {entry.activityType.replace('_', ' ')}
+                </Text>
+                <Text variant="caption" color="tertiary">
+                  {formatRelativeTime(entry.createdAt)}
+                </Text>
+              </View>
               <Text variant="body" color="secondary">
                 {entry.band ? `Band ${entry.band.toFixed(1)}` : '—'}
               </Text>

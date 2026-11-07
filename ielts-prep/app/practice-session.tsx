@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { useShallow } from 'zustand/react/shallow';
 
@@ -17,6 +17,7 @@ import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
 import { checkDailyLimit, FREE_DAILY_PRACTICE_QUESTIONS, practiceQuestionsUsedToday } from '@/lib/entitlements';
 import { groupQuestions } from '@/lib/practiceGrouping';
+import { deriveResumeFromAttempts } from '@/lib/resumeFromAttempts';
 import {
   getBookmarks,
   getQuestionAttempts,
@@ -81,6 +82,17 @@ export default function PracticeSessionScreen() {
   // progress before it's even been loaded.
   const hydratedRef = useRef(false);
 
+  // True once AsyncStorage.getItem(sessionKey) has resolved for the CURRENT
+  // sessionKey and come back with nothing saved — i.e. there is no local
+  // (same-install) progress to resume from at all, so the effect below
+  // should try the server-side fallback instead. Not reset to false up
+  // front when sessionKey changes: hydratedRef.current (reset below) is
+  // what actually gates the resume-fallback effect, so a stale `true` from
+  // a PREVIOUS sessionKey is harmless — hydratedRef already short-circuits
+  // it until this effect's own callback re-establishes the right value one
+  // way or the other for the new key.
+  const [noLocalSave, setNoLocalSave] = useState(false);
+
   useEffect(() => {
     hydratedRef.current = false;
     let cancelled = false;
@@ -102,14 +114,31 @@ export default function PracticeSessionScreen() {
         } catch (err) {
           console.warn('[practice-session] failed to parse saved session progress, starting fresh:', (err as Error).message);
         }
+        hydratedRef.current = true;
+      } else {
+        // Nothing saved locally for this exact session (skill/mode/
+        // questionType) — the common real case is a reinstall, where
+        // AsyncStorage was wiped along with the rest of the app's local
+        // storage but the account's real question_attempts on the server
+        // were not. Deliberately does NOT mark hydratedRef true yet: the
+        // server-fallback effect below does that once it has had a chance
+        // to check attemptsQuery, so the persist effect never writes an
+        // empty {results:[]} over real server progress before that check
+        // has run.
+        setNoLocalSave(true);
       }
-      hydratedRef.current = true;
     });
     return () => {
       cancelled = true;
     };
   }, [sessionKey]);
 
+  // Server-side resume fallback — see lib/resumeFromAttempts.ts. Only runs
+  // when there was no local save to restore from (case above) and only
+  // once per sessionKey (hydratedRef guards re-running once it's already
+  // settled this session one way or the other). Keyed to this exact
+  // filtered `questions` list and the user's real question_attempts rows —
+  // never a lifetime attempt count across every skill/filter.
   useEffect(() => {
     if (!hydratedRef.current) return;
     AsyncStorage.setItem(sessionKey, JSON.stringify({ results, difficulty })).catch(() => {});
@@ -158,6 +187,31 @@ export default function PracticeSessionScreen() {
     }
     return list;
   }, [skill, mode, questionType, difficulty, attemptsQuery.data, bookmarksQuery.data]);
+
+  // Server-side resume fallback — see lib/resumeFromAttempts.ts. Only runs
+  // when there was no local (same-install) save to restore from above, and
+  // only once per sessionKey (hydratedRef guards re-running once it's
+  // already settled this session one way or the other, including this
+  // effect finding nothing and still marking it settled). Keyed to this
+  // exact filtered `questions` list and the user's real question_attempts
+  // rows — never a lifetime attempt count across every skill/filter.
+  useEffect(() => {
+    if (!noLocalSave || hydratedRef.current) return;
+    if (!attemptsQuery.isSuccess) return;
+    // Claimed synchronously (a ref mutation, not state) so a re-run of this
+    // same effect before the microtask below settles — e.g. `questions`
+    // changing again right away — sees hydratedRef already true and bails
+    // out via the guard above, instead of double-applying the resume.
+    hydratedRef.current = true;
+    const attempts = attemptsQuery.data;
+    Promise.resolve().then(() => {
+      const resumed = deriveResumeFromAttempts(questions, attempts);
+      if (resumed.length > 0) {
+        setResults(resumed);
+        setIndex(resumed.length);
+      }
+    });
+  }, [noLocalSave, attemptsQuery.isSuccess, attemptsQuery.data, questions]);
 
   const current = questions[index];
   const bookmarkedIds = new Set(bookmarksQuery.data?.map((b) => b.questionId));
@@ -272,7 +326,7 @@ export default function PracticeSessionScreen() {
   const hasProgress = index > 0 || results.length > 0;
 
   return (
-    <Screen scroll>
+    <Screen>
       <ScreenHeader
         title="Practice"
         showBack
@@ -318,17 +372,36 @@ export default function PracticeSessionScreen() {
         </CollapsiblePanel>
       ) : null}
 
-      <QuestionCard
-        key={current.id}
-        question={current}
-        onAnswered={handleAnswered}
-        isBookmarked={bookmarkedIds.has(current.id)}
-        onToggleBookmark={handleToggleBookmark}
-      />
+      {/* A SIBLING scroll area for the question/answer area, never an
+          ancestor/descendant of CollapsiblePanel's own internal ScrollView
+          above (passage/transcript). Previously this whole screen was one
+          outer ScrollView (`<Screen scroll>`), which put that panel's
+          ScrollView and this content inside the SAME outer ScrollView —
+          a real ScrollView nested inside another one. Nested ScrollViews on
+          Android are a well-documented source of exactly the reported bug
+          (a sibling rendered right after the nested scroll region only
+          registering taps near its centre, not its full visible surface):
+          Android's native nested-scrolling touch arbitration can leave the
+          touch target for the next interactive view after the inner
+          ScrollView smaller than its visual bounds. app/reading-test.tsx's
+          Full Test screen already uses this exact sibling-ScrollViews
+          layout (a fixed passage box next to, not around, the
+          question/Next/Previous ScrollView) and has never had this bug
+          reported against it — this mirrors that proven structure instead
+          of inventing a new one. */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: theme.spacing.lg }} keyboardShouldPersistTaps="handled">
+        <QuestionCard
+          key={current.id}
+          question={current}
+          onAnswered={handleAnswered}
+          isBookmarked={bookmarkedIds.has(current.id)}
+          onToggleBookmark={handleToggleBookmark}
+        />
 
-      {results.length > index ? (
-        <Button label={index + 1 === questions.length ? 'Finish' : 'Next question'} onPress={handleNext} fullWidth style={{ marginTop: theme.spacing.md }} />
-      ) : null}
+        {results.length > index ? (
+          <Button label={index + 1 === questions.length ? 'Finish' : 'Next question'} onPress={handleNext} fullWidth style={{ marginTop: theme.spacing.md }} />
+        ) : null}
+      </ScrollView>
     </Screen>
   );
 }

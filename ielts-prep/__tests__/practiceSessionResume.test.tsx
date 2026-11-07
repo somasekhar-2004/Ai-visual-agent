@@ -22,7 +22,7 @@ import React from 'react';
 
 import PracticeSessionScreen from '@/app/practice-session';
 import { ThemeProvider } from '@/hooks/useTheme';
-import { recordQuestionAttempt } from '@/services/repository';
+import { getQuestionAttempts, recordQuestionAttempt } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 
 const MOCK_FIVE_QUESTIONS = Array.from({ length: 5 }, (_, i) => ({
@@ -191,5 +191,71 @@ describe('PracticeSessionScreen — resuming progress after leaving and returnin
     expect(getByText('Question 2 of 5')).toBeTruthy();
     expect(recordQuestionAttempt as jest.Mock).toHaveBeenCalledTimes(1);
     unmount();
+  });
+});
+
+// Regression coverage for a real bug found on a real device: uninstalling
+// and reinstalling the app wipes AsyncStorage along with everything else
+// local, but the account's real question_attempts on the server survive.
+// Home correctly kept the lifetime completed-question count after a
+// reinstall; Quick Practice did not — it only ever checked AsyncStorage, so
+// it always restarted at Question 1 regardless of real server progress.
+// These tests simulate that exact state: AsyncStorage genuinely empty (the
+// shared beforeEach above already clears it) while getQuestionAttempts
+// returns real attempt rows, as it would right after signing back into the
+// same account on a fresh install.
+describe('PracticeSessionScreen — resuming via the server when there is no local (AsyncStorage) save at all', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockConfirmAsync.mockResolvedValue(true);
+    mockUseLocalSearchParams.mockReturnValue({ skill: 'reading' });
+    await AsyncStorage.clear();
+  });
+
+  afterEach(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50)); // see the shared afterEach above
+  });
+
+  it('resumes at the next unanswered question using real question_attempts rows, matched by question id', async () => {
+    (getQuestionAttempts as jest.Mock).mockResolvedValueOnce([
+      { id: 'a1', userId: 'user-1', questionId: 'q-1', selectedAnswer: 'right', isCorrect: true, timeSpentSeconds: 10, practiceSessionId: null, createdAt: '2026-11-01T00:00:00Z' },
+      { id: 'a2', userId: 'user-1', questionId: 'q-2', selectedAnswer: 'wrong', isCorrect: false, timeSpentSeconds: 10, practiceSessionId: null, createdAt: '2026-11-01T00:01:00Z' },
+    ]);
+    const { getByText, queryByText } = await renderScreen();
+    await waitFor(() => expect(getByText('Question 3 of 5')).toBeTruthy());
+    expect(queryByText('Question 1 of 5')).toBeNull();
+  });
+
+  it('never infers a resume point from an unrelated lifetime attempt count — unmatched question ids never advance the index', async () => {
+    // 23 real attempts — none of them for any question in THIS screen's
+    // list (a different skill/filter entirely) — must never be read as
+    // "23 completed, so start at Q24" or advance the index at all.
+    (getQuestionAttempts as jest.Mock).mockResolvedValueOnce(
+      Array.from({ length: 23 }, (_, i) => ({
+        id: `other-${i}`,
+        userId: 'user-1',
+        questionId: `other-question-${i}`,
+        selectedAnswer: 'x',
+        isCorrect: true,
+        timeSpentSeconds: 10,
+        practiceSessionId: null,
+        createdAt: '2026-11-01T00:00:00Z',
+      }))
+    );
+    const { getByText } = await renderScreen();
+    await waitFor(() => expect(getByText('Question 1 of 5')).toBeTruthy());
+  });
+
+  it('Restart still works after a server-side resume', async () => {
+    (getQuestionAttempts as jest.Mock).mockResolvedValue([
+      { id: 'a1', userId: 'user-1', questionId: 'q-1', selectedAnswer: 'right', isCorrect: true, timeSpentSeconds: 10, practiceSessionId: null, createdAt: '2026-11-01T00:00:00Z' },
+    ]);
+    const { getByText, getByLabelText } = await renderScreen();
+    await waitFor(() => expect(getByText('Question 2 of 5')).toBeTruthy());
+
+    const restart = await waitFor(() => getByLabelText('Restart'));
+    await fireEvent.press(restart);
+    expect(mockConfirmAsync).toHaveBeenCalled();
+    await waitFor(() => expect(getByText('Question 1 of 5')).toBeTruthy());
   });
 });
