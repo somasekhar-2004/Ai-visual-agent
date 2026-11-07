@@ -46,6 +46,20 @@ export function Button({
   // itself actually captures (onPressIn fires on touch-down, before
   // onPress on release), independent of whatever onPress does.
   const [debugTapCount, setDebugTapCount] = useState(0);
+  // See lib/debugFlags.ts — temporary. The Pressable's own real measured
+  // frame (onLayout), shown on screen so two buttons' reported sizes can be
+  // directly compared — this is what the native layer actually believes
+  // this view's bounds are, as opposed to how big it merely looks.
+  const [debugLayout, setDebugLayout] = useState<{ width: number; height: number } | null>(null);
+  // A real device report found Check-answer-style buttons only responding
+  // near their centre — not yet root-caused (the two earlier fixes for it
+  // didn't resolve it on-device). hitSlop only ever EXPANDS the registered
+  // touch region outward from the Pressable's own measured frame; it can't
+  // make an already-correct hit area worse, so this ships now as a
+  // mitigation regardless of whatever the underlying cause turns out to
+  // be — see lib/debugFlags.ts's overlay for continued diagnosis if this
+  // alone doesn't fully fix it.
+  const extraHitSlop = { top: 12, bottom: 12, left: 12, right: 12 };
 
   const heights: Record<Size, number> = { sm: 36, md: 48, lg: 56 };
   const paddingX: Record<Size, number> = { sm: 12, md: 20, lg: 24 };
@@ -70,6 +84,8 @@ export function Button({
     <Pressable
       onPress={onPress}
       onPressIn={DEBUG_TOUCH_BOUNDS ? () => setDebugTapCount((c) => c + 1) : undefined}
+      onLayout={DEBUG_TOUCH_BOUNDS ? (e) => setDebugLayout({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height }) : undefined}
+      hitSlop={extraHitSlop}
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.base,
@@ -145,6 +161,26 @@ export function Button({
           >
             <Text variant="micro" style={{ color: '#fff' }}>
               taps: {debugTapCount}
+            </Text>
+          </View>
+          {/* Real measured frame (onLayout) — compare this number between
+              Check-answer and Next question directly: if one reports a
+              much smaller width/height than it visually looks, that's a
+              genuine sizing bug, not a native touch-dispatch quirk. */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              bottom: -14,
+              left: 8,
+              backgroundColor: '#FF00FF',
+              borderRadius: 8,
+              paddingHorizontal: 6,
+              paddingVertical: 1,
+            }}
+          >
+            <Text variant="micro" style={{ color: '#fff' }}>
+              {debugLayout ? `${Math.round(debugLayout.width)}×${Math.round(debugLayout.height)}` : '…'}
             </Text>
           </View>
         </>

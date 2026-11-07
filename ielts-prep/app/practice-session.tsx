@@ -31,6 +31,32 @@ import type { Difficulty, QuestionType, SkillKey } from '@/types/models';
 
 type Params = { skill?: SkillKey; mode?: 'incorrect' | 'bookmarked'; questionType?: QuestionType };
 
+// questionId -> isCorrect for every question answered under ONE difficulty
+// filter. Keyed by question id (not array position) so a filter's
+// remembered position is self-correcting if the underlying question order
+// for that difficulty ever changes, and so it can be matched directly
+// against real question_attempts rows the same way the reinstall fallback
+// (lib/resumeFromAttempts.ts) already does.
+type AnsweredMap = Record<string, boolean>;
+
+type PersistedSessionV2 = {
+  difficulty: Difficulty | 'all';
+  answeredByDifficulty: Partial<Record<Difficulty | 'all', AnsweredMap>>;
+};
+
+/** v24 and earlier only ever persisted ONE difficulty's progress at a time
+ * — a plain answered-count array, with whichever difficulty was active
+ * when it was last saved. Converted to AnsweredMap on first load after
+ * this change by zipping it against that exact difficulty's own question
+ * list (see the derivation effect below) — array position maps 1:1 to
+ * question id at migration time, since that's exactly how the old scheme
+ * computed its own resume index. */
+type PersistedSessionV1Legacy = { results: boolean[]; difficulty?: Difficulty | 'all' };
+
+function answeredMapToAttempts(map: AnsweredMap | undefined): { questionId: string; isCorrect: boolean; createdAt: string }[] {
+  return Object.entries(map ?? {}).map(([questionId, isCorrect]) => ({ questionId, isCorrect, createdAt: '' }));
+}
+
 export default function PracticeSessionScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -81,6 +107,18 @@ export default function PracticeSessionScreen() {
   // with the fresh {0, []} initial state and overwriting real saved
   // progress before it's even been loaded.
   const hydratedRef = useRef(false);
+  // Every difficulty filter's own answered-questions map, by question id —
+  // the single source of truth each filter's resume position is derived
+  // from (see the derivation effect below, after `questions`). Mutated
+  // directly (not state) so handleAnswered can update it synchronously
+  // alongside the existing optimistic setResults call; the persist effect
+  // below reads it whenever something changes.
+  const answeredByDifficultyRef = useRef<Partial<Record<Difficulty | 'all', AnsweredMap>>>({});
+  // Set during hydration when a v24-or-earlier (single-difficulty, plain
+  // array) save is found — consumed exactly once by the derivation effect
+  // below, which has `questions` available to zip it against. See
+  // PersistedSessionV1Legacy's own comment.
+  const legacyResultsRef = useRef<boolean[] | null>(null);
 
   // True once AsyncStorage.getItem(sessionKey) has resolved for the CURRENT
   // sessionKey and come back with nothing saved — i.e. there is no local
@@ -92,29 +130,38 @@ export default function PracticeSessionScreen() {
   // it until this effect's own callback re-establishes the right value one
   // way or the other for the new key.
   const [noLocalSave, setNoLocalSave] = useState(false);
+  // Bumped whenever answeredByDifficultyRef/legacyResultsRef change outside
+  // of a `difficulty` state change (hydration completing, or the server
+  // fallback populating the ref) — the derivation effect below depends on
+  // `difficulty`, which doesn't necessarily change value just because the
+  // ref it reads now has real data (e.g. hydrating while already on the
+  // default 'all' difficulty), so this is what actually nudges it to run.
+  const [hydrationTick, setHydrationTick] = useState(0);
 
   useEffect(() => {
     hydratedRef.current = false;
+    answeredByDifficultyRef.current = {};
+    legacyResultsRef.current = null;
     let cancelled = false;
     AsyncStorage.getItem(sessionKey).then((raw) => {
       if (cancelled) return;
       if (raw) {
         try {
-          const saved = JSON.parse(raw) as { results?: boolean[]; difficulty?: Difficulty | 'all' };
-          if (Array.isArray(saved.results)) {
-            setResults(saved.results);
-            // Resuming always lands on the next UNANSWERED question —
-            // results.length is exactly that index, since each answer
-            // pushes one result and index only ever advances once the
-            // current question already has a matching result (see
-            // handleNext below), so the two can never drift apart.
-            setIndex(saved.results.length);
+          const parsed = JSON.parse(raw) as Partial<PersistedSessionV2 & PersistedSessionV1Legacy>;
+          if (parsed.answeredByDifficulty && typeof parsed.answeredByDifficulty === 'object') {
+            answeredByDifficultyRef.current = parsed.answeredByDifficulty;
+          } else if (Array.isArray(parsed.results)) {
+            // v24-or-earlier save — migrated by the derivation effect below,
+            // once `questions` for this exact (about-to-be-restored)
+            // difficulty is available.
+            legacyResultsRef.current = parsed.results;
           }
-          if (saved.difficulty) setDifficulty(saved.difficulty);
+          if (parsed.difficulty) setDifficulty(parsed.difficulty);
         } catch (err) {
           console.warn('[practice-session] failed to parse saved session progress, starting fresh:', (err as Error).message);
         }
         hydratedRef.current = true;
+        setHydrationTick((t) => t + 1);
       } else {
         // Nothing saved locally for this exact session (skill/mode/
         // questionType) — the common real case is a reinstall, where
@@ -123,8 +170,8 @@ export default function PracticeSessionScreen() {
         // were not. Deliberately does NOT mark hydratedRef true yet: the
         // server-fallback effect below does that once it has had a chance
         // to check attemptsQuery, so the persist effect never writes an
-        // empty {results:[]} over real server progress before that check
-        // has run.
+        // empty {answeredByDifficulty: {}} over real server progress before
+        // that check has run.
         setNoLocalSave(true);
       }
     });
@@ -133,26 +180,39 @@ export default function PracticeSessionScreen() {
     };
   }, [sessionKey]);
 
-  // Server-side resume fallback — see lib/resumeFromAttempts.ts. Only runs
-  // when there was no local save to restore from (case above) and only
-  // once per sessionKey (hydratedRef guards re-running once it's already
-  // settled this session one way or the other). Keyed to this exact
-  // filtered `questions` list and the user's real question_attempts rows —
-  // never a lifetime attempt count across every skill/filter.
+  // Persists every difficulty's own progress together, so switching back to
+  // one visited earlier THIS install never needs the server fallback at
+  // all. `results`/`difficulty` are triggers for "something changed" (an
+  // answer was recorded, a filter was switched, a restart cleared one
+  // filter's map) — the actual payload is always read fresh from the ref.
   useEffect(() => {
     if (!hydratedRef.current) return;
-    AsyncStorage.setItem(sessionKey, JSON.stringify({ results, difficulty })).catch(() => {});
+    const payload: PersistedSessionV2 = { difficulty, answeredByDifficulty: answeredByDifficultyRef.current };
+    AsyncStorage.setItem(sessionKey, JSON.stringify(payload)).catch(() => {});
   }, [sessionKey, results, difficulty]);
 
-  /** The one place "start over" happens — Restart, a difficulty change, and
-   * "Practice again" after finishing all call this, so XP/streak-qualifying
-   * guards and saved progress are reset the exact same way every time
-   * rather than three separately-maintained copies of the same reset. */
-  function resetToFreshSession(nextDifficulty: Difficulty | 'all' = difficulty) {
+  /** Restart and "Practice again" call this — clears ONLY the active
+   * difficulty's own remembered progress (never other filters', since each
+   * filter now remembers its own place independently — see the derivation
+   * effect below) and starts it over from question 1. */
+  function resetToFreshSession() {
     finishingRef.current = false;
     dayQualifiedRef.current = false;
-    setIndex(0);
+    answeredByDifficultyRef.current = { ...answeredByDifficultyRef.current, [difficulty]: {} };
     setResults([]);
+    setIndex(0);
+  }
+
+  /** The difficulty chips call this — switching filters is pure navigation,
+   * never a reset: each filter keeps its own remembered position (restored
+   * by the derivation effect below from answeredByDifficultyRef), the
+   * lifetime attempted count is untouched, and no attempt is recorded. */
+  function switchDifficulty(nextDifficulty: Difficulty | 'all') {
+    if (nextDifficulty === difficulty) return;
+    // Scoped per-difficulty, not per-session — reaching the end of ONE
+    // filter's question list must not block correctly finishing a
+    // DIFFERENT filter reached later in the same screen instance.
+    finishingRef.current = false;
     setDifficulty(nextDifficulty);
   }
 
@@ -195,6 +255,9 @@ export default function PracticeSessionScreen() {
   // effect finding nothing and still marking it settled). Keyed to this
   // exact filtered `questions` list and the user's real question_attempts
   // rows — never a lifetime attempt count across every skill/filter.
+  // Populates answeredByDifficultyRef for the CURRENT difficulty only (the
+  // one active at hydration time); the derivation effect below is what
+  // actually applies it to results/index.
   useEffect(() => {
     if (!noLocalSave || hydratedRef.current) return;
     if (!attemptsQuery.isSuccess) return;
@@ -204,14 +267,49 @@ export default function PracticeSessionScreen() {
     // out via the guard above, instead of double-applying the resume.
     hydratedRef.current = true;
     const attempts = attemptsQuery.data;
+    const currentQuestions = questions;
+    const currentDifficulty = difficulty;
     Promise.resolve().then(() => {
-      const resumed = deriveResumeFromAttempts(questions, attempts);
+      const resumed = deriveResumeFromAttempts(currentQuestions, attempts);
       if (resumed.length > 0) {
-        setResults(resumed);
-        setIndex(resumed.length);
+        const map: AnsweredMap = {};
+        currentQuestions.slice(0, resumed.length).forEach((q, i) => {
+          map[q.id] = resumed[i];
+        });
+        answeredByDifficultyRef.current = { ...answeredByDifficultyRef.current, [currentDifficulty]: map };
       }
+      setHydrationTick((t) => t + 1);
     });
-  }, [noLocalSave, attemptsQuery.isSuccess, attemptsQuery.data, questions]);
+  }, [noLocalSave, attemptsQuery.isSuccess, attemptsQuery.data, questions, difficulty]);
+
+  // The one place results/index are ever derived from "remembered
+  // progress" (as opposed to live answering, handled directly by
+  // handleAnswered/handleNext below) — runs when the active difficulty
+  // changes (a filter switch) or hydration completes (hydrationTick).
+  // Deliberately does NOT depend on `questions` itself: `questions` can
+  // change for reasons unrelated to a difficulty switch (e.g. attempts/
+  // bookmarks refetching in the background for 'incorrect'/'bookmarked'
+  // mode), and re-deriving then would yank the user away from wherever
+  // they currently are mid-session (e.g. past the "revealed, tap Next"
+  // state) — this only ever runs for an explicit filter change or initial
+  // load, reading whatever `questions` value is current via closure at
+  // that point, which is correct either way.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    let map = answeredByDifficultyRef.current[difficulty];
+    if (!map && legacyResultsRef.current) {
+      map = {};
+      questions.slice(0, legacyResultsRef.current.length).forEach((q, i) => {
+        map![q.id] = legacyResultsRef.current![i];
+      });
+      answeredByDifficultyRef.current = { ...answeredByDifficultyRef.current, [difficulty]: map };
+      legacyResultsRef.current = null;
+    }
+    const resumed = deriveResumeFromAttempts(questions, answeredMapToAttempts(map));
+    setResults(resumed);
+    setIndex(resumed.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above: `questions` is deliberately excluded from the trigger list, only read via closure.
+  }, [difficulty, hydrationTick]);
 
   const current = questions[index];
   const bookmarkedIds = new Set(bookmarksQuery.data?.map((b) => b.questionId));
@@ -236,6 +334,13 @@ export default function PracticeSessionScreen() {
   async function handleAnswered(_answer: string | null, isCorrect: boolean) {
     if (!userId || !current) return;
     await recordQuestionAttempt(userId, current.id, _answer, isCorrect, current.estimatedTimeSeconds);
+    // Kept in lockstep with the optimistic setResults call below — this is
+    // what lets switching difficulty away and back find this question
+    // already answered without waiting on attemptsQuery to refetch.
+    answeredByDifficultyRef.current = {
+      ...answeredByDifficultyRef.current,
+      [difficulty]: { ...(answeredByDifficultyRef.current[difficulty] ?? {}), [current.id]: isCorrect },
+    };
     setResults((r) => [...r, isCorrect]);
     if (!dayQualifiedRef.current) {
       dayQualifiedRef.current = true;
@@ -346,7 +451,7 @@ export default function PracticeSessionScreen() {
       {!mode ? (
         <View style={{ flexDirection: 'row', gap: theme.spacing.xs, marginBottom: theme.spacing.md, flexWrap: 'wrap' }}>
           {(['all', 'easy', 'medium', 'hard'] as const).map((d) => (
-            <Chip key={d} label={d} selected={difficulty === d} onPress={() => resetToFreshSession(d)} />
+            <Chip key={d} label={d} selected={difficulty === d} onPress={() => switchDifficulty(d)} />
           ))}
         </View>
       ) : null}
