@@ -470,7 +470,7 @@ Every screen with a free/premium distinction reads `useAppStore().subscription?.
 | Lessons (Learn module) | Per-lesson `isPremium` flag in content | All |
 | Vocabulary topics | First 4 of 20 | All 20 |
 | Grammar lessons | First 6 of 40 | All 40 |
-| Practice questions | 20/day | Unlimited |
+| Practice questions (Reading/Listening Quick Practice) | Unlimited | Unlimited |
 | AI Coach messages | 5/day | Effectively unlimited (100/day fair-use ceiling) |
 | Writing evaluations — Practice | 10/day | Effectively unlimited (200/day fair-use ceiling) |
 | Writing evaluations — Full Mock | 10/day (separate from Practice) | Effectively unlimited (200/day fair-use ceiling) |

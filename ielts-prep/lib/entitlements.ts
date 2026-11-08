@@ -1,12 +1,18 @@
 import { getDeviceTimeZone, getLocalDateString } from '@/lib/timezone';
-import type { QuestionAttempt, TestHistoryEntry } from '@/types/models';
+import type { TestHistoryEntry } from '@/types/models';
 
 // Free-tier daily limits. Premium users (see useAppStore.subscription) have
 // none of these limits — always check isPremium before consulting this
 // module. Kept as named constants (not magic numbers scattered across
 // screens) so the whole free/premium boundary is visible and adjustable in
 // one place.
-export const FREE_DAILY_PRACTICE_QUESTIONS = 20;
+//
+// Reading/Listening Quick Practice questions are deliberately NOT one of
+// these — there used to be a FREE_DAILY_PRACTICE_QUESTIONS cap (20/day,
+// enforced live in app/practice-session.tsx), removed entirely so free
+// users get unlimited Quick Practice. Everything else in this file is
+// untouched: mock tests, AI Coach, Writing/Speaking evaluations, vocabulary
+// and grammar lesson limits still apply to free users exactly as before.
 export const FREE_DAILY_AI_MESSAGES = 5;
 // Practice-only — Full Mock Writing/Speaking has its own, separate,
 // deliberately more generous server-side allowance (see
@@ -23,16 +29,12 @@ export const FREE_GRAMMAR_LESSON_LIMIT = 6;
 // (`new Date().toISOString().slice(0, 10)`), not the device's local one —
 // the same class of bug fixed for Home's study plan (app/(tabs)/index.tsx)
 // and already avoided by streak/XP (lib/timezone.ts, lib/streak.ts). For
-// any user not in UTC+0, every one of this file's daily caps (practice
-// questions, AI messages, writing/speaking evals) could flip over at the
-// wrong moment relative to the user's own day.
+// any user not in UTC+0, every one of this file's daily caps (AI messages,
+// writing/speaking evals) could flip over at the wrong moment relative to
+// the user's own day.
 function isToday(iso: string): boolean {
   const timeZone = getDeviceTimeZone();
   return getLocalDateString(timeZone, new Date(iso)) === getLocalDateString(timeZone);
-}
-
-export function practiceQuestionsUsedToday(attempts: QuestionAttempt[]): number {
-  return attempts.filter((a) => isToday(a.createdAt)).length;
 }
 
 export function activityUsedToday(history: TestHistoryEntry[], activityType: TestHistoryEntry['activityType']): number {

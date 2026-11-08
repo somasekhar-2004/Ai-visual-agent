@@ -11,11 +11,10 @@ import { CollapsiblePanel } from '@/components/practice/CollapsiblePanel';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { HighlightablePassage } from '@/components/testing/HighlightablePassage';
 import { TranscriptAudioPlayer } from '@/components/testing/TranscriptAudioPlayer';
-import { Button, Chip, DailyLimitCard, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Button, Chip, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
-import { checkDailyLimit, FREE_DAILY_PRACTICE_QUESTIONS, practiceQuestionsUsedToday } from '@/lib/entitlements';
 import { groupQuestions } from '@/lib/practiceGrouping';
 import { deriveResumeFromAttempts } from '@/lib/resumeFromAttempts';
 import {
@@ -62,9 +61,8 @@ export default function PracticeSessionScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { skill, mode, questionType } = useLocalSearchParams<Params>();
-  const { userId, isPremium, refreshUserData } = useAppStore(useShallow((s) => ({
+  const { userId, refreshUserData } = useAppStore(useShallow((s) => ({
     userId: s.userId,
-    isPremium: s.subscription?.plan !== 'free',
     refreshUserData: s.refreshUserData,
   })));
 
@@ -95,33 +93,11 @@ export default function PracticeSessionScreen() {
   // correctness requirement.
   const dayQualifiedRef = useRef(false);
 
-  // Live enforcement of the free daily practice-question cap — see the
-  // "23/20 used today" bug this fixes. attemptsQuery only refetches once
-  // per SESSION (at Finish), so reading practiceQuestionsUsedToday(
-  // attemptsQuery.data) directly stays frozen at whatever it was when the
-  // session started, no matter how many questions get answered after that
-  // — the old blockedByLimit check also only ever ran once, at the very
-  // start (index === 0 && results.length === 0), so nothing re-checked the
-  // cap again for the rest of a long session either. Together those two
-  // gaps are exactly how usage could run past the cap at all (and, since
-  // the previous fix, switching difficulty no longer resets index/results
-  // back to a point that would have re-triggered the old check, which
-  // would have made this gap even easier to hit). Fixed with a plain local
-  // counter instead of depending on the query ever refetching:
-  // `baselineUsedToday` snapshots the server's real count once, the first
-  // time attemptsQuery settles for this exact session (see the sessionKey
-  // effect below, which resets it on a genuinely different skill/mode/
-  // questionType); `sessionAnsweredCount` increments by exactly 1 in
-  // handleAnswered for every attempt THIS screen instance itself records.
-  // Their sum (liveUsedToday below) is always accurate in real time, with
-  // no dependency on network timing.
-  const [baselineUsedToday, setBaselineUsedToday] = useState<number | null>(null);
-  const [sessionAnsweredCount, setSessionAnsweredCount] = useState(0);
   // A frozen-per-session copy of attemptsQuery.data — see its own longer
   // comment below, by the effect that sets it (needs `questions`'
   // surrounding context to explain fully). Declared here, ahead of
-  // attemptsQuery itself, only so the early sessionKey-reset effect above
-  // can reset it alongside baselineUsedToday/sessionAnsweredCount.
+  // attemptsQuery itself, only so the early sessionKey-reset effect below
+  // can reset it alongside everything else a genuinely new session resets.
   const [attemptsSnapshot, setAttemptsSnapshot] = useState<QuestionAttempt[] | undefined>(undefined);
 
   // Scoped to exactly the session this screen instance represents (which
@@ -174,12 +150,9 @@ export default function PracticeSessionScreen() {
     let cancelled = false;
     AsyncStorage.getItem(sessionKey).then((raw) => {
       if (cancelled) return;
-      // See baselineUsedToday's and attemptsSnapshot's own comments above:
-      // reset alongside everything else this effect resets for a genuinely
-      // new session, inside this callback rather than synchronously at the
-      // top of the effect.
-      setBaselineUsedToday(null);
-      setSessionAnsweredCount(0);
+      // See attemptsSnapshot's own comment above: reset alongside everything
+      // else this effect resets for a genuinely new session, inside this
+      // callback rather than synchronously at the top of the effect.
       setAttemptsSnapshot(undefined);
       if (raw) {
         try {
@@ -305,12 +278,6 @@ export default function PracticeSessionScreen() {
     Promise.resolve().then(() => setAttemptsSnapshot(snapshot));
   }, [sessionKey, attemptsSnapshot, attemptsQuery.isSuccess, attemptsQuery.data]);
 
-  useEffect(() => {
-    if (baselineUsedToday !== null || attemptsSnapshot === undefined) return;
-    const snapshot = practiceQuestionsUsedToday(attemptsSnapshot ?? []);
-    Promise.resolve().then(() => setBaselineUsedToday(snapshot));
-  }, [baselineUsedToday, attemptsSnapshot]);
-
   const questions = useMemo(() => {
     let list = listQuestions({ skill, questionType, difficulty: difficulty === 'all' ? undefined : difficulty });
     if (mode === 'incorrect') {
@@ -388,17 +355,6 @@ export default function PracticeSessionScreen() {
 
   const current = questions[index];
   const bookmarkedIds = new Set(bookmarksQuery.data?.map((b) => b.questionId));
-  // See baselineUsedToday's comment above — live, not a frozen snapshot
-  // from whenever attemptsQuery last happened to fetch. Falls back to a
-  // direct read for the one render before the baseline effect has run.
-  const liveUsedToday = (baselineUsedToday ?? practiceQuestionsUsedToday(attemptsQuery.data ?? [])) + sessionAnsweredCount;
-  const limitStatus = checkDailyLimit(liveUsedToday, FREE_DAILY_PRACTICE_QUESTIONS, isPremium);
-  // Blocks the NEXT unanswered question once the cap is reached — never an
-  // already-answered one still showing its feedback (results.length >
-  // index) mid-reveal, and never once this difficulty's own question list
-  // is already exhausted (index >= questions.length — that's the "session
-  // complete" screen below's to show, not this one's).
-  const blockedByLimit = !limitStatus.allowed && results.length === index && index < questions.length;
 
   const groupByQuestionId = useMemo(() => {
     const map = new Map<string, ReturnType<typeof groupQuestions>[number]>();
@@ -415,14 +371,10 @@ export default function PracticeSessionScreen() {
 
   async function handleAnswered(_answer: string | null, isCorrect: boolean) {
     if (!userId || !current) return;
-    // Defensive backstop, not the primary guard — blockedByLimit above
-    // already keeps an unanswered question from ever being shown once the
-    // cap is reached, so this should be unreachable in the normal flow.
-    // Never trust a UI gate alone to protect a write, though.
-    if (!isPremium && liveUsedToday >= FREE_DAILY_PRACTICE_QUESTIONS) return;
+    // Reading/Listening Quick Practice has no daily cap for free users —
+    // unlike mock tests, AI Coach, and Writing/Speaking evaluations, every
+    // answer here is recorded unconditionally.
     await recordQuestionAttempt(userId, current.id, _answer, isCorrect, current.estimatedTimeSeconds);
-    // Live counter for the cap above — see baselineUsedToday's comment.
-    setSessionAnsweredCount((c) => c + 1);
     // Regression fix: previously only invalidated at the very end of a
     // session (reaching the literal end of a possibly 1000+-question
     // filtered list — see handleNext below). A user who answers a few
@@ -479,17 +431,6 @@ export default function PracticeSessionScreen() {
       return;
     }
     setIndex((i) => i + 1);
-  }
-
-  if (blockedByLimit) {
-    return (
-      <Screen>
-        <ScreenHeader title="Practice" showBack />
-        <View style={{ marginTop: theme.spacing.xl }}>
-          <DailyLimitCard used={limitStatus.used} limit={limitStatus.limit} feature="Practice questions" />
-        </View>
-      </Screen>
-    );
   }
 
   if (questions.length === 0) {

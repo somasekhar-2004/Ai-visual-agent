@@ -1,15 +1,14 @@
-// Regression coverage for a real bug reported on v25: the free-plan screen
-// showed "23/20 used today" — usage had run past the daily cap entirely.
-// Root cause: attemptsQuery only ever refetched once per session (at
-// Finish), so the limit check — itself only ever run ONCE, at the very
-// start of a session (index === 0 && results.length === 0) — never saw
-// usage climb as the user kept answering, and never re-checked again for
-// the rest of a long session. These tests prove the fix tapping through
-// REAL answers, not by asserting on the pure entitlements helpers alone
-// (see __tests__/entitlements.test.ts for those): the 20th answer must be
-// allowed, the 21st must be blocked BEFORE it is recorded, and neither a
-// difficulty switch nor a rapid double-tap on Check answer may consume an
-// extra slot.
+// Regression coverage for the removal of the free daily practice-question
+// cap. Reading/Listening Quick Practice used to block a free user at 20
+// questions/day (see the "23/20 used today" bug this engagement fixed
+// earlier, and __tests__/entitlements.test.ts for the local-date-boundary
+// coverage that fix left behind) — that whole cap is now gone, for EVERY
+// free user including one who already hit 20+ before this session even
+// started. These tests prove a free user can submit the 21st answer (and
+// beyond) and keep going, with no "Daily limit reached" screen ever shown,
+// while attempts keep being recorded exactly as before (tracking, accuracy,
+// and resume position are unaffected by removing the cap — only the block
+// itself is gone).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
@@ -44,8 +43,8 @@ const TODAY_ISO = new Date().toISOString();
 
 /** `n` pre-existing attempts from "today", on question ids NOT in
  * mockQuestions — standing in for usage already recorded elsewhere (other
- * filters, other sessions earlier today), exactly how a real baseline
- * would look. */
+ * filters, other sessions earlier today). Used here to put a free user
+ * PAST the old 20/day cap before the session even renders. */
 function priorAttemptsToday(n: number) {
   return Array.from({ length: n }, (_, i) => ({
     id: `prior-${i}`,
@@ -82,12 +81,10 @@ jest.mock('@/services/repository', () => ({
 }));
 
 async function renderScreen() {
-  // The screen derives isPremium from `subscription?.plan !== 'free'` (see
-  // practice-session.tsx) — the store has no standalone `isPremium` field,
-  // so a free-plan user must be represented by an actual free-plan
-  // subscription object, not a bare `isPremium: false` (which would just
-  // set an unused key and leave `subscription` at its default `null`,
-  // which reads as PREMIUM: `null?.plan !== 'free'` is `true`).
+  // Free plan, specifically — this is the plan the old cap applied to.
+  // `isPremium` is derived from `subscription?.plan !== 'free'`, so a free
+  // user must be a real free-plan subscription object, not a default-null
+  // one (which would read as premium).
   useAppStore.setState({
     userId: 'user-1',
     subscription: { id: 's1', userId: 'user-1', plan: 'free', status: 'none', revenuecatCustomerId: null, currentPeriodEnd: null },
@@ -109,7 +106,7 @@ async function answerCurrentQuestion(getByText: (text: string) => any) {
   await waitFor(() => expect(getByText('Correct!')).toBeTruthy());
 }
 
-describe('PracticeSessionScreen — the free daily practice-question cap is enforced live, per answer', () => {
+describe('PracticeSessionScreen — Reading/Listening Quick Practice is unlimited for free users', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockUseLocalSearchParams.mockReturnValue({ skill: 'reading' });
@@ -120,49 +117,70 @@ describe('PracticeSessionScreen — the free daily practice-question cap is enfo
     await new Promise((resolve) => setTimeout(resolve, 50));
   });
 
-  it('allows the 20th answer of the day and blocks the 21st before it is ever recorded', async () => {
-    (getQuestionAttempts as jest.Mock).mockResolvedValue(priorAttemptsToday(19)); // 19 used already today, elsewhere
-    const { getByText } = await renderScreen();
-    await waitFor(() => expect(getByText('q-1')).toBeTruthy());
-
-    // The 20th answer of the day — must be allowed.
-    await answerCurrentQuestion(getByText);
-    expect(recordQuestionAttempt as jest.Mock).toHaveBeenCalledTimes(1);
-
-    await fireEvent.press(getByText('Next question'));
-
-    // The 21st would be next — blocked before the question is even shown,
-    // let alone answerable.
-    await waitFor(() => expect(getByText('Daily Practice questions limit reached')).toBeTruthy());
-    expect(getByText(/20\/20 used today/)).toBeTruthy();
-    expect(recordQuestionAttempt as jest.Mock).toHaveBeenCalledTimes(1); // still just the 20th
-  });
-
-  it('a free user already at 20/20 before starting is blocked immediately, never shown a question', async () => {
+  it('a free user already at 20 attempts today is shown a question immediately, not a limit screen', async () => {
     (getQuestionAttempts as jest.Mock).mockResolvedValue(priorAttemptsToday(20));
     const { getByText, queryByText } = await renderScreen();
-    await waitFor(() => expect(getByText('Daily Practice questions limit reached')).toBeTruthy());
-    expect(queryByText('q-1')).toBeNull();
-    expect(recordQuestionAttempt as jest.Mock).not.toHaveBeenCalled();
+    await waitFor(() => expect(getByText('q-1')).toBeTruthy());
+    expect(queryByText('Daily Practice questions limit reached')).toBeNull();
+    expect(queryByText(/used today/)).toBeNull();
   });
 
-  it('switching difficulty while near the cap never itself consumes a slot', async () => {
-    (getQuestionAttempts as jest.Mock).mockResolvedValue(priorAttemptsToday(19));
-    const { getByText } = await renderScreen();
+  it('a free user can submit question 21 (and keep going past it) with no limit screen ever appearing', async () => {
+    (getQuestionAttempts as jest.Mock).mockResolvedValue(priorAttemptsToday(20)); // already 20 used today, elsewhere
+    const { getByText, queryByText } = await renderScreen();
+    await waitFor(() => expect(getByText('q-1')).toBeTruthy());
+
+    // This is the 21st attempt of the day — under the old cap this would
+    // have been blocked before ever reaching a question. It must now go
+    // through exactly like any other answer.
+    await answerCurrentQuestion(getByText);
+    expect(recordQuestionAttempt as jest.Mock).toHaveBeenCalledTimes(1);
+    expect(queryByText('Daily Practice questions limit reached')).toBeNull();
+
+    await fireEvent.press(getByText('Next question'));
+    await waitFor(() => expect(getByText('q-2')).toBeTruthy());
+    expect(queryByText('Daily Practice questions limit reached')).toBeNull();
+
+    // Keep going well past the old cap (22nd, 23rd, 24th, 25th of the day)
+    // — tracking keeps working (recordQuestionAttempt called every time)
+    // and the session's own position keeps advancing normally.
+    await answerCurrentQuestion(getByText);
+    await fireEvent.press(getByText('Next question'));
+    await waitFor(() => expect(getByText('q-3')).toBeTruthy());
+    await answerCurrentQuestion(getByText);
+    await fireEvent.press(getByText('Next question'));
+    await waitFor(() => expect(getByText('q-4')).toBeTruthy());
+
+    expect(recordQuestionAttempt as jest.Mock).toHaveBeenCalledTimes(3);
+    expect(queryByText('Daily Practice questions limit reached')).toBeNull();
+  });
+
+  it('a free user with a much larger backlog (50 prior attempts today) is never blocked either', async () => {
+    (getQuestionAttempts as jest.Mock).mockResolvedValue(priorAttemptsToday(50));
+    const { getByText, queryByText } = await renderScreen();
+    await waitFor(() => expect(getByText('q-1')).toBeTruthy());
+    await answerCurrentQuestion(getByText);
+    expect(recordQuestionAttempt as jest.Mock).toHaveBeenCalledTimes(1);
+    expect(queryByText('Daily Practice questions limit reached')).toBeNull();
+  });
+
+  it('switching difficulty near the old cap boundary still works, with no limit screen appearing', async () => {
+    (getQuestionAttempts as jest.Mock).mockResolvedValue(priorAttemptsToday(20));
+    const { getByText, queryByText } = await renderScreen();
     await waitFor(() => expect(getByText('q-1')).toBeTruthy());
 
     await fireEvent.press(getByText('medium'));
     await fireEvent.press(getByText('hard'));
     await fireEvent.press(getByText('all'));
+    await waitFor(() => expect(getByText('q-1')).toBeTruthy());
 
-    // Still exactly 19 used (baseline) + 0 this session — the 20th
-    // question should still be answerable after all that switching.
     await answerCurrentQuestion(getByText);
     expect(recordQuestionAttempt as jest.Mock).toHaveBeenCalledTimes(1);
+    expect(queryByText('Daily Practice questions limit reached')).toBeNull();
   });
 
-  it('a rapid double-tap on Check answer never consumes two slots for one answer', async () => {
-    (getQuestionAttempts as jest.Mock).mockResolvedValue(priorAttemptsToday(19));
+  it('a rapid double-tap on Check answer still never consumes two attempts for one answer (unrelated to the removed cap)', async () => {
+    (getQuestionAttempts as jest.Mock).mockResolvedValue(priorAttemptsToday(20));
     const { getByText } = await renderScreen();
     await waitFor(() => expect(getByText('q-1')).toBeTruthy());
 
