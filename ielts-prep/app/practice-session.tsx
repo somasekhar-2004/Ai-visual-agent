@@ -227,6 +227,15 @@ export default function PracticeSessionScreen() {
     AsyncStorage.setItem(sessionKey, JSON.stringify(payload)).catch(() => {});
   }, [sessionKey, results, difficulty]);
 
+  // Bumped by resetToFreshSession below — see the QuestionCard key comment
+  // near the bottom of this component for why this exists: Restart (and
+  // "Practice again") can land back on question index 0 while `current`'s
+  // id is completely unchanged from what was just showing "Correct!"/"Not
+  // quite", with nothing else about `current` having changed either. This
+  // is the signal QuestionCard's key uses to force a fresh instance in
+  // exactly that case.
+  const [resetGeneration, setResetGeneration] = useState(0);
+
   /** Restart and "Practice again" call this — clears ONLY the active
    * difficulty's own remembered progress (never other filters', since each
    * filter now remembers its own place independently — see the derivation
@@ -237,6 +246,7 @@ export default function PracticeSessionScreen() {
     answeredByDifficultyRef.current = { ...answeredByDifficultyRef.current, [difficulty]: {} };
     setResults([]);
     setIndex(0);
+    setResetGeneration((g) => g + 1);
   }
 
   /** The difficulty chips call this — switching filters is pure navigation,
@@ -586,7 +596,26 @@ export default function PracticeSessionScreen() {
           of inventing a new one. */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: theme.spacing.lg }} keyboardShouldPersistTaps="handled">
         <QuestionCard
-          key={current.id}
+          // Keying on current.id ALONE isn't enough: switching difficulty
+          // can land back on the EXACT SAME question id at the exact same
+          // index (e.g. a question tagged "easy" is unanswered-so-far under
+          // both the "all" and "easy" filters, and happens to be first in
+          // both), with nothing else about `current` having changed either
+          // — React then has no reason to remount QuestionCard, so its
+          // local `revealed`/`selected` state (from the answer just given a
+          // moment ago, under the OTHER filter's independent progress)
+          // silently carries over, leaving the question stuck showing
+          // "Correct!" with no Check-answer button to re-submit and no
+          // Next-question button either (this filter's own `results` is
+          // genuinely empty) — a dead end. Restart/"Practice again" can hit
+          // the exact same problem when landing back on index 0 without
+          // `current`'s id having changed. `difficulty` and
+          // `resetGeneration` are exactly the two things that change for
+          // those two cases and ONLY those — deliberately NOT
+          // `results.length`, which also changes on every ordinary answer
+          // and would remount this away immediately after reveal, before
+          // the user ever sees "Correct!"/"Not quite" at all.
+          key={`${difficulty}-${resetGeneration}-${current.id}`}
           question={current}
           onAnswered={handleAnswered}
           isBookmarked={bookmarkedIds.has(current.id)}

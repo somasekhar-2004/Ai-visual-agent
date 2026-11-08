@@ -65,8 +65,15 @@ export default function PracticeHubScreen() {
             <IconCircle name={skill.icon} color={theme.skillColors[skill.key]} backgroundColor={theme.skillColors[skill.key] + '22'} />
             <View style={{ flex: 1 }}>
               <Text variant="h3">{skill.title} practice</Text>
+              {/* Distinct questions attempted at least once, out of this
+                  skill's full question bank — never double-counts a
+                  question answered again under a different difficulty
+                  filter, unlike Home's "Total attempts" stat (which is every
+                  recorded attempt, repeats included). Spelled out
+                  explicitly ("unique") so the two numbers are never read as
+                  the same measurement. */}
               <Text variant="caption" color="secondary">
-                {done}/{total} questions attempted
+                {done} of {total.toLocaleString()} unique {skill.title} questions attempted
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />

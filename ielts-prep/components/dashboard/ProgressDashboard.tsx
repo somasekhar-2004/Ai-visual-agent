@@ -195,8 +195,16 @@ export function ProgressDashboard({ onSetGoal, onUpgrade }: { onSetGoal: () => v
         </Card>
         <Card style={{ flex: 1, alignItems: 'center', gap: 4 }}>
           <Text variant="h2">{attemptsQuery.data?.length ?? 0}</Text>
+          {/* Every recorded practice-question attempt, including repeats of
+              the same question answered again under a different difficulty
+              filter (see practice-session.tsx's switchDifficulty — each
+              filter tracks its own progress independently, by design, so
+              re-answering the same question under "all" after already
+              answering it under "easy" records a second attempt). This is
+              the lifetime attempt count, not a count of distinct questions —
+              see the Practice tab's per-skill card for that. */}
           <Text variant="caption" color="secondary">
-            Questions done
+            Total attempts
           </Text>
         </Card>
       </View>
