@@ -130,13 +130,33 @@ export function QuestionCard({
       {/* Deliberately a sibling of the Card, not nested inside it — matching
           practice-session.tsx's "Next question"/"Finish" button, which is
           also a sibling of this whole component rather than inside the
-          Card. Nested inside the Card's own padding, this button's visible
-          fill still looked full-width, but structurally it sat behind an
-          extra layer of padding/inset that "Next question" never had,
-          which was the suspected (not device-confirmed) cause of the
-          reported "Check answer only responds near the centre" bug. */}
+          Card.
+          Deliberately compact and centred, NOT fullWidth (unlike Next
+          question) — a real device report found this exact full-width
+          button only responding to taps near its centre, not its full
+          visible edge-to-edge span; narrowing it so there's simply much
+          less distance between its centre and its own edges removes that
+          failure mode regardless of its underlying cause, which two
+          earlier on-device-unconfirmed fixes didn't resolve. `alignSelf:
+          'center'` both centres it and makes it shrink-wrap to its label
+          (Button's own width is `undefined` whenever `fullWidth` is
+          omitted, but the ScrollView's default `alignItems: 'stretch'`
+          would otherwise stretch it back to full width anyway).
+          `paddingHorizontal: 32` gives the label more breathing room than
+          Button's own default `md`-size padding (20); `minHeight: 48`
+          keeps it at least the standard touch-target height even though
+          Button's own fixed `height: 48` for `md` already satisfies that —
+          background (backgroundColor) and the press handler (onPress) are
+          both applied by Button to the SAME Pressable element, so this
+          override can only ever affect that one element's own box, never
+          create a mismatch between what's drawn and what's tappable. */}
       {!revealed ? (
-        <Button label="Check answer" onPress={submit} disabled={freeText ? !textAnswer.trim() : !selected} fullWidth style={{ marginTop: theme.spacing.md }} />
+        <Button
+          label="Check answer"
+          onPress={submit}
+          disabled={freeText ? !textAnswer.trim() : !selected}
+          style={{ marginTop: theme.spacing.md, alignSelf: 'center', paddingHorizontal: 32, minHeight: 48 }}
+        />
       ) : null}
     </Fragment>
   );
