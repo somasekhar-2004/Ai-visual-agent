@@ -136,27 +136,32 @@ export function QuestionCard({
           button only responding to taps near its centre, not its full
           visible edge-to-edge span; narrowing it so there's simply much
           less distance between its centre and its own edges removes that
-          failure mode regardless of its underlying cause, which two
-          earlier on-device-unconfirmed fixes didn't resolve. `alignSelf:
-          'center'` both centres it and makes it shrink-wrap to its label
-          (Button's own width is `undefined` whenever `fullWidth` is
-          omitted, but the ScrollView's default `alignItems: 'stretch'`
-          would otherwise stretch it back to full width anyway).
-          `paddingHorizontal: 32` gives the label more breathing room than
-          Button's own default `md`-size padding (20); `minHeight: 48`
-          keeps it at least the standard touch-target height even though
-          Button's own fixed `height: 48` for `md` already satisfies that —
-          background (backgroundColor) and the press handler (onPress) are
-          both applied by Button to the SAME Pressable element, so this
-          override can only ever affect that one element's own box, never
-          create a mismatch between what's drawn and what's tappable. */}
+          failure mode regardless of its underlying cause, which earlier
+          fixes (hitSlop, then alignSelf alone) didn't resolve on-device.
+          Wrapped in its OWN `alignItems: 'center'` View rather than relying
+          on `alignSelf: 'center'` on the Button alone — belt-and-suspenders:
+          this makes the centring/shrink-to-content behavior depend only on
+          this View's own (ordinary, static) layout, not on how a sibling's
+          `alignSelf` resolves against a distant ancestor's (the ScrollView
+          content container, two levels up) default `alignItems: 'stretch'`
+          through Button's own functional `style` prop. `paddingHorizontal:
+          32` gives the label more breathing room than Button's own default
+          `md`-size padding (20); `minHeight: 48` keeps the touch-target
+          height explicit even though Button's own fixed `height: 48` for
+          `md` already satisfies it — background (backgroundColor) and the
+          press handler (onPress) are both applied by Button to the SAME
+          Pressable element, so neither this wrapper nor that style override
+          can ever create a mismatch between what's drawn and what's
+          tappable; both always describe the one real Pressable. */}
       {!revealed ? (
-        <Button
-          label="Check answer"
-          onPress={submit}
-          disabled={freeText ? !textAnswer.trim() : !selected}
-          style={{ marginTop: theme.spacing.md, alignSelf: 'center', paddingHorizontal: 32, minHeight: 48 }}
-        />
+        <View style={{ alignItems: 'center', marginTop: theme.spacing.md }}>
+          <Button
+            label="Check answer"
+            onPress={submit}
+            disabled={freeText ? !textAnswer.trim() : !selected}
+            style={{ paddingHorizontal: 32, minHeight: 48 }}
+          />
+        </View>
       ) : null}
     </Fragment>
   );
