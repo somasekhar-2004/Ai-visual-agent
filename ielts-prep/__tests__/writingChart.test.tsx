@@ -66,6 +66,18 @@ const SMALL_TABLE: WritingChartData = {
 const REAL_MUSEUM_VISITORS_TABLE = content.writingPrompts.find((p) => p.title.startsWith('Visitor Numbers at Four City Museums'))!
   .chartData as WritingChartData;
 
+// Real shipped process/map/pie prompts — picked because they're the ones
+// a user actually reported as broken (process) or share the exact same
+// rendering bug class (map, pie): see WritingChart.tsx's ProcessDiagram,
+// MapDiagram and PieChart comments.
+const REAL_WATER_TREATMENT_PROCESS = content.writingPrompts.find((p) => p.title === 'The Water Treatment Process')!
+  .chartData as Extract<WritingChartData, { type: 'process' }>;
+const REAL_CHOCOLATE_PROCESS = content.writingPrompts.find((p) => p.title === 'The Chocolate Production Process')!
+  .chartData as Extract<WritingChartData, { type: 'process' }>;
+const REAL_COASTAL_TOWN_MAP = content.writingPrompts.find((p) => p.title.startsWith('Changes to a Coastal Town'))!
+  .chartData as Extract<WritingChartData, { type: 'map' }>;
+const REAL_PIE_CHART = content.writingPrompts.find((p) => p.chartData?.type === 'pie')!.chartData as Extract<WritingChartData, { type: 'pie' }>;
+
 async function renderChart(data: WritingChartData) {
   return render(
     <ThemeProvider>
@@ -76,6 +88,17 @@ async function renderChart(data: WritingChartData) {
 
 async function layout(element: unknown, width: number) {
   await fireEvent(element as never, 'layout', { nativeEvent: { layout: { width, height: 0, x: 0, y: 0 } } });
+}
+
+// react-native-svg's <Text> renders as an SVG text node, not an RN <Text> —
+// RTL's getByText only matches the latter (confirmed: it finds the pie/
+// process/map/legend labels, which ARE RN <Text>, but not bar/line axis
+// labels, which are SvgText). For axis labels we fall back to searching the
+// rendered JSON tree's serialised string, which is a reliable signal that
+// the text is actually present in what got rendered, not merely data that
+// was passed in and silently dropped.
+function treeIncludes(toJSON: () => unknown, text: string): boolean {
+  return JSON.stringify(toJSON()).includes(text);
 }
 
 describe('niceAxisTicks — "nice number" Y-axis rounding', () => {
@@ -280,6 +303,120 @@ describe('WritingChart — pie/process/map never need horizontal scrolling', () 
       expect(queryByTestId('writing-chart-scroll')).toBeNull();
       expect(queryByTestId('writing-table-scroll')).toBeNull();
       await unmount();
+    }
+  });
+});
+
+// The bug this section guards against: a chart/diagram that MOUNTS fine
+// (nothing throws, no crash) but renders none of its actual content —
+// e.g. the real on-device bug where a process diagram showed only its
+// numbered circles, with every step's description text silently resolving
+// to zero width (see ProcessDiagram's comment in WritingChart.tsx). None
+// of the tests above would have caught that: they only check for the
+// absence of a scroll affordance, never that the step text is present.
+describe('WritingChart process — every step actually renders, not just the numbered circle', () => {
+  it('renders one numbered-circle row per step, with the full text of every step present', async () => {
+    const { getByText, getAllByTestId } = await renderChart(REAL_WATER_TREATMENT_PROCESS);
+    expect(getAllByTestId('writing-process-step')).toHaveLength(REAL_WATER_TREATMENT_PROCESS.steps.length);
+    for (const step of REAL_WATER_TREATMENT_PROCESS.steps) {
+      expect(getByText(step)).toBeTruthy();
+    }
+  });
+
+  it('draws a connecting arrow between every pair of consecutive steps, and none after the last', async () => {
+    const { getAllByTestId } = await renderChart(REAL_CHOCOLATE_PROCESS);
+    expect(getAllByTestId('writing-process-connector')).toHaveLength(REAL_CHOCOLATE_PROCESS.steps.length - 1);
+  });
+
+  it('renders every step of every real shipped process dataset, not just the first or a crash-free mount', async () => {
+    const realProcesses = content.writingPrompts
+      .map((p) => p.chartData)
+      .filter((c): c is Extract<WritingChartData, { type: 'process' }> => Boolean(c) && c!.type === 'process');
+    expect(realProcesses.length).toBeGreaterThan(0);
+    for (const chartData of realProcesses) {
+      const { getAllByTestId, getByText, unmount } = await renderChart(chartData);
+      expect(getAllByTestId('writing-process-step')).toHaveLength(chartData.steps.length);
+      for (const step of chartData.steps) expect(getByText(step)).toBeTruthy();
+      await unmount();
+    }
+  });
+});
+
+describe('WritingChart map — description and every feature bullet actually render', () => {
+  it('renders the map description and one bullet per feature, with the full text of each', async () => {
+    const { getByText, getAllByTestId } = await renderChart(REAL_COASTAL_TOWN_MAP);
+    expect(getByText(REAL_COASTAL_TOWN_MAP.description)).toBeTruthy();
+    expect(getAllByTestId('writing-map-feature')).toHaveLength(REAL_COASTAL_TOWN_MAP.features.length);
+    for (const feature of REAL_COASTAL_TOWN_MAP.features) {
+      expect(getByText(feature)).toBeTruthy();
+    }
+  });
+
+  it('renders every feature of every real shipped map dataset', async () => {
+    const realMaps = content.writingPrompts
+      .map((p) => p.chartData)
+      .filter((c): c is Extract<WritingChartData, { type: 'map' }> => Boolean(c) && c!.type === 'map');
+    expect(realMaps.length).toBeGreaterThan(0);
+    for (const chartData of realMaps) {
+      const { getByText, getAllByTestId, unmount } = await renderChart(chartData);
+      expect(getByText(chartData.description)).toBeTruthy();
+      expect(getAllByTestId('writing-map-feature')).toHaveLength(chartData.features.length);
+      await unmount();
+    }
+  });
+});
+
+describe('WritingChart pie — legend renders every segment\'s label and percentage', () => {
+  it('renders a legend line for every segment with its label and share of the total', async () => {
+    const { getByText } = await renderChart(REAL_PIE_CHART);
+    const total = REAL_PIE_CHART.segments.reduce((sum, s) => sum + s.value, 0);
+    for (const seg of REAL_PIE_CHART.segments) {
+      const pct = Math.round((seg.value / total) * 100);
+      expect(getByText(`${seg.label} — ${pct}%`)).toBeTruthy();
+    }
+  });
+
+  it('renders every segment label for every real shipped pie dataset, not just a crash-free mount', async () => {
+    const realPies = content.writingPrompts
+      .map((p) => p.chartData)
+      .filter((c): c is Extract<WritingChartData, { type: 'pie' }> => Boolean(c) && c!.type === 'pie');
+    expect(realPies.length).toBeGreaterThan(0);
+    for (const chartData of realPies) {
+      const total = chartData.segments.reduce((sum, s) => sum + s.value, 0);
+      const { getByText, unmount } = await renderChart(chartData);
+      for (const seg of chartData.segments) {
+        const pct = Math.round((seg.value / total) * 100);
+        expect(getByText(`${seg.label} — ${pct}%`)).toBeTruthy();
+      }
+      await unmount();
+    }
+  });
+});
+
+describe('WritingChart bar/line — axis labels and legend actually render, not just the SVG shell', () => {
+  it('renders every x-axis category label and every series legend label for a real multi-series chart', async () => {
+    const chart = REAL_UNIVERSITY_ENROLMENT_CHART as Extract<WritingChartData, { type: 'bar' | 'line' }>;
+    const { getByText, toJSON } = await renderChart(chart);
+    for (const s of chart.series) {
+      // Legend labels are RN <Text>, found the normal way.
+      expect(getByText(s.label, { exact: false })).toBeTruthy();
+      for (const p of s.points) {
+        // X-axis labels are drawn as SVG <Text>, not RN <Text> — verified
+        // present in the actual rendered tree instead (see treeIncludes).
+        expect(treeIncludes(toJSON, p.x)).toBe(true);
+      }
+    }
+  });
+});
+
+describe('WritingChart table — every header and cell actually renders, not just the bordered box', () => {
+  it('renders every header and every cell value of a real table dataset', async () => {
+    expect(REAL_MUSEUM_VISITORS_TABLE.type).toBe('table');
+    const table = REAL_MUSEUM_VISITORS_TABLE as Extract<WritingChartData, { type: 'table' }>;
+    const { getAllByText } = await renderChart(table);
+    for (const header of table.headers) expect(getAllByText(header).length).toBeGreaterThan(0);
+    for (const row of table.rows) {
+      for (const cell of row) expect(getAllByText(cell).length).toBeGreaterThan(0);
     }
   });
 });

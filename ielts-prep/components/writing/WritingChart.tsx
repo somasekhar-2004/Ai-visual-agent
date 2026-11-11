@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { type LayoutChangeEvent, ScrollView, View } from 'react-native';
 import Svg, { G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
@@ -258,8 +259,17 @@ function PieChart({ data }: { data: Extract<WritingChartData, { type: 'pie' }> }
   // Fixed small SVG (180px) + a legend that wraps its own text onto new
   // lines as it shrinks — unlike the bar/line chart, nothing here is ever
   // clipped by a narrow screen, so no horizontal scroll is needed.
+  //
+  // The explicit width: '100%' on the root is still required, though: the
+  // legend column below is flex: 1, and a flex child only gets a real
+  // (non-zero) measured width when ITS parent has a definite width to
+  // divide up. Under writing-test.tsx's alignItems: 'center' wrapper, a
+  // root with no explicit width shrinks to hug its own content instead of
+  // reporting the available width, so React Native resolves that flex: 1
+  // legend to zero width and its labels silently never render — the same
+  // class of bug fixed in ProcessDiagram/MapDiagram below.
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+    <View testID="writing-pie-container" style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md, width: '100%' }}>
       <Svg width={size} height={size}>
         <G>
           {arcs.map((a, i) => (
@@ -360,30 +370,48 @@ function TableChart({ data }: { data: Extract<WritingChartData, { type: 'table' 
   );
 }
 
+const PROCESS_CIRCLE_SIZE = 24;
+
+// Root needs an explicit width for the same reason PieChart's does: under
+// writing-test.tsx's alignItems: 'center' wrapper, a root with no width
+// shrinks to hug its content instead of taking the available width, and
+// each row's flex: 1 step-description Text then resolves to zero width —
+// this was the actual bug (only the numbered circles were visible, with no
+// step text and no connector between them).
 function ProcessDiagram({ data }: { data: Extract<WritingChartData, { type: 'process' }> }) {
   const theme = useTheme();
   return (
-    <View style={{ gap: theme.spacing.xs }}>
+    <View testID="writing-process-container" style={{ width: '100%' }}>
       {data.steps.map((step, i) => (
-        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-          <View
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: theme.colors.primarySoft,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text variant="micro" color="brand">
-              {i + 1}
+        <React.Fragment key={i}>
+          <View testID="writing-process-step" style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+            <View
+              style={{
+                width: PROCESS_CIRCLE_SIZE,
+                height: PROCESS_CIRCLE_SIZE,
+                borderRadius: PROCESS_CIRCLE_SIZE / 2,
+                backgroundColor: theme.colors.primarySoft,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text variant="micro" color="brand">
+                {i + 1}
+              </Text>
+            </View>
+            <Text variant="body" style={{ flex: 1 }}>
+              {step}
             </Text>
           </View>
-          <Text variant="body" style={{ flex: 1 }}>
-            {step}
-          </Text>
-        </View>
+          {i < data.steps.length - 1 ? (
+            // A connecting arrow between consecutive steps, centred under
+            // the numbered circle — shows the sequence already implied by
+            // the step order, nothing beyond what the data already says.
+            <View testID="writing-process-connector" style={{ width: PROCESS_CIRCLE_SIZE, alignItems: 'center' }}>
+              <Ionicons name="arrow-down" size={16} color={theme.colors.textTertiary} />
+            </View>
+          ) : null}
+        </React.Fragment>
       ))}
     </View>
   );
@@ -392,12 +420,12 @@ function ProcessDiagram({ data }: { data: Extract<WritingChartData, { type: 'pro
 function MapDiagram({ data }: { data: Extract<WritingChartData, { type: 'map' }> }) {
   const theme = useTheme();
   return (
-    <View style={{ gap: theme.spacing.xs }}>
+    <View testID="writing-map-container" style={{ gap: theme.spacing.xs, width: '100%' }}>
       <Text variant="body" color="secondary">
         {data.description}
       </Text>
       {data.features.map((f, i) => (
-        <View key={i} style={{ flexDirection: 'row', gap: 6 }}>
+        <View key={i} testID="writing-map-feature" style={{ flexDirection: 'row', gap: 6 }}>
           <Text variant="body">•</Text>
           <Text variant="body" style={{ flex: 1 }}>
             {f}
