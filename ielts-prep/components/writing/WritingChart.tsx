@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { type LayoutChangeEvent, View } from 'react-native';
+import { type LayoutChangeEvent, ScrollView, View } from 'react-native';
 import Svg, { G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 
 import { Text } from '@/components/ui';
@@ -7,6 +7,8 @@ import { useTheme } from '@/hooks/useTheme';
 import type { WritingChartData } from '@/types/models';
 
 const SERIES_COLORS = ['#2F5DE3', '#1B9C9C', '#7C5CE0', '#E2694F', '#C98A1B'];
+
+const SWIPE_HINT = 'Swipe to view full chart →';
 
 /** Picks a "nice" axis maximum and a small set of evenly spaced tick
  * values (0..max), the way a human-drawn chart would round its scale
@@ -56,98 +58,160 @@ export function WritingChart({ data }: { data: WritingChartData }) {
   }
 }
 
-function BarOrLineChart({ data }: { data: Extract<WritingChartData, { type: 'bar' | 'line' }> }) {
-  const theme = useTheme();
-  // This stays a fixed logical design canvas — every coordinate below is
-  // computed against it, unchanged. What actually varies per device is the
-  // SVG's rendered width (via onLayout below) with a matching viewBox, so
-  // the whole chart scales to fit the real available width instead of
-  // clipping (on a narrower phone than this fixed canvas) or sitting
-  // undersized (on a wider one).
-  const width = 320;
-  const height = 220;
-  const padding = { left: 44, right: 12, top: 16, bottom: 28 };
-  const plotW = width - padding.left - padding.right;
-  const plotH = height - padding.top - padding.bottom;
+// Fixed logical canvas height; every Y coordinate below is computed against
+// it. Width is NOT fixed — see computeBarLineLayout.
+const CHART_HEIGHT = 220;
+const CHART_PADDING = { left: 44, right: 12, top: 16, bottom: 28 };
+// A bar narrower than this, or an x-axis label packed tighter than this,
+// stops being readable on a real phone — this was the actual bug: the old
+// layout always rescaled a fixed 320px canvas down to whatever width the
+// device gave it, so a dense chart (many series x many categories) shrank
+// bars/labels below this floor on anything but a wide screen.
+const MIN_BAR_WIDTH = 18;
+const BAR_GAP = 3;
+const GROUP_PADDING = 12;
+const MIN_LABEL_SLOT = 32;
+const LABEL_CHAR_WIDTH = 7;
+const LABEL_CHAR_PADDING = 10;
 
-  const [containerWidth, setContainerWidth] = useState(width);
-  function handleLayout(e: LayoutChangeEvent) {
-    const measured = e.nativeEvent.layout.width;
-    if (measured > 0) setContainerWidth(measured);
-  }
-  const renderedHeight = containerWidth * (height / width);
-
+/** Computes this chart's own minimum readable width from its data — a
+ * single-series 3-point chart needs far less room than a 4-series 6-point
+ * one. This is the chart's "natural" size: never shrunk below it (that's
+ * what caused the bug), only ever scaled UP to fill extra space when the
+ * screen has room to spare. */
+function computeBarLineLayout(data: Extract<WritingChartData, { type: 'bar' | 'line' }>) {
   const allPoints = data.series.flatMap((s) => s.points);
   const xLabels = Array.from(new Set(allPoints.map((p) => p.x)));
-  const rawMaxY = Math.max(1, ...allPoints.map((p) => p.y));
+  const seriesCount = Math.max(1, data.series.length);
+  const longestLabelLen = xLabels.reduce((m, l) => Math.max(m, l.length), 0);
+  const minLabelSlot = Math.max(MIN_LABEL_SLOT, longestLabelLen * LABEL_CHAR_WIDTH + LABEL_CHAR_PADDING);
+  const slotWidth =
+    data.type === 'bar'
+      ? Math.max(seriesCount * MIN_BAR_WIDTH + (seriesCount - 1) * BAR_GAP + GROUP_PADDING, minLabelSlot)
+      : minLabelSlot;
+  const plotWidth = Math.max(1, xLabels.length) * slotWidth;
+  const contentWidth = Math.round(CHART_PADDING.left + CHART_PADDING.right + plotWidth);
+  return { xLabels, seriesCount, slotWidth, contentWidth };
+}
+
+function BarOrLineChart({ data }: { data: Extract<WritingChartData, { type: 'bar' | 'line' }> }) {
+  const theme = useTheme();
+  const { xLabels, seriesCount, slotWidth, contentWidth } = computeBarLineLayout(data);
+  const plotW = contentWidth - CHART_PADDING.left - CHART_PADDING.right;
+  const plotH = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
+
+  // The real available width for the chart, measured once this View lays
+  // out (null beforehand). Distinct from contentWidth, which is this
+  // chart's own minimum size regardless of the screen.
+  const [viewportWidth, setViewportWidth] = useState<number | null>(null);
+  function handleLayout(e: LayoutChangeEvent) {
+    const measured = e.nativeEvent.layout.width;
+    if (measured > 0) setViewportWidth(measured);
+  }
+  // Before the first layout event, render at this chart's natural size
+  // rather than guessing — avoids a flash of an incorrectly-shrunk chart.
+  const needsScroll = viewportWidth != null && viewportWidth < contentWidth;
+  const renderWidth = viewportWidth != null && !needsScroll ? viewportWidth : contentWidth;
+  const renderHeight = viewportWidth != null && !needsScroll ? renderWidth * (CHART_HEIGHT / contentWidth) : CHART_HEIGHT;
+
+  const rawMaxY = Math.max(1, ...data.series.flatMap((s) => s.points.map((p) => p.y)));
   const { max: maxY, ticks: yTicks, decimals: yDecimals } = niceAxisTicks(rawMaxY);
 
+  // Bar groups each get their own equal, non-overlapping slot (see
+  // computeBarLineLayout); line charts instead space points edge-to-edge
+  // across the full plot area, the conventional way to draw a line graph.
   const xScale = (x: string) => {
     const i = xLabels.indexOf(x);
-    return xLabels.length > 1 ? padding.left + (i / (xLabels.length - 1)) * plotW : padding.left + plotW / 2;
+    if (data.type === 'bar') return CHART_PADDING.left + i * slotWidth + slotWidth / 2;
+    return xLabels.length > 1 ? CHART_PADDING.left + (i / (xLabels.length - 1)) * plotW : CHART_PADDING.left + plotW / 2;
   };
-  const yScale = (y: number) => padding.top + plotH - (y / maxY) * plotH;
+  const yScale = (y: number) => CHART_PADDING.top + plotH - (y / maxY) * plotH;
 
-  const barGroupWidth = plotW / xLabels.length;
-  const barWidth = Math.min(28, (barGroupWidth * 0.7) / data.series.length);
+  const totalBarsWidth = seriesCount * MIN_BAR_WIDTH + (seriesCount - 1) * BAR_GAP;
+
+  const svgChildren = (
+    <>
+      <Line x1={CHART_PADDING.left} y1={CHART_PADDING.top} x2={CHART_PADDING.left} y2={CHART_HEIGHT - CHART_PADDING.bottom} stroke={theme.colors.border} strokeWidth={1} />
+      <Line
+        x1={CHART_PADDING.left}
+        y1={CHART_HEIGHT - CHART_PADDING.bottom}
+        x2={contentWidth - CHART_PADDING.right}
+        y2={CHART_HEIGHT - CHART_PADDING.bottom}
+        stroke={theme.colors.border}
+        strokeWidth={1}
+      />
+      {yTicks.map((tick) => {
+        const y = yScale(tick);
+        return (
+          <G key={`y-tick-${tick}`}>
+            <Line x1={CHART_PADDING.left - 4} y1={y} x2={CHART_PADDING.left} y2={y} stroke={theme.colors.border} strokeWidth={1} />
+            <SvgText x={CHART_PADDING.left - 8} y={y + 3} fontSize={9} fill={theme.colors.textTertiary} textAnchor="end">
+              {tick.toFixed(yDecimals)}
+            </SvgText>
+          </G>
+        );
+      })}
+      {xLabels.map((label) => (
+        <SvgText key={label} x={xScale(label)} y={CHART_HEIGHT - CHART_PADDING.bottom + 16} fontSize={10} fill={theme.colors.textTertiary} textAnchor="middle">
+          {label}
+        </SvgText>
+      ))}
+      {data.type === 'line'
+        ? data.series.map((s, si) => (
+            <Polyline
+              key={s.label}
+              points={s.points.map((p) => `${xScale(p.x)},${yScale(p.y)}`).join(' ')}
+              fill="none"
+              stroke={SERIES_COLORS[si % SERIES_COLORS.length]}
+              strokeWidth={2.5}
+            />
+          ))
+        : data.series.map((s, si) =>
+            s.points.map((p, pi) => {
+              const groupCenter = xScale(p.x);
+              const groupStart = groupCenter - totalBarsWidth / 2;
+              const x = groupStart + si * (MIN_BAR_WIDTH + BAR_GAP);
+              const y = yScale(p.y);
+              return (
+                <Rect
+                  key={`${s.label}-${pi}`}
+                  x={x}
+                  y={y}
+                  width={MIN_BAR_WIDTH}
+                  height={CHART_HEIGHT - CHART_PADDING.bottom - y}
+                  fill={SERIES_COLORS[si % SERIES_COLORS.length]}
+                  rx={2}
+                />
+              );
+            })
+          )}
+    </>
+  );
 
   return (
-    <View testID="writing-chart-container" onLayout={handleLayout}>
-      <Svg testID="writing-chart-svg" width={containerWidth} height={renderedHeight} viewBox={`0 0 ${width} ${height}`}>
-        <Line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke={theme.colors.border} strokeWidth={1} />
-        <Line
-          x1={padding.left}
-          y1={height - padding.bottom}
-          x2={width - padding.right}
-          y2={height - padding.bottom}
-          stroke={theme.colors.border}
-          strokeWidth={1}
-        />
-        {yTicks.map((tick) => {
-          const y = yScale(tick);
-          return (
-            <G key={`y-tick-${tick}`}>
-              <Line x1={padding.left - 4} y1={y} x2={padding.left} y2={y} stroke={theme.colors.border} strokeWidth={1} />
-              <SvgText x={padding.left - 8} y={y + 3} fontSize={9} fill={theme.colors.textTertiary} textAnchor="end">
-                {tick.toFixed(yDecimals)}
-              </SvgText>
-            </G>
-          );
-        })}
-        {xLabels.map((label) => (
-          <SvgText key={label} x={xScale(label)} y={height - padding.bottom + 16} fontSize={10} fill={theme.colors.textTertiary} textAnchor="middle">
-            {label}
-          </SvgText>
-        ))}
-        {data.type === 'line'
-          ? data.series.map((s, si) => (
-              <Polyline
-                key={s.label}
-                points={s.points.map((p) => `${xScale(p.x)},${yScale(p.y)}`).join(' ')}
-                fill="none"
-                stroke={SERIES_COLORS[si % SERIES_COLORS.length]}
-                strokeWidth={2.5}
-              />
-            ))
-          : data.series.map((s, si) =>
-              s.points.map((p, pi) => {
-                const groupStart = xScale(p.x) - barGroupWidth / 2 + (barGroupWidth - data.series.length * barWidth) / 2;
-                const x = groupStart + si * barWidth;
-                const y = yScale(p.y);
-                return (
-                  <Rect
-                    key={`${s.label}-${pi}`}
-                    x={x}
-                    y={y}
-                    width={barWidth - 2}
-                    height={height - padding.bottom - y}
-                    fill={SERIES_COLORS[si % SERIES_COLORS.length]}
-                    rx={2}
-                  />
-                );
-              })
-            )}
-      </Svg>
+    <View testID="writing-chart-container" onLayout={handleLayout} style={{ width: '100%' }}>
+      {needsScroll ? (
+        // Horizontal-only: a horizontal ScrollView nested inside the
+        // writing-test screen's vertical one doesn't fight it — RN routes a
+        // horizontal drag to this ScrollView and a vertical one to the
+        // ancestor, so page scrolling is unaffected. The SVG below renders
+        // at its full native size (contentWidth), not scaled down, so
+        // scrolling reveals the complete, unclipped chart.
+        <ScrollView testID="writing-chart-scroll" horizontal showsHorizontalScrollIndicator nestedScrollEnabled>
+          <Svg testID="writing-chart-svg" width={contentWidth} height={CHART_HEIGHT} viewBox={`0 0 ${contentWidth} ${CHART_HEIGHT}`}>
+            {svgChildren}
+          </Svg>
+        </ScrollView>
+      ) : (
+        <Svg testID="writing-chart-svg" width={renderWidth} height={renderHeight} viewBox={`0 0 ${contentWidth} ${CHART_HEIGHT}`}>
+          {svgChildren}
+        </Svg>
+      )}
+      {needsScroll ? (
+        <Text testID="writing-chart-scroll-hint" variant="micro" color="tertiary" style={{ marginTop: 2, textAlign: 'center' }}>
+          {SWIPE_HINT}
+        </Text>
+      ) : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm, marginTop: theme.spacing.xs }}>
         {data.series.map((s, i) => (
           <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -191,6 +255,9 @@ function PieChart({ data }: { data: Extract<WritingChartData, { type: 'pie' }> }
     return { path: `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2} Z`, color: SERIES_COLORS[i % SERIES_COLORS.length] };
   });
 
+  // Fixed small SVG (180px) + a legend that wraps its own text onto new
+  // lines as it shrinks — unlike the bar/line chart, nothing here is ever
+  // clipped by a narrow screen, so no horizontal scroll is needed.
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
       <Svg width={size} height={size}>
@@ -214,13 +281,34 @@ function PieChart({ data }: { data: Extract<WritingChartData, { type: 'pie' }> }
   );
 }
 
+const TABLE_MIN_COL_WIDTH = 90;
+const TABLE_CHAR_WIDTH = 6.5;
+const TABLE_CELL_PADDING = 16;
+
 function TableChart({ data }: { data: Extract<WritingChartData, { type: 'table' }> }) {
   const theme = useTheme();
-  return (
-    <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, overflow: 'hidden' }}>
+  const [viewportWidth, setViewportWidth] = useState<number | null>(null);
+  function handleLayout(e: LayoutChangeEvent) {
+    const measured = e.nativeEvent.layout.width;
+    if (measured > 0) setViewportWidth(measured);
+  }
+
+  // Same idea as the bar/line chart: a column never gets squeezed below a
+  // width that actually fits its longest cell — if that sum doesn't fit the
+  // screen, scroll to reveal it instead of wrapping every cell into an
+  // unreadable stack of one-word lines.
+  const colWidths = data.headers.map((h, ci) => {
+    const longest = Math.max(h.length, ...data.rows.map((r) => (r[ci] ?? '').length));
+    return Math.max(TABLE_MIN_COL_WIDTH, Math.round(longest * TABLE_CHAR_WIDTH + TABLE_CELL_PADDING));
+  });
+  const naturalTableWidth = colWidths.reduce((a, b) => a + b, 0);
+  const needsScroll = viewportWidth != null && viewportWidth < naturalTableWidth;
+
+  const fixedWidthTable = (
+    <View style={{ width: naturalTableWidth, borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', backgroundColor: theme.colors.surfaceAlt }}>
         {data.headers.map((h, i) => (
-          <Text key={i} variant="caption" style={{ flex: 1, padding: theme.spacing.xs, fontWeight: '700' as const }}>
+          <Text key={i} variant="caption" style={{ width: colWidths[i], padding: theme.spacing.xs, fontWeight: '700' as const }}>
             {h}
           </Text>
         ))}
@@ -228,12 +316,46 @@ function TableChart({ data }: { data: Extract<WritingChartData, { type: 'table' 
       {data.rows.map((row, ri) => (
         <View key={ri} style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: theme.colors.border }}>
           {row.map((cell, ci) => (
-            <Text key={ci} variant="caption" color="secondary" style={{ flex: 1, padding: theme.spacing.xs }}>
+            <Text key={ci} variant="caption" color="secondary" style={{ width: colWidths[ci], padding: theme.spacing.xs }}>
               {cell}
             </Text>
           ))}
         </View>
       ))}
+    </View>
+  );
+
+  return (
+    <View testID="writing-table-container" onLayout={handleLayout} style={{ width: '100%' }}>
+      {needsScroll ? (
+        <ScrollView testID="writing-table-scroll" horizontal showsHorizontalScrollIndicator nestedScrollEnabled>
+          {fixedWidthTable}
+        </ScrollView>
+      ) : (
+        <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, overflow: 'hidden' }}>
+          <View style={{ flexDirection: 'row', backgroundColor: theme.colors.surfaceAlt }}>
+            {data.headers.map((h, i) => (
+              <Text key={i} variant="caption" style={{ flex: 1, padding: theme.spacing.xs, fontWeight: '700' as const }}>
+                {h}
+              </Text>
+            ))}
+          </View>
+          {data.rows.map((row, ri) => (
+            <View key={ri} style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: theme.colors.border }}>
+              {row.map((cell, ci) => (
+                <Text key={ci} variant="caption" color="secondary" style={{ flex: 1, padding: theme.spacing.xs }}>
+                  {cell}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
+      )}
+      {needsScroll ? (
+        <Text testID="writing-table-scroll-hint" variant="micro" color="tertiary" style={{ marginTop: 2, textAlign: 'center' }}>
+          {SWIPE_HINT}
+        </Text>
+      ) : null}
     </View>
   );
 }
