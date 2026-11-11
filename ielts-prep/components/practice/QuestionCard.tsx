@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { Fragment, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 
 import { Badge, Button, Card, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { isAnswerCorrect, TFNG_OPTIONS, usesFreeTextInput, YNNG_OPTIONS } from '@/lib/answerChecking';
+import { DEBUG_TOUCH_BOUNDS } from '@/lib/debugFlags';
 import type { Question } from '@/types/models';
 
 export function QuestionCard({
@@ -19,9 +20,19 @@ export function QuestionCard({
   onToggleBookmark: () => void;
 }) {
   const theme = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const [selected, setSelected] = useState<string | null>(null);
   const [textAnswer, setTextAnswer] = useState('');
   const [revealed, setRevealed] = useState(false);
+  // See lib/debugFlags.ts's DEBUG_TOUCH_BOUNDS — Button.tsx's own debug
+  // overlay already shows this same number as a tiny corner badge ON the
+  // button itself, but it's easy to miss or mis-crop in a screenshot. This
+  // measures the SAME real Pressable (the View directly wrapping it here
+  // shrinks to its size too, since the parent's `alignItems: 'center'`
+  // applies uniformly to all its direct children) and prints it as an
+  // ordinary, legible text line right below the button, directly next to
+  // the full screen width for an unmissable side-by-side comparison.
+  const [checkAnswerWidth, setCheckAnswerWidth] = useState<number | null>(null);
 
   const options =
     question.options ??
@@ -155,12 +166,19 @@ export function QuestionCard({
           tappable; both always describe the one real Pressable. */}
       {!revealed ? (
         <View style={{ alignItems: 'center', marginTop: theme.spacing.md }}>
-          <Button
-            label="Check answer"
-            onPress={submit}
-            disabled={freeText ? !textAnswer.trim() : !selected}
-            style={{ paddingHorizontal: 32, minHeight: 48 }}
-          />
+          <View onLayout={DEBUG_TOUCH_BOUNDS ? (e) => setCheckAnswerWidth(e.nativeEvent.layout.width) : undefined}>
+            <Button
+              label="Check answer"
+              onPress={submit}
+              disabled={freeText ? !textAnswer.trim() : !selected}
+              style={{ paddingHorizontal: 32, minHeight: 48 }}
+            />
+          </View>
+          {DEBUG_TOUCH_BOUNDS ? (
+            <Text variant="micro" color="tertiary" style={{ marginTop: 2 }}>
+              DEBUG: Check-answer width {checkAnswerWidth != null ? Math.round(checkAnswerWidth) : '…'}px of screen width {Math.round(screenWidth)}px
+            </Text>
+          ) : null}
         </View>
       ) : null}
     </Fragment>

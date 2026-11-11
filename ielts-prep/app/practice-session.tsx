@@ -7,6 +7,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { useShallow } from 'zustand/react/shallow';
 
+import { BuildDiagnostics } from '@/components/debug/BuildDiagnostics';
 import { CollapsiblePanel } from '@/components/practice/CollapsiblePanel';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { HighlightablePassage } from '@/components/testing/HighlightablePassage';
@@ -15,6 +16,7 @@ import { Button, Chip, IconCircle, ProgressBar, Screen, ScreenHeader, Text } fro
 import { useTheme } from '@/hooks/useTheme';
 import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
+import { SHOW_BUILD_DIAGNOSTICS } from '@/lib/debugFlags';
 import { groupQuestions } from '@/lib/practiceGrouping';
 import { deriveResumeFromAttempts } from '@/lib/resumeFromAttempts';
 import {
@@ -484,6 +486,7 @@ export default function PracticeSessionScreen() {
           ) : null
         }
       />
+      {SHOW_BUILD_DIAGNOSTICS ? <BuildDiagnostics /> : null}
       <ProgressBar progress={index / questions.length} />
       <Text variant="caption" color="tertiary" style={{ marginTop: theme.spacing.xs, marginBottom: theme.spacing.md }}>
         Question {index + 1} of {questions.length}
