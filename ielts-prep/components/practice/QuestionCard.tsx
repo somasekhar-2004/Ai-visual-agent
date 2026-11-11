@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { Fragment, useRef, useState } from 'react';
-import { Pressable, useWindowDimensions, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Badge, Button, Card, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { isAnswerCorrect, TFNG_OPTIONS, usesFreeTextInput, YNNG_OPTIONS } from '@/lib/answerChecking';
-import { DEBUG_TOUCH_BOUNDS } from '@/lib/debugFlags';
 import type { Question } from '@/types/models';
 
 export function QuestionCard({
@@ -20,19 +19,9 @@ export function QuestionCard({
   onToggleBookmark: () => void;
 }) {
   const theme = useTheme();
-  const { width: screenWidth } = useWindowDimensions();
   const [selected, setSelected] = useState<string | null>(null);
   const [textAnswer, setTextAnswer] = useState('');
   const [revealed, setRevealed] = useState(false);
-  // See lib/debugFlags.ts's DEBUG_TOUCH_BOUNDS — Button.tsx's own debug
-  // overlay already shows this same number as a tiny corner badge ON the
-  // button itself, but it's easy to miss or mis-crop in a screenshot. This
-  // measures the SAME real Pressable (the View directly wrapping it here
-  // shrinks to its size too, since the parent's `alignItems: 'center'`
-  // applies uniformly to all its direct children) and prints it as an
-  // ordinary, legible text line right below the button, directly next to
-  // the full screen width for an unmissable side-by-side comparison.
-  const [checkAnswerWidth, setCheckAnswerWidth] = useState<number | null>(null);
 
   const options =
     question.options ??
@@ -143,12 +132,16 @@ export function QuestionCard({
           also a sibling of this whole component rather than inside the
           Card.
           Deliberately compact and centred, NOT fullWidth (unlike Next
-          question) — a real device report found this exact full-width
-          button only responding to taps near its centre, not its full
-          visible edge-to-edge span; narrowing it so there's simply much
-          less distance between its centre and its own edges removes that
-          failure mode regardless of its underlying cause, which earlier
-          fixes (hitSlop, then alignSelf alone) didn't resolve on-device.
+          question) — accepted as a temporary workaround for a confirmed,
+          still-unresolved bug: on a real device (confirmed on build 31),
+          centre taps on this button reveal the answer but left/right edge
+          taps do not, even though the resolved styles and Pressable bounds
+          verified in code are correct and "Next question" (fullWidth) does
+          not have this problem. Narrowing the button so there's less
+          distance between its centre and its own edges reduces how often
+          the bug is hit without fixing its root cause, which remains
+          unknown — see KNOWN_ISSUES.md. Do not re-widen this button until
+          that root cause is found and fixed.
           Wrapped in its OWN `alignItems: 'center'` View rather than relying
           on `alignSelf: 'center'` on the Button alone — belt-and-suspenders:
           this makes the centring/shrink-to-content behavior depend only on
@@ -166,19 +159,12 @@ export function QuestionCard({
           tappable; both always describe the one real Pressable. */}
       {!revealed ? (
         <View style={{ alignItems: 'center', marginTop: theme.spacing.md }}>
-          <View onLayout={DEBUG_TOUCH_BOUNDS ? (e) => setCheckAnswerWidth(e.nativeEvent.layout.width) : undefined}>
-            <Button
-              label="Check answer"
-              onPress={submit}
-              disabled={freeText ? !textAnswer.trim() : !selected}
-              style={{ paddingHorizontal: 32, minHeight: 48 }}
-            />
-          </View>
-          {DEBUG_TOUCH_BOUNDS ? (
-            <Text variant="micro" color="tertiary" style={{ marginTop: 2 }}>
-              DEBUG: Check-answer width {checkAnswerWidth != null ? Math.round(checkAnswerWidth) : '…'}px of screen width {Math.round(screenWidth)}px
-            </Text>
-          ) : null}
+          <Button
+            label="Check answer"
+            onPress={submit}
+            disabled={freeText ? !textAnswer.trim() : !selected}
+            style={{ paddingHorizontal: 32, minHeight: 48 }}
+          />
         </View>
       ) : null}
     </Fragment>
