@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { SkillBandCard } from '@/components/home/SkillBandCard';
@@ -30,6 +30,19 @@ export default function MockResultScreen() {
   const userId = useAppStore((s) => s.userId);
   const refreshUserData = useAppStore((s) => s.refreshUserData);
   const [finalized, setFinalized] = useState(false);
+  const [finalizeError, setFinalizeError] = useState<string | null>(null);
+  // Synchronous guard against the effect re-entering while a finalize() is
+  // already in flight (e.g. a fast dependency re-fire before the first
+  // await resolves) — see reading-test.tsx's persistingRef for the same
+  // pattern and why a ref (not state) is required here.
+  const finalizingRef = useRef(false);
+  // Remembers which steps already landed, so Retry after a partial failure
+  // (e.g. completeMockAttempt succeeded but the network dropped before
+  // recordBandScore) never re-completes the attempt or double-records a
+  // band for the same mock — see reading-test.tsx's persistRef.
+  const finalizeStateRef = useRef<{ attemptCompleted?: boolean; bandsRecorded: Set<string>; overallRecorded?: boolean; achievementsChecked?: boolean }>({
+    bandsRecorded: new Set(),
+  });
 
   const readingQ = useQuery({ queryKey: ['reading-attempts', userId], queryFn: () => getReadingAttempts(userId!), enabled: Boolean(userId) });
   const listeningQ = useQuery({ queryKey: ['listening-attempts', userId], queryFn: () => getListeningAttempts(userId!), enabled: Boolean(userId) });
@@ -64,29 +77,61 @@ export default function MockResultScreen() {
     ? computeOverallBand({ listening: bands.listening!, reading: bands.reading!, writing: bands.writing!, speaking: bands.speaking! })
     : null;
 
+  /** Writes the mock's overall result (completeMockAttempt, per-skill and
+   * overall band_scores, achievement unlocks). Safe to call again from the
+   * Retry button after a failure — `finalizeStateRef` remembers which parts
+   * already landed. Previously this set `finalized=true` before any of
+   * this ran and had no try/catch at all: a single failed step (network
+   * drop, RLS error) left the user stuck on this screen's report forever
+   * with the mock never marked completed and no way to retry. */
+  async function finalize() {
+    if (!userId || overall === null || finalizingRef.current) return;
+    finalizingRef.current = true;
+    setFinalizeError(null);
+    try {
+      if (!finalizeStateRef.current.attemptCompleted) {
+        await completeMockAttempt(mockAttemptId!, overall);
+        finalizeStateRef.current.attemptCompleted = true;
+      }
+      for (const [skill, band] of Object.entries(bands)) {
+        if (band === undefined || finalizeStateRef.current.bandsRecorded.has(skill)) continue;
+        await recordBandScore(userId, skill as SkillKey, band, 'mock');
+        finalizeStateRef.current.bandsRecorded.add(skill);
+      }
+      if (!finalizeStateRef.current.overallRecorded) {
+        await recordBandScore(userId, 'overall', overall, 'mock');
+        finalizeStateRef.current.overallRecorded = true;
+      }
+      if (!finalizeStateRef.current.achievementsChecked) {
+        const mockAttempts = await getMockAttempts(userId);
+        const streak = await getStreak(userId);
+        const attempts = await getQuestionAttempts(userId);
+        await checkAndUnlockAchievements(userId, {
+          mockCount: mockAttempts.filter((a) => a.status === 'completed').length,
+          streakDays: streak.count,
+          bandBySkill: bands as any,
+          writingCount: writingQ.data?.length ?? 0,
+          speakingCount: speakingQ.data?.length ?? 0,
+          questionCount: attempts.length,
+        });
+        finalizeStateRef.current.achievementsChecked = true;
+      }
+      await refreshUserData(userId);
+      setFinalized(true);
+    } catch (err) {
+      setFinalizeError((err as Error).message);
+    } finally {
+      finalizingRef.current = false;
+    }
+  }
+
   useEffect(() => {
     if (!ready || finalized || !userId || overall === null) return;
-    (async () => {
-      setFinalized(true);
-      await completeMockAttempt(mockAttemptId!, overall);
-      for (const [skill, band] of Object.entries(bands)) {
-        if (band !== undefined) await recordBandScore(userId, skill as SkillKey, band, 'mock');
-      }
-      await recordBandScore(userId, 'overall', overall, 'mock');
-
-      const mockAttempts = await getMockAttempts(userId);
-      const streak = await getStreak(userId);
-      const attempts = await getQuestionAttempts(userId);
-      await checkAndUnlockAchievements(userId, {
-        mockCount: mockAttempts.filter((a) => a.status === 'completed').length,
-        streakDays: streak.count,
-        bandBySkill: bands as any,
-        writingCount: writingQ.data?.length ?? 0,
-        speakingCount: speakingQ.data?.length ?? 0,
-        questionCount: attempts.length,
-      });
-      await refreshUserData(userId);
-    })();
+    // Deferred to a microtask rather than called directly: finalize() sets
+    // state (setFinalizeError/setFinalized), and calling that synchronously
+    // from inside the effect body triggers cascading-render lint/runtime
+    // warnings — see react-hooks/set-state-in-effect.
+    Promise.resolve().then(() => finalize());
     // Intentionally runs once when the report becomes ready, not on every data refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, finalized]);
@@ -112,6 +157,17 @@ export default function MockResultScreen() {
 
   return (
     <Screen scroll>
+      {finalizeError ? (
+        <Card style={{ marginBottom: theme.spacing.lg, backgroundColor: theme.colors.errorSoft, gap: theme.spacing.sm }}>
+          <Text variant="bodyMedium" color="error">
+            This result wasn&apos;t fully saved
+          </Text>
+          <Text variant="caption" color="secondary">
+            {finalizeError} The report below is accurate, but it won&apos;t be marked complete in Test History or recorded toward your Home band until this is retried successfully.
+          </Text>
+          <Button label="Retry save" size="sm" onPress={finalize} />
+        </Card>
+      ) : null}
       <View style={{ alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xl }}>
         <BandRing band={overall} size={140} strokeWidth={12} color={theme.colors.success} label="Overall Band" />
       </View>

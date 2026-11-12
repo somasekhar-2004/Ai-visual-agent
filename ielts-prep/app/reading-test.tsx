@@ -19,6 +19,7 @@ import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
 import { recordBandScore, recordDailyActivity, refreshOverallBand, saveReadingAttempt } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
+import type { ReadingAttempt } from '@/types/models';
 
 type Params = {
   passageIds?: string;
@@ -83,6 +84,14 @@ export default function ReadingTestScreen() {
   // button away — see practice-session.tsx's finishingRef for the same
   // pattern and why a ref (not state) is required here.
   const submittingRef = useRef(false);
+  // Guards persistResult() itself against a rapid double-tap on "Retry".
+  const persistingRef = useRef(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Remembers what has already been durably saved so Retry (after a
+  // partial failure — e.g. the attempt row was inserted but the network
+  // dropped before recordBandScore) never re-inserts a duplicate
+  // reading_attempts row or double-records a band for the same test.
+  const persistRef = useRef<{ attempt?: ReadingAttempt; postStepsDone?: boolean }>({});
 
   const { label: timerLabel } = useCountdown(Number(durationMinutes ?? 20) * 60, () => !submitted && handleSubmit(true));
 
@@ -122,34 +131,61 @@ export default function ReadingTestScreen() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitted(true);
-    if (!userId) return;
-    const rawScore = questions.filter((q) => isAnswerCorrect(q, answers[q.id] ?? null)).length;
-    const scale = ieltsType === 'academic' ? 'reading_academic' : 'reading_general';
-    const band = rawScoreToBand(scale, Math.round((rawScore / questions.length) * 40));
-    const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
-    await saveReadingAttempt(userId, {
-      mockAttemptId,
-      ieltsType,
-      passageIds: passages.map((p) => p.id),
-      rawScore,
-      totalQuestions: questions.length,
-      band,
-      timeSpentSeconds,
-      answers,
-    });
-    await recordDailyActivity(userId, 20);
-    // Only for a standalone practice test, never a step inside a Full
-    // Mock — mock-result.tsx already records this skill's band (source
-    // 'mock') once the whole mock finishes, using this same attempt's
-    // band. Recording it again here under a mock flow would double-write
-    // band_scores for one real test and skew the "predicted band over
-    // time" chart with two near-identical points.
-    if (!mockAttemptId) {
-      await recordBandScore(userId, 'reading', band, 'practice');
-      await refreshOverallBand(userId).catch((err) => console.warn('[reading-test] refreshOverallBand failed:', (err as Error).message));
+    await persistResult();
+  }
+
+  /** Saves the attempt and its downstream effects (test history, band,
+   * streak/XP). Safe to call again from the Retry button after a failure —
+   * `persistRef` remembers which parts already landed so a retry only
+   * redoes the part that actually failed, never re-inserts a duplicate
+   * reading_attempts row or double-records a band for the same test. */
+  async function persistResult() {
+    if (!userId || persistingRef.current) return;
+    persistingRef.current = true;
+    setSaveError(null);
+    try {
+      let attempt = persistRef.current.attempt;
+      if (!attempt) {
+        const rawScore = questions.filter((q) => isAnswerCorrect(q, answers[q.id] ?? null)).length;
+        const scale = ieltsType === 'academic' ? 'reading_academic' : 'reading_general';
+        const band = rawScoreToBand(scale, Math.round((rawScore / questions.length) * 40));
+        const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
+        attempt = await saveReadingAttempt(userId, {
+          mockAttemptId,
+          ieltsType,
+          passageIds: passages.map((p) => p.id),
+          rawScore,
+          totalQuestions: questions.length,
+          band,
+          timeSpentSeconds,
+          answers,
+        });
+        persistRef.current.attempt = attempt;
+      }
+      if (!persistRef.current.postStepsDone) {
+        await recordDailyActivity(userId, 20);
+        // Only for a standalone practice test, never a step inside a Full
+        // Mock — mock-result.tsx already records this skill's band (source
+        // 'mock') once the whole mock finishes, using this same attempt's
+        // band. Recording it again here under a mock flow would double-write
+        // band_scores for one real test and skew the "predicted band over
+        // time" chart with two near-identical points.
+        if (!mockAttemptId) {
+          await recordBandScore(userId, 'reading', attempt.band, 'practice');
+          await refreshOverallBand(userId).catch((err) => console.warn('[reading-test] refreshOverallBand failed:', (err as Error).message));
+        }
+        queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+        await refreshUserData(userId);
+        persistRef.current.postStepsDone = true;
+      }
+    } catch (err) {
+      // A failed save must never look identical to a successful one — the
+      // score above is computed client-side and always shown, but whether
+      // it was actually recorded is a separate, visible fact.
+      setSaveError((err as Error).message);
+    } finally {
+      persistingRef.current = false;
     }
-    queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
-    await refreshUserData(userId);
   }
 
   if (submitted) {
@@ -159,6 +195,17 @@ export default function ReadingTestScreen() {
 
     return (
       <Screen scroll>
+        {saveError ? (
+          <Card style={{ marginBottom: theme.spacing.lg, backgroundColor: theme.colors.errorSoft, gap: theme.spacing.sm }}>
+            <Text variant="bodyMedium" color="error">
+              Your result wasn&apos;t saved
+            </Text>
+            <Text variant="caption" color="secondary">
+              {saveError} Your score above is still accurate, but it won&apos;t appear in Test History or your Home band until this is retried successfully.
+            </Text>
+            <Button label="Retry save" size="sm" onPress={persistResult} />
+          </Card>
+        ) : null}
         <View style={{ alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.lg }}>
           <IconCircle name="book" size={72} backgroundColor={theme.colors.primarySoft} color={theme.colors.primary} />
           <Text variant="display">{band.toFixed(1)}</Text>

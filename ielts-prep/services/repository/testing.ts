@@ -136,31 +136,46 @@ export async function saveReadingAttempt(
     answers: Record<string, string | string[]>;
   }
 ): Promise<ReadingAttempt> {
-  const attempt: ReadingAttempt = {
-    id: generateId('ra'),
-    userId,
-    mockAttemptId: input.mockAttemptId ?? null,
-    ieltsType: input.ieltsType,
-    passageIds: input.passageIds,
-    rawScore: input.rawScore,
-    totalQuestions: input.totalQuestions,
-    band: input.band,
-    timeSpentSeconds: input.timeSpentSeconds,
-    answers: input.answers,
-    createdAt: new Date().toISOString(),
-  };
-  const { error } = await supabase!.from('reading_attempts').insert({
-    user_id: userId,
-    mock_attempt_id: input.mockAttemptId,
-    ielts_type: input.ieltsType,
-    passage_ids: input.passageIds,
-    raw_score: input.rawScore,
-    total_questions: input.totalQuestions,
-    band: input.band,
-    time_spent_seconds: input.timeSpentSeconds,
-    answers: input.answers,
-  });
+  // Must use the row id Postgres actually assigns (reading_attempts.id is
+  // `uuid default gen_random_uuid()`) — a locally generated id here (the
+  // previous `generateId('ra')`) is not a valid uuid, so passing it as
+  // test_history.ref_id (also `uuid`) below made every single save throw
+  // "invalid input syntax for type uuid" from addTestHistory. The insert
+  // into reading_attempts itself still succeeded, so the result silently
+  // never reached test_history or (since the throw aborted everything
+  // after it) band_scores/Home's band — see saveWritingFeedback/
+  // saveSpeakingFeedback, whose submissionId/sessionId were always the
+  // real DB id for exactly this reason.
+  const { data, error } = await supabase!
+    .from('reading_attempts')
+    .insert({
+      user_id: userId,
+      mock_attempt_id: input.mockAttemptId,
+      ielts_type: input.ieltsType,
+      passage_ids: input.passageIds,
+      raw_score: input.rawScore,
+      total_questions: input.totalQuestions,
+      band: input.band,
+      time_spent_seconds: input.timeSpentSeconds,
+      answers: input.answers,
+    })
+    .select('*')
+    .single();
   throwIfSupabaseError(error, 'Failed to save your reading result');
+  if (!data) throw new Error('Failed to save your reading result: the database returned no row for the new attempt.');
+  const attempt: ReadingAttempt = {
+    id: data.id,
+    userId: data.user_id,
+    mockAttemptId: data.mock_attempt_id,
+    ieltsType: data.ielts_type,
+    passageIds: data.passage_ids,
+    rawScore: data.raw_score,
+    totalQuestions: data.total_questions,
+    band: Number(data.band),
+    timeSpentSeconds: data.time_spent_seconds,
+    answers: data.answers,
+    createdAt: data.created_at,
+  };
   await addTestHistory(userId, 'reading', attempt.id, input.band, {
     rawScore: input.rawScore,
     totalQuestions: input.totalQuestions,
@@ -180,27 +195,35 @@ export async function saveListeningAttempt(
     answers: Record<string, string | string[]>;
   }
 ): Promise<ListeningAttempt> {
-  const attempt: ListeningAttempt = {
-    id: generateId('la'),
-    userId,
-    mockAttemptId: input.mockAttemptId ?? null,
-    trackIds: input.trackIds,
-    rawScore: input.rawScore,
-    totalQuestions: input.totalQuestions,
-    band: input.band,
-    answers: input.answers,
-    createdAt: new Date().toISOString(),
-  };
-  const { error } = await supabase!.from('listening_attempts').insert({
-    user_id: userId,
-    mock_attempt_id: input.mockAttemptId,
-    track_ids: input.trackIds,
-    raw_score: input.rawScore,
-    total_questions: input.totalQuestions,
-    band: input.band,
-    answers: input.answers,
-  });
+  // See saveReadingAttempt's comment just above — same bug, same fix: use
+  // the real DB-assigned id (listening_attempts.id) for test_history.ref_id
+  // instead of a locally generated, non-uuid id.
+  const { data, error } = await supabase!
+    .from('listening_attempts')
+    .insert({
+      user_id: userId,
+      mock_attempt_id: input.mockAttemptId,
+      track_ids: input.trackIds,
+      raw_score: input.rawScore,
+      total_questions: input.totalQuestions,
+      band: input.band,
+      answers: input.answers,
+    })
+    .select('*')
+    .single();
   throwIfSupabaseError(error, 'Failed to save your listening result');
+  if (!data) throw new Error('Failed to save your listening result: the database returned no row for the new attempt.');
+  const attempt: ListeningAttempt = {
+    id: data.id,
+    userId: data.user_id,
+    mockAttemptId: data.mock_attempt_id,
+    trackIds: data.track_ids,
+    rawScore: data.raw_score,
+    totalQuestions: data.total_questions,
+    band: Number(data.band),
+    answers: data.answers,
+    createdAt: data.created_at,
+  };
   await addTestHistory(userId, 'listening', attempt.id, input.band, { rawScore: input.rawScore, totalQuestions: input.totalQuestions });
   return attempt;
 }

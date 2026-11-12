@@ -19,6 +19,7 @@ import { firstParam } from '@/lib/firstParam';
 import { nextFlowHref } from '@/lib/mockFlow';
 import { recordBandScore, recordDailyActivity, refreshOverallBand, saveListeningAttempt } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
+import type { ListeningAttempt } from '@/types/models';
 
 type Params = { trackIds?: string; mockAttemptId?: string; mockTestId?: string; stepIndex?: string; nextHref?: string; durationMinutes?: string };
 
@@ -65,6 +66,14 @@ export default function ListeningTestScreen() {
   const [submitted, setSubmitted] = useState(false);
   // See reading-test.tsx's submittingRef for why this must be a ref, not state.
   const submittingRef = useRef(false);
+  // Guards persistResult() itself against a rapid double-tap on "Retry".
+  const persistingRef = useRef(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Remembers what has already been durably saved so Retry (after a
+  // partial failure) never re-inserts a duplicate listening_attempts row
+  // or double-records a band for the same test — see reading-test.tsx's
+  // identical persistRef for the full explanation.
+  const persistRef = useRef<{ attempt?: ListeningAttempt; postStepsDone?: boolean }>({});
 
   const { label: timerLabel } = useCountdown(Number(durationMinutes ?? 30) * 60, () => !submitted && handleSubmit(true));
 
@@ -103,26 +112,48 @@ export default function ListeningTestScreen() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSubmitted(true);
-    if (!userId) return;
-    const rawScore = questions.filter((q) => isAnswerCorrect(q, answers[q.id] ?? null)).length;
-    const band = rawScoreToBand('listening', Math.round((rawScore / questions.length) * 40));
-    await saveListeningAttempt(userId, {
-      mockAttemptId,
-      trackIds: tracks.map((t) => t.id),
-      rawScore,
-      totalQuestions: questions.length,
-      band,
-      answers,
-    });
-    await recordDailyActivity(userId, 20);
-    // Standalone only — see reading-test.tsx's finalizeSubmit for why a
-    // mock-flow attempt must not also record its band here.
-    if (!mockAttemptId) {
-      await recordBandScore(userId, 'listening', band, 'practice');
-      await refreshOverallBand(userId).catch((err) => console.warn('[listening-test] refreshOverallBand failed:', (err as Error).message));
+    await persistResult();
+  }
+
+  /** See reading-test.tsx's persistResult for the full explanation — same
+   * pattern: safe to call again from the Retry button after a failure,
+   * never re-inserts a duplicate attempt row or double-records a band. */
+  async function persistResult() {
+    if (!userId || persistingRef.current) return;
+    persistingRef.current = true;
+    setSaveError(null);
+    try {
+      let attempt = persistRef.current.attempt;
+      if (!attempt) {
+        const rawScore = questions.filter((q) => isAnswerCorrect(q, answers[q.id] ?? null)).length;
+        const band = rawScoreToBand('listening', Math.round((rawScore / questions.length) * 40));
+        attempt = await saveListeningAttempt(userId, {
+          mockAttemptId,
+          trackIds: tracks.map((t) => t.id),
+          rawScore,
+          totalQuestions: questions.length,
+          band,
+          answers,
+        });
+        persistRef.current.attempt = attempt;
+      }
+      if (!persistRef.current.postStepsDone) {
+        await recordDailyActivity(userId, 20);
+        // Standalone only — see reading-test.tsx's finalizeSubmit for why a
+        // mock-flow attempt must not also record its band here.
+        if (!mockAttemptId) {
+          await recordBandScore(userId, 'listening', attempt.band, 'practice');
+          await refreshOverallBand(userId).catch((err) => console.warn('[listening-test] refreshOverallBand failed:', (err as Error).message));
+        }
+        queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
+        await refreshUserData(userId);
+        persistRef.current.postStepsDone = true;
+      }
+    } catch (err) {
+      setSaveError((err as Error).message);
+    } finally {
+      persistingRef.current = false;
     }
-    queryClient.invalidateQueries({ queryKey: ['test-history', userId] });
-    await refreshUserData(userId);
   }
 
   if (submitted) {
@@ -131,6 +162,17 @@ export default function ListeningTestScreen() {
 
     return (
       <Screen scroll>
+        {saveError ? (
+          <Card style={{ marginBottom: theme.spacing.lg, backgroundColor: theme.colors.errorSoft, gap: theme.spacing.sm }}>
+            <Text variant="bodyMedium" color="error">
+              Your result wasn&apos;t saved
+            </Text>
+            <Text variant="caption" color="secondary">
+              {saveError} Your score above is still accurate, but it won&apos;t appear in Test History or your Home band until this is retried successfully.
+            </Text>
+            <Button label="Retry save" size="sm" onPress={persistResult} />
+          </Card>
+        ) : null}
         <View style={{ alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.lg }}>
           <IconCircle name="headset" size={72} backgroundColor={theme.colors.primarySoft} color={theme.colors.primary} />
           <Text variant="display">{band.toFixed(1)}</Text>
