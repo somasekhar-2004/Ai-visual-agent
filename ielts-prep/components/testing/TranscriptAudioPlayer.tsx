@@ -14,16 +14,36 @@ const WORDS_PER_MINUTE = 150;
 type PlayerProps = { title: string; transcript: string; turns?: ListeningSpeakerTurn[]; showTitle?: boolean; restrictToOnePass?: boolean };
 
 /** Plays a listening-section transcript aloud. Uses a real pre-generated
- * audio file (see scripts/generate-audio.ts) when one exists for this track;
- * otherwise falls back to on-device text-to-speech, which is still real,
- * audible playback — never a decorative button that does nothing.
+ * audio file (see scripts/generate-audio.ts) when one exists for this track
+ * AND the track declares a licence-validated `audioSource`; otherwise falls
+ * back to on-device text-to-speech, which is still real, audible playback —
+ * never a decorative button that does nothing.
+ *
+ * The `audioSource` check (not just an audioRegistry hit) matters: 74
+ * legacy Astra tracks still have a bundled .mp3 in audioRegistry (so the
+ * app never ships with a broken reference) but deliberately have no
+ * `audioSource` yet, because no licence-cleared audio has actually been
+ * generated for them (see listeningAstra.ts's header and
+ * contentIntegrity.test.ts's "production tracks" tests). Keying playback
+ * off `audioRegistry[trackId]` alone would play that undocumented-licence
+ * legacy audio to real users in both free Quick Practice and the Astra
+ * mock tests. Gating on `audioSource` as well routes those tracks to the
+ * on-device TTS fallback until real, licensed audio is generated for them.
  *
  * `restrictToOnePass` mirrors the real IELTS Listening test, where the
  * recording plays once with no pausing or rewinding — pass it in exam/mock
  * contexts (listening-test.tsx). Free-practice contexts (practice-session.tsx)
  * omit it and keep full play/pause/scrub/replay controls. */
-export function TranscriptAudioPlayer({ trackId, title, transcript, turns, showTitle = true, restrictToOnePass = false }: PlayerProps & { trackId: string }) {
-  const realSource = audioRegistry[trackId];
+export function TranscriptAudioPlayer({
+  trackId,
+  hasLicensedAudio,
+  title,
+  transcript,
+  turns,
+  showTitle = true,
+  restrictToOnePass = false,
+}: PlayerProps & { trackId: string; hasLicensedAudio: boolean }) {
+  const realSource = hasLicensedAudio ? audioRegistry[trackId] : undefined;
   if (realSource) return <RealAudioPlayer source={realSource} title={title} showTitle={showTitle} restrictToOnePass={restrictToOnePass} />;
   return <SpeechFallbackPlayer title={title} transcript={transcript} turns={turns} showTitle={showTitle} restrictToOnePass={restrictToOnePass} />;
 }

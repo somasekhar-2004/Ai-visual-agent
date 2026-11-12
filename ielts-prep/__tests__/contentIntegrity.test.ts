@@ -437,7 +437,7 @@ describe('listening — legacy Astra tracks are turns-ready but correctly exclud
     expect(withAudioSource).toEqual([]);
   });
 
-  it('every legacy Astra track still has real bundled audio in the registry (its original, undocumented-licence .mp3 — never a silent on-device-TTS fallback)', () => {
+  it('every legacy Astra track still has its original audio bundled in the registry (asset present, so no crash from a missing require — TranscriptAudioPlayer deliberately ignores it and uses on-device TTS instead, since it carries no validated audioSource)', () => {
     const missing = astraTracks.filter((t) => !audioRegistry[t.id]).map((t) => t.id);
     expect(missing).toEqual([]);
   });
@@ -503,6 +503,18 @@ describe('listening — exactly one playback pipeline app-wide (no hidden device
       if (/<TranscriptAudioPlayer\b/.test(text)) actual.push(rel);
     }
     expect(actual.sort()).toEqual(expected);
+  });
+
+  it('every TranscriptAudioPlayer call site passes hasLicensedAudio derived from the track\'s own audioSource (never hardcoded true/omitted — that would replay the undocumented-licence Astra audio bug)', () => {
+    const offenders: string[] = [];
+    for (const file of listSourceFiles()) {
+      const rel = path.relative(APP_ROOT, file);
+      const text = fs.readFileSync(file, 'utf8');
+      const match = text.match(/<TranscriptAudioPlayer\b[\s\S]*?\/>/);
+      if (!match) continue;
+      if (!/hasLicensedAudio=\{[\w.]+\.audioSource\s*!=\s*null\}/.test(match[0])) offenders.push(rel);
+    }
+    expect(offenders).toEqual([]);
   });
 });
 
