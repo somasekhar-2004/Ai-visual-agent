@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, IconCircle, Screen, Text } from '@/components/ui';
+import { Card, CompactButton, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -74,7 +74,7 @@ export default function PlanReadyScreen() {
       </Card>
 
       <View style={{ marginTop: theme.spacing.xl }}>
-        <Button label="Go to my dashboard" onPress={() => router.replace('/(tabs)')} fullWidth />
+        <CompactButton label="Go to my dashboard" onPress={() => router.replace('/(tabs)')} />
       </View>
     </Screen>
   );

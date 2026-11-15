@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Badge, Card, CompactButton, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
 import { buildMockFlowSteps, hrefForFlowStep } from '@/lib/mockFlow';
@@ -88,7 +88,7 @@ export default function MockTestIntroScreen() {
           {startError}
         </Text>
       ) : null}
-      <Button label="Start full test" onPress={handleStart} loading={starting} fullWidth style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.huge }} />
+      <CompactButton label="Start full test" onPress={handleStart} loading={starting} style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.huge }} />
     </Screen>
   );
 }

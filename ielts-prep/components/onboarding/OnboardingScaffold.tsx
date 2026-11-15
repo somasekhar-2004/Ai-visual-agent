@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { Button, ProgressBar, Screen, Text } from '@/components/ui';
+import { CompactButton, ProgressBar, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 
 export function OnboardingScaffold({
@@ -44,8 +44,8 @@ export function OnboardingScaffold({
       </View>
       <View style={{ flex: 1 }}>{children}</View>
       <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.md }}>
-        <Button label={primaryLabel} onPress={onPrimary} disabled={primaryDisabled} loading={loading} fullWidth />
-        {secondaryLabel ? <Button label={secondaryLabel} onPress={onSecondary} variant="ghost" fullWidth /> : null}
+        <CompactButton label={primaryLabel} onPress={onPrimary} disabled={primaryDisabled} loading={loading} />
+        {secondaryLabel ? <CompactButton label={secondaryLabel} onPress={onSecondary} variant="ghost" /> : null}
       </View>
     </Screen>
   );

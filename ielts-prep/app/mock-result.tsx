@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { SkillBandCard } from '@/components/home/SkillBandCard';
-import { Badge, BandRing, Button, Card, Screen, Text } from '@/components/ui';
+import { Badge, BandRing, Button, Card, CompactButton, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { computeOverallBand, computeWritingSkillBand } from '@/lib/bandScore';
 import { firstParam } from '@/lib/firstParam';
@@ -207,7 +207,7 @@ export default function MockResultScreen() {
         This is an AI-generated estimate for practice purposes and is not an official IELTS result.
       </Text>
 
-      <Button label="Back to Home" onPress={() => router.replace('/(tabs)')} fullWidth style={{ marginBottom: theme.spacing.huge }} />
+      <CompactButton label="Back to Home" onPress={() => router.replace('/(tabs)')} style={{ marginBottom: theme.spacing.huge }} />
     </Screen>
   );
 }

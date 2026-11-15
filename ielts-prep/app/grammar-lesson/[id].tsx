@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Button, Card, CompactButton, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { FREE_GRAMMAR_LESSON_LIMIT } from '@/lib/entitlements';
 import { listGrammarLessons } from '@/services/repository';
@@ -48,11 +48,10 @@ export default function GrammarLessonScreen() {
   return (
     <Screen scroll>
       <ScreenHeader title={lesson.title} subtitle={lesson.category} showBack />
-      <Button
+      <CompactButton
         label="Practice questions on this topic"
         onPress={() => router.push({ pathname: '/grammar-practice', params: { topic: lesson.category } })}
         style={{ marginBottom: theme.spacing.md }}
-        fullWidth
       />
       {lesson.content.map((section, i) => (
         <Card key={i} style={{ marginBottom: theme.spacing.md }}>

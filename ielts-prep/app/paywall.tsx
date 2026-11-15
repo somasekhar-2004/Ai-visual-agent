@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Linking, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
-import { Badge, Button, Card, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Badge, Card, CompactButton, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { purchaseResultMessage } from '@/lib/purchaseResultMessage';
 import { computeYearlySavingsPercent } from '@/lib/purchasePricing';
@@ -105,7 +105,7 @@ export default function PaywallScreen() {
       {isPremium ? (
         <Card style={{ marginBottom: theme.spacing.lg, alignItems: 'center', gap: theme.spacing.sm }}>
           <Badge label="You're already Premium" tone="success" />
-          <Button label="Manage subscription" variant="secondary" onPress={() => Linking.openURL(googlePlaySubscriptionManagementUrl())} fullWidth />
+          <CompactButton label="Manage subscription" variant="secondary" onPress={() => Linking.openURL(googlePlaySubscriptionManagementUrl())} />
         </Card>
       ) : (
         <>
@@ -139,14 +139,13 @@ export default function PaywallScreen() {
             </Text>
           ) : null}
 
-          <Button
+          <CompactButton
             label={`Start Premium${activeProduct ? ` — ${activeProduct.priceString}` : ''}`}
             onPress={handlePurchase}
             loading={loading === 'purchase'}
-            fullWidth
             disabled={!activeProduct || loading !== null}
           />
-          <Button label="Restore purchases" variant="ghost" onPress={handleRestore} loading={loading === 'restore'} disabled={loading !== null} fullWidth style={{ marginTop: theme.spacing.xs }} />
+          <CompactButton label="Restore purchases" variant="ghost" onPress={handleRestore} loading={loading === 'restore'} disabled={loading !== null} style={{ marginTop: theme.spacing.xs }} />
         </>
       )}
 

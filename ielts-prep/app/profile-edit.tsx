@@ -5,7 +5,7 @@ import { Alert, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { BandGrid } from '@/components/onboarding/BandGrid';
-import { Button, Card, Chip, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
+import { Card, Chip, CompactButton, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme, useThemePreference } from '@/hooks/useTheme';
 import { saveOnboardingGoal, updateProfileName } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
@@ -141,7 +141,7 @@ export default function ProfileEditScreen() {
         </View>
       </Card>
 
-      <Button label="Save changes" onPress={handleSave} loading={saving} disabled={!examDateValid} fullWidth style={{ marginBottom: theme.spacing.huge }} />
+      <CompactButton label="Save changes" onPress={handleSave} loading={saving} disabled={!examDateValid} style={{ marginBottom: theme.spacing.huge }} />
     </Screen>
   );
 }

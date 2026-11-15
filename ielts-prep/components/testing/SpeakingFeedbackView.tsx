@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, DemoAiBadge, ProgressBar, Screen, Text } from '@/components/ui';
+import { Badge, Card, CompactButton, DemoAiBadge, ProgressBar, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import type { SpeakingEvaluation, SpeakingEvaluationResult } from '@/services/ai';
 
@@ -118,7 +118,7 @@ export function SpeakingFeedbackView({
         This score is an AI-generated estimate for practice purposes and is not an official IELTS result. Pronunciation is estimated from speech patterns, not full acoustic analysis.
       </Text>
 
-      <Button label="Done" onPress={onDone} fullWidth style={{ marginBottom: theme.spacing.huge }} />
+      <CompactButton label="Done" onPress={onDone} style={{ marginBottom: theme.spacing.huge }} />
     </Screen>
   );
 }

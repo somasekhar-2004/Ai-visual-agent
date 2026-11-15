@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, Chip, IconCircle, ProgressBar, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
+import { Badge, Card, Chip, CompactButton, IconCircle, ProgressBar, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { allVocabularyTopics } from '@/lib/content';
 import { FREE_VOCABULARY_TOPIC_LIMIT } from '@/lib/entitlements';
@@ -97,7 +97,7 @@ export default function VocabularyHubScreen() {
           <Text variant="caption" color="secondary" align="center">
             Free includes {FREE_VOCABULARY_TOPIC_LIMIT} of {allVocabularyTopics.length} vocabulary topics. Upgrade for the full library.
           </Text>
-          <Button label="Upgrade to Premium" onPress={() => router.push('/paywall')} fullWidth />
+          <CompactButton label="Upgrade to Premium" onPress={() => router.push('/paywall')} />
         </Card>
       ) : null}
     </Screen>

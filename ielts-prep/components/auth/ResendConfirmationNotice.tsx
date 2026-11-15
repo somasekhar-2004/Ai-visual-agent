@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, Text } from '@/components/ui';
+import { Card, CompactButton, Text } from '@/components/ui';
 import { useResendCooldown } from '@/hooks/useResendCooldown';
 import { useTheme } from '@/hooks/useTheme';
 import { AUTH_RESEND_COOLDOWN_SECONDS } from '@/lib/authCooldown';
@@ -174,8 +174,8 @@ export function ResendConfirmationNotice({
         We sent a confirmation link to {email}. Once you confirm it, come back and sign in.
       </Text>
       <View style={{ marginTop: theme.spacing.xs, gap: theme.spacing.sm }}>
-        <Button label={buttonLabel} variant="outline" onPress={handleResend} loading={status === 'sending'} disabled={onCooldown} fullWidth />
-        <Button label="Sign in" variant="ghost" onPress={() => router.replace('/(auth)/sign-in')} fullWidth />
+        <CompactButton label={buttonLabel} variant="outline" onPress={handleResend} loading={status === 'sending'} disabled={onCooldown} />
+        <CompactButton label="Sign in" variant="ghost" onPress={() => router.replace('/(auth)/sign-in')} />
       </View>
       {message ? <Text color={status === 'error' ? 'error' : 'secondary'}>{message}</Text> : null}
     </Card>

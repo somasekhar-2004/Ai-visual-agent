@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
 
-import { Button, IconCircle, Screen, Text } from '@/components/ui';
+import { CompactButton, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function WelcomeScreen() {
@@ -21,12 +21,11 @@ export default function WelcomeScreen() {
         </Text>
       </View>
       <View style={{ gap: theme.spacing.sm }}>
-        <Button label="Get started" onPress={() => router.push('/(onboarding)/ielts-type')} fullWidth />
-        <Button
+        <CompactButton label="Get started" onPress={() => router.push('/(onboarding)/ielts-type')} />
+        <CompactButton
           label="I already have an account"
           variant="ghost"
           onPress={() => router.push('/(auth)/sign-in')}
-          fullWidth
         />
       </View>
     </Screen>

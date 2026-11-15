@@ -4,7 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Badge, Card, CompactButton, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { getLessonById } from '@/services/repository/learning';
 import { getLessonProgressMap, markLessonComplete, recordDailyActivity } from '@/services/repository';
@@ -84,13 +84,12 @@ export default function LessonDetailScreen() {
         </Card>
       ))}
 
-      <Button
+      <CompactButton
         label={completed ? 'Completed' : 'Mark as complete'}
         onPress={handleComplete}
         disabled={completed}
         loading={completing}
         variant={completed ? 'secondary' : 'primary'}
-        fullWidth
         style={{ marginTop: theme.spacing.xl }}
       />
       {completeError ? (

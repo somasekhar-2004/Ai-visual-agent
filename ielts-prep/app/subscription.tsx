@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Linking, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
-import { Badge, Button, Card, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Badge, Card, CompactButton, IconCircle, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { purchaseResultMessage } from '@/lib/purchaseResultMessage';
 import { googlePlaySubscriptionManagementUrl } from '@/lib/subscriptionManagementUrl';
@@ -74,17 +74,16 @@ export default function SubscriptionScreen() {
       </Card>
 
       {!isPremium ? (
-        <Button label="Upgrade to Premium" onPress={() => router.push('/paywall')} fullWidth style={{ marginBottom: theme.spacing.sm }} />
+        <CompactButton label="Upgrade to Premium" onPress={() => router.push('/paywall')} style={{ marginBottom: theme.spacing.sm }} />
       ) : (
-        <Button
+        <CompactButton
           label="Manage subscription"
           variant="secondary"
           onPress={() => Linking.openURL(googlePlaySubscriptionManagementUrl())}
-          fullWidth
           style={{ marginBottom: theme.spacing.sm }}
         />
       )}
-      <Button label="Restore purchases" variant="secondary" onPress={handleRestore} loading={restoring} fullWidth />
+      <CompactButton label="Restore purchases" variant="secondary" onPress={handleRestore} loading={restoring} />
 
       {result ? (
         <Text color={result.tone === 'error' ? 'error' : 'success'} style={{ marginTop: theme.spacing.sm }}>

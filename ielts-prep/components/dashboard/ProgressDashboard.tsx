@@ -7,7 +7,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { MiniLineChart } from '@/components/analytics/MiniLineChart';
 import { WeeklyBarChart } from '@/components/analytics/WeeklyBarChart';
 import { SkillBandCard } from '@/components/home/SkillBandCard';
-import { Badge, Button, Card, IconCircle, ProgressBar, Text } from '@/components/ui';
+import { Badge, Button, Card, CompactButton, IconCircle, ProgressBar, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import {
   accuracyByQuestionType,
@@ -330,7 +330,7 @@ export function ProgressDashboard({ onSetGoal, onUpgrade }: { onSetGoal: () => v
           <Text variant="caption" color="secondary" align="center">
             Premium adds your predicted-band trend, weekly/monthly activity, minutes studied, Writing &amp; Speaking breakdowns by criterion, and question-type accuracy.
           </Text>
-          <Button label="Upgrade to Premium" onPress={onUpgrade} fullWidth />
+          <CompactButton label="Upgrade to Premium" onPress={onUpgrade} />
         </Card>
       )}
     </>

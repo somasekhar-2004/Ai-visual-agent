@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { WritingFeedbackView } from '@/components/testing/WritingFeedbackView';
 import { WritingChart } from '@/components/writing/WritingChart';
-import { Badge, Button, Card, DailyLimitCard, IconCircle, Text } from '@/components/ui';
+import { Badge, Button, Card, CompactButton, DailyLimitCard, IconCircle, Text } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
@@ -253,7 +253,7 @@ export default function WritingTestScreen() {
         <Text color="secondary" align="center">
           {insufficientEvidence.explanation}
         </Text>
-        <Button label="Done" onPress={() => (nextHref ? router.replace(nextHref as any) : router.replace('/(tabs)/tests'))} fullWidth />
+        <CompactButton label="Done" onPress={() => (nextHref ? router.replace(nextHref as any) : router.replace('/(tabs)/tests'))} />
       </SafeAreaView>
     );
   }
@@ -268,7 +268,7 @@ export default function WritingTestScreen() {
         <Text color="secondary" align="center">
           {errorMessage ?? 'We could not evaluate your essay. Check your connection and try again.'}
         </Text>
-        <Button label="Try again" onPress={() => { submittingRef.current = false; setErrorMessage(null); setPhase('writing'); }} fullWidth />
+        <CompactButton label="Try again" onPress={() => { submittingRef.current = false; setErrorMessage(null); setPhase('writing'); }} />
       </SafeAreaView>
     );
   }

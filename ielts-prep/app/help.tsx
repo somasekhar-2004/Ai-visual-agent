@@ -1,7 +1,7 @@
 import React from 'react';
 import { Linking, View } from 'react-native';
 
-import { Button, Card, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Card, CompactButton, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useAccountDeletion } from '@/hooks/useAccountDeletion';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -118,7 +118,7 @@ export default function HelpScreen() {
       </Card>
 
       <View style={{ marginBottom: theme.spacing.huge }}>
-        <Button label="Delete account" variant="danger" onPress={confirmDelete} loading={deleting} fullWidth />
+        <CompactButton label="Delete account" variant="danger" onPress={confirmDelete} loading={deleting} />
       </View>
     </Screen>
   );

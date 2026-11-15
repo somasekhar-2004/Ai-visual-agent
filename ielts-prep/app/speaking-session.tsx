@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useShallow } from 'zustand/react/shallow';
 
 import { SpeakingFeedbackView } from '@/components/testing/SpeakingFeedbackView';
-import { Badge, Button, Card, DailyLimitCard, IconCircle, ProgressBar, Text } from '@/components/ui';
+import { Badge, Button, Card, CompactButton, DailyLimitCard, IconCircle, ProgressBar, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { confirmAsync } from '@/lib/confirm';
@@ -392,7 +392,7 @@ export default function SpeakingSessionScreen() {
         <Text color="secondary" align="center">
           {insufficientEvidence.explanation}
         </Text>
-        <Button
+        <CompactButton
           label="Try again"
           onPress={() => {
             setInsufficientEvidence(null);
@@ -401,7 +401,6 @@ export default function SpeakingSessionScreen() {
             setTurnIndex(0);
             setPhase('intro');
           }}
-          fullWidth
         />
         <Button label="Exit test" variant="ghost" onPress={handleExit} />
       </SafeAreaView>
@@ -450,7 +449,7 @@ export default function SpeakingSessionScreen() {
 
         {phase === 'intro' ? (
           <View style={{ gap: theme.spacing.sm }}>
-            <Button label={turn.isCue ? 'Start 1-minute preparation' : 'Start speaking'} onPress={turn.isCue ? startPrep : startRecording} fullWidth />
+            <CompactButton label={turn.isCue ? 'Start 1-minute preparation' : 'Start speaking'} onPress={turn.isCue ? startPrep : startRecording} />
             {turnIndex === 0 ? (
               <Text variant="caption" color="tertiary" align="center">
                 Your recording is processed to generate a transcript and speaking feedback.
@@ -477,7 +476,7 @@ export default function SpeakingSessionScreen() {
               Recording — {secondsLeft}s remaining
             </Text>
             <ProgressBar progress={1 - secondsLeft / turn.maxSpeakSeconds} color={theme.colors.error} />
-            <Button label="Stop and continue" variant="danger" onPress={stopRecording} fullWidth leftIcon={<Ionicons name="stop" size={16} color={theme.colors.onPrimary} />} />
+            <CompactButton label="Stop and continue" variant="danger" onPress={stopRecording} leftIcon={<Ionicons name="stop" size={16} color={theme.colors.onPrimary} />} />
           </View>
         ) : null}
 

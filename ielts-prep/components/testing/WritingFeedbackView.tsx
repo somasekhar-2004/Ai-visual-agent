@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, DemoAiBadge, ProgressBar, Screen, Text } from '@/components/ui';
+import { Card, CompactButton, DemoAiBadge, ProgressBar, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import type { WritingEvaluation, WritingEvaluationResult } from '@/services/ai';
 
@@ -118,7 +118,7 @@ export function WritingFeedbackView({ evaluation, onDone }: { evaluation: Writin
         This score is an AI-generated estimate for practice purposes and is not an official IELTS result.
       </Text>
 
-      <Button label="Done" onPress={onDone} fullWidth style={{ marginBottom: theme.spacing.huge }} />
+      <CompactButton label="Done" onPress={onDone} style={{ marginBottom: theme.spacing.huge }} />
     </Screen>
   );
 }

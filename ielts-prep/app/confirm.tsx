@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
-import { Button, IconCircle, Screen, Text } from '@/components/ui';
+import { CompactButton, IconCircle, Screen, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { firstMissingOnboardingStepRoute, validateOnboardingInput } from '@/lib/onboardingValidation';
 import { exchangeConfirmationCode, setOnboardingComplete } from '@/services/auth';
@@ -152,10 +152,9 @@ export default function ConfirmScreen() {
           <Text color="secondary" align="center">
             {errorMessage}
           </Text>
-          <Button
+          <CompactButton
             label="Go to sign in"
             onPress={() => router.replace('/(auth)/sign-in')}
-            fullWidth
             style={{ marginTop: theme.spacing.md }}
           />
         </View>
@@ -178,7 +177,7 @@ export default function ConfirmScreen() {
             {continueError}
           </Text>
         ) : null}
-        <Button label="Continue" onPress={handleContinue} loading={continuing} fullWidth style={{ marginTop: theme.spacing.md }} />
+        <CompactButton label="Continue" onPress={handleContinue} loading={continuing} style={{ marginTop: theme.spacing.md }} />
       </View>
     </Screen>
   );

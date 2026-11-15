@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { Flashcard } from '@/components/vocabulary/Flashcard';
-import { Button, Card, Chip, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Button, Card, Chip, CompactButton, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { content } from '@/lib/content';
 import { listVocabulary, reviewVocabWord } from '@/services/repository';
@@ -76,11 +76,11 @@ export default function VocabularyPracticeScreen() {
           <IconCircle name="ribbon-outline" size={72} backgroundColor={theme.colors.successSoft} color={theme.colors.success} />
           <Text variant="h2">{mode === 'quiz' ? `${quizScore}/${words.length} correct` : 'Deck complete'}</Text>
           {mode === 'flashcards' ? (
-            <Button label="Start quiz" onPress={startQuiz} fullWidth />
+            <CompactButton label="Start quiz" onPress={startQuiz} />
           ) : (
-            <Button label="Review flashcards again" onPress={() => { setMode('flashcards'); setIndex(0); }} fullWidth />
+            <CompactButton label="Review flashcards again" onPress={() => { setMode('flashcards'); setIndex(0); }} />
           )}
-          <Button label="Back to vocabulary" variant="ghost" onPress={() => router.back()} fullWidth />
+          <CompactButton label="Back to vocabulary" variant="ghost" onPress={() => router.back()} />
         </View>
       </Screen>
     );

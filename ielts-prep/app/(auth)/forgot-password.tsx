@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
+import { Button, CompactButton, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useResendCooldown } from '@/hooks/useResendCooldown';
 import { useTheme } from '@/hooks/useTheme';
 import { AUTH_RESEND_COOLDOWN_SECONDS } from '@/lib/authCooldown';
@@ -83,7 +83,7 @@ export default function ForgotPasswordScreen() {
           editable={status !== 'sending'}
         />
         {message ? <Text color={status === 'error' ? 'error' : 'secondary'}>{message}</Text> : null}
-        <Button label={buttonLabel} onPress={handleSend} loading={status === 'sending'} disabled={onCooldown || !email} fullWidth />
+        <CompactButton label={buttonLabel} onPress={handleSend} loading={status === 'sending'} disabled={onCooldown || !email} />
       </View>
       <Button label="Back to sign in" variant="ghost" onPress={() => router.back()} style={{ marginTop: theme.spacing.lg }} />
     </Screen>

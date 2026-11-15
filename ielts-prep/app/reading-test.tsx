@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExamAnswerInput } from '@/components/testing/ExamAnswerInput';
 import { HighlightablePassage } from '@/components/testing/HighlightablePassage';
 import { QuestionNavigator } from '@/components/testing/QuestionNavigator';
-import { Badge, Button, Card, IconCircle, Screen, Text, TextField } from '@/components/ui';
+import { Badge, Button, Card, CompactButton, IconCircle, Screen, Text, TextField } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
 import { isAnswerCorrect } from '@/lib/answerChecking';
@@ -244,9 +244,8 @@ export default function ReadingTestScreen() {
         <Text variant="caption" color="tertiary" style={{ marginBottom: theme.spacing.lg }}>
           This is an IELTS-style practice estimate from a standard raw-score conversion table, not an official IELTS result (no AI is involved in this score — it is based purely on your number of correct answers).
         </Text>
-        <Button
+        <CompactButton
           label="Continue"
-          fullWidth
           onPress={() => (nextHref ? router.replace(nextHref as any) : router.replace('/(tabs)/tests'))}
         />
       </Screen>

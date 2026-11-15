@@ -47,3 +47,18 @@ edges respond normally.
 not removed, since they reduce (without eliminating) how often the bug is
 hit. Do not revert them without reproducing and fixing the underlying cause
 first.
+
+**Update:** the user independently reproduced the same edge-tap failure on
+the "Continue" button (`app/confirm.tsx`, and the same shared `Continue`
+in `components/onboarding/OnboardingScaffold.tsx` used by 8 onboarding
+screens), confirming this isn't unique to Check-answer. The compact/centred
+workaround has been factored out into `components/ui/CompactButton.tsx`
+and applied to essentially every other large standalone action button
+app-wide (auth, onboarding, paywall/subscription, practice/test result
+screens, feedback "Done" buttons, etc.) as a precautionary measure, not
+because each one was individually confirmed affected. Two things were
+deliberately left `fullWidth`/untouched: `practice-session.tsx`'s "Next
+question"/"Finish" button — the original control case explicitly confirmed
+NOT to have this bug — and `dev-health-check.tsx`'s "Run all checks" button,
+which is dev-only and never ships to users. This remains an accepted
+workaround, not a confirmed fix; the root cause is still unknown.

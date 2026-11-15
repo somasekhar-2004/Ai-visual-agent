@@ -4,7 +4,7 @@ import { View } from 'react-native';
 
 import { DevAuthVersionBadge } from '@/components/auth/DevAuthVersionBadge';
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
-import { Button, IconCircle, Screen, Text, TextField } from '@/components/ui';
+import { CompactButton, IconCircle, Screen, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { setOnboardingComplete, signInWithEmail } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
@@ -55,7 +55,7 @@ export default function SignInScreen() {
         </View>
         <ResendConfirmationNotice email={pendingEmail} alreadyRegistered />
         <View style={{ marginTop: theme.spacing.xl }}>
-          <Button label="Back to sign in" variant="ghost" onPress={() => setPendingEmail(null)} fullWidth />
+          <CompactButton label="Back to sign in" variant="ghost" onPress={() => setPendingEmail(null)} />
         </View>
       </Screen>
     );
@@ -82,8 +82,8 @@ export default function SignInScreen() {
       </View>
 
       <View style={{ gap: theme.spacing.sm, marginTop: theme.spacing.xl }}>
-        <Button label="Sign in" onPress={handleSignIn} loading={loading} fullWidth />
-        <Button label="Create a new account" variant="ghost" onPress={() => router.push('/(auth)/sign-up')} fullWidth />
+        <CompactButton label="Sign in" onPress={handleSignIn} loading={loading} />
+        <CompactButton label="Create a new account" variant="ghost" onPress={() => router.push('/(auth)/sign-up')} />
       </View>
     </Screen>
   );

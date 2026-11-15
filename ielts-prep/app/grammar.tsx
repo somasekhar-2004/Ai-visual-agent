@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, Chip, IconCircle, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
+import { Badge, Card, Chip, CompactButton, IconCircle, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { FREE_GRAMMAR_LESSON_LIMIT } from '@/lib/entitlements';
 import { listGrammarLessons } from '@/services/repository';
@@ -37,12 +37,11 @@ export default function GrammarHubScreen() {
         Targeted lessons on the grammar patterns that matter most for IELTS.
       </Text>
 
-      <Button
+      <CompactButton
         label="Practice questions on your weak topics"
         variant="secondary"
         onPress={() => router.push({ pathname: '/grammar-practice', params: { mode: 'weak' } })}
         style={{ marginBottom: theme.spacing.md }}
-        fullWidth
       />
 
       <TextField value={search} onChangeText={setSearch} placeholder="Search lessons..." style={{ marginBottom: theme.spacing.sm }} />
@@ -87,7 +86,7 @@ export default function GrammarHubScreen() {
           <Text variant="caption" color="secondary" align="center">
             Free includes {FREE_GRAMMAR_LESSON_LIMIT} of {lessons.length} grammar lessons. Upgrade for the full library.
           </Text>
-          <Button label="Upgrade to Premium" onPress={() => router.push('/paywall')} fullWidth />
+          <CompactButton label="Upgrade to Premium" onPress={() => router.push('/paywall')} />
         </Card>
       ) : null}
     </Screen>

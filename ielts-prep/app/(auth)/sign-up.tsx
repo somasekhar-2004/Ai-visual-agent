@@ -4,7 +4,7 @@ import { View } from 'react-native';
 
 import { DevAuthVersionBadge } from '@/components/auth/DevAuthVersionBadge';
 import { ResendConfirmationNotice } from '@/components/auth/ResendConfirmationNotice';
-import { Button, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
+import { CompactButton, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { signUpWithEmail } from '@/services/auth';
 import { useAppStore } from '@/store/useAppStore';
@@ -70,8 +70,8 @@ export default function SignUpScreen() {
         <ScreenHeader title="Account already exists" showBack />
         <Text color="secondary">An account with {flow.email} already exists.</Text>
         <View style={{ marginTop: theme.spacing.xl, gap: theme.spacing.sm }}>
-          <Button label="Sign in" onPress={goToSignIn} fullWidth />
-          <Button label="Use a different email" variant="ghost" onPress={() => setFlow({ kind: 'idle' })} fullWidth />
+          <CompactButton label="Sign in" onPress={goToSignIn} />
+          <CompactButton label="Use a different email" variant="ghost" onPress={() => setFlow({ kind: 'idle' })} />
         </View>
       </Screen>
     );
@@ -84,7 +84,7 @@ export default function SignUpScreen() {
         <ScreenHeader title="Create account" showBack />
         <ResendConfirmationNotice email={flow.email} alreadyRegistered={flow.alreadyRegistered} justResent={flow.alreadyRegistered} />
         <View style={{ marginTop: theme.spacing.xl }}>
-          <Button label="Use a different email" variant="ghost" onPress={() => setFlow({ kind: 'idle' })} fullWidth />
+          <CompactButton label="Use a different email" variant="ghost" onPress={() => setFlow({ kind: 'idle' })} />
         </View>
       </Screen>
     );
@@ -101,8 +101,8 @@ export default function SignUpScreen() {
         {error ? <Text color="error">{error}</Text> : null}
       </View>
       <View style={{ marginTop: theme.spacing.xl, gap: theme.spacing.sm }}>
-        <Button label="Create account" onPress={handleSignUp} loading={loading} fullWidth />
-        <Button label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} fullWidth />
+        <CompactButton label="Create account" onPress={handleSignUp} loading={loading} />
+        <CompactButton label="Already have an account? Sign in" variant="ghost" onPress={goToSignIn} />
       </View>
     </Screen>
   );

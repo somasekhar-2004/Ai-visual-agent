@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Badge, Button, Card, IconCircle, ProgressBar, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
+import { Badge, Button, Card, CompactButton, IconCircle, ProgressBar, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { listGrammarQuestions, recordDailyActivity, recordGrammarAttempt, weakGrammarTopics, getGrammarQuestionAttempts } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
@@ -119,7 +119,7 @@ export default function GrammarPracticeScreen() {
             {score}/{questions.length} correct
           </Text>
           <Badge label={`${pct}%`} tone={pct >= 70 ? 'success' : pct >= 40 ? 'warning' : 'error'} />
-          <Button
+          <CompactButton
             label="Practice again"
             onPress={() => {
               // A genuinely new, separately-completed set must still be
@@ -131,9 +131,8 @@ export default function GrammarPracticeScreen() {
               setSubmitted(false);
               setAnswer('');
             }}
-            fullWidth
           />
-          <Button label="Back to Grammar" variant="ghost" onPress={() => router.back()} fullWidth />
+          <CompactButton label="Back to Grammar" variant="ghost" onPress={() => router.back()} />
         </View>
       </Screen>
     );
@@ -209,11 +208,10 @@ export default function GrammarPracticeScreen() {
           </View>
         ) : null}
 
-        <Button
+        <CompactButton
           label={submitted ? (index + 1 < questions.length ? 'Next question' : 'See results') : 'Check answer'}
           onPress={submitted ? handleNext : handleSubmit}
           disabled={!submitted && !answer.trim()}
-          fullWidth
         />
       </Card>
     </Screen>

@@ -11,7 +11,7 @@ import { CollapsiblePanel } from '@/components/practice/CollapsiblePanel';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { HighlightablePassage } from '@/components/testing/HighlightablePassage';
 import { TranscriptAudioPlayer } from '@/components/testing/TranscriptAudioPlayer';
-import { Button, Chip, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
+import { Button, Chip, CompactButton, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
@@ -462,8 +462,8 @@ export default function PracticeSessionScreen() {
             {correctCount}/{results.length}
           </Text>
           <Text color="secondary">questions correct this session</Text>
-          <Button label="Practice again" onPress={() => resetToFreshSession()} fullWidth />
-          <Button label="Back to Practice" variant="ghost" onPress={() => router.back()} fullWidth />
+          <CompactButton label="Practice again" onPress={() => resetToFreshSession()} />
+          <CompactButton label="Back to Practice" variant="ghost" onPress={() => router.back()} />
         </View>
       </Screen>
     );

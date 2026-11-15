@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { AiCoachFab } from '@/components/home/AiCoachFab';
 import { StudyPlanItemRow } from '@/components/home/StudyPlanItemRow';
 import { ProgressDashboard } from '@/components/dashboard/ProgressDashboard';
-import { Button, Card, DemoAiBadge, IconCircle, Text } from '@/components/ui';
+import { Button, Card, CompactButton, DemoAiBadge, IconCircle, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { goalSetupRoute } from '@/lib/goalSetupNav';
 import { getHomeViewState } from '@/lib/homeViewState';
@@ -215,11 +215,10 @@ export default function HomeScreen() {
           ) : (
             <Text color="secondary">Nothing scheduled for today — tap below to practice your weakest skill anyway.</Text>
           )}
-          <Button
+          <CompactButton
             label="Continue studying"
             onPress={() => router.push({ pathname: '/practice-session', params: { skill: goal.weakestSkill ?? 'reading' } })}
             style={{ marginTop: theme.spacing.sm }}
-            fullWidth
           />
         </Card>
       ) : (

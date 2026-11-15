@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
 
-import { Button } from './Button';
+import { CompactButton } from './CompactButton';
 import { Card } from './Card';
 import { IconCircle } from './IconCircle';
 import { Text } from './Text';
@@ -32,7 +32,7 @@ export function DailyLimitCard({ used, limit, feature }: { used: number; limit: 
           Resets at midnight
         </Text>
       </View>
-      <Button label="Upgrade to Premium" onPress={() => router.push('/paywall')} style={{ marginTop: theme.spacing.sm }} fullWidth />
+      <CompactButton label="Upgrade to Premium" onPress={() => router.push('/paywall')} style={{ marginTop: theme.spacing.sm }} />
     </Card>
   );
 }
