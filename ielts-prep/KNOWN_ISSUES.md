@@ -62,3 +62,18 @@ question"/"Finish" button — the original control case explicitly confirmed
 NOT to have this bug — and `dev-health-check.tsx`'s "Run all checks" button,
 which is dev-only and never ships to users. This remains an accepted
 workaround, not a confirmed fix; the root cause is still unknown.
+
+**Follow-up (readability):** compact buttons can't widen to fit a long
+label, so `CompactButton` now passes `wrapLabel` to `Button`: the button is
+capped at the screen width, the label wraps centred, and the button grows
+taller (never below 48dp) instead of clipping at a fixed height on narrow
+phones or with a large system font size. `wrapLabel` is off by default, so
+every other `Button` — including "Check answer" in `QuestionCard.tsx` and
+the "Next question" control case — keeps its exact layout. Covered by
+`__tests__/compactButtonLayout.test.tsx` (layout only; it cannot prove the
+on-device touch bug is gone). Also deliberately left as-is after an
+all-screens audit, to be checked on-device rather than changed blindly:
+the stacked vocabulary-quiz answer options (`vocabulary-practice.tsx`,
+`fullWidth` — an answer list, not a standalone action) and the side-by-side
+`flex: 1` pairs (Reading/Listening test "Previous"/"Next", flashcard
+"Didn't know"/"Knew it"), since compacting a pair would break the row.

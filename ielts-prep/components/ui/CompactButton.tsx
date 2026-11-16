@@ -11,11 +11,17 @@ import { Button, type ButtonProps } from './Button';
  * Button alone) is deliberate — see QuestionCard.tsx's comment for why.
  * This is an accepted workaround, not a fix: it narrows the gap between a
  * tap and the button's own centre, it does not address the underlying
- * cause, which remains unknown. */
-export function CompactButton({ style, ...props }: Omit<ButtonProps, 'fullWidth'>) {
+ * cause, which remains unknown.
+ *
+ * `wrapLabel` keeps long labels (e.g. "Already have an account? Sign in",
+ * "Start 1-minute preparation") readable on narrow phones and with large
+ * system font sizes: the button is capped at the screen width, the label
+ * wraps centred, and the button grows taller (never below 48dp) instead of
+ * clipping. Single-line labels render exactly as before. */
+export function CompactButton({ style, ...props }: Omit<ButtonProps, 'fullWidth' | 'wrapLabel'>) {
   return (
     <View style={{ alignItems: 'center' }}>
-      <Button {...props} style={[{ paddingHorizontal: 32, minHeight: 48 }, style]} />
+      <Button {...props} wrapLabel style={[{ paddingHorizontal: 32, minHeight: 48 }, style]} />
     </View>
   );
 }

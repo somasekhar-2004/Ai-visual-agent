@@ -24,6 +24,11 @@ export type ButtonProps = {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** Let a long label wrap onto more lines (centred) and the button grow
+   * taller instead of clipping at its fixed height. Off by default so every
+   * existing Button keeps its exact layout; CompactButton turns it on because
+   * a compact button can't widen to fit a long label. */
+  wrapLabel?: boolean;
 };
 
 export function Button({
@@ -37,6 +42,7 @@ export function Button({
   leftIcon,
   rightIcon,
   style,
+  wrapLabel,
 }: ButtonProps) {
   const theme = useTheme();
   const isDisabled = disabled || loading;
@@ -76,7 +82,9 @@ export function Button({
       style={({ pressed }) => [
         styles.base,
         {
-          height: heights[size],
+          ...(wrapLabel
+            ? { minHeight: heights[size], paddingVertical: 12, maxWidth: '100%' as const }
+            : { height: heights[size] }),
           paddingHorizontal: paddingX[size],
           backgroundColor: backgrounds[variant],
           borderRadius: theme.radius.md,
@@ -95,7 +103,11 @@ export function Button({
           {leftIcon}
           <Text
             variant="button"
-            style={{ color: textColors[variant], marginHorizontal: leftIcon || rightIcon ? 8 : 0 }}
+            align={wrapLabel ? 'center' : undefined}
+            style={[
+              { color: textColors[variant], marginHorizontal: leftIcon || rightIcon ? 8 : 0 },
+              wrapLabel && { flexShrink: 1 },
+            ]}
           >
             {label}
           </Text>
