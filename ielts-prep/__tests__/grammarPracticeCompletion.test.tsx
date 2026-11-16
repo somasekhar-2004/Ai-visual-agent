@@ -37,6 +37,9 @@ const ONE_QUESTION = [
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ topic: 'Test Topic', mode: undefined }),
   useRouter: () => ({ back: jest.fn() }),
+  // Recent-activity session-open recording (hooks/useRecordSessionOpen.ts) is
+  // covered by its own tests; a no-op keeps this file focused on practice logic.
+  useFocusEffect: () => {},
 }));
 
 jest.mock('@/services/repository', () => ({

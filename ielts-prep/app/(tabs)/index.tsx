@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, AppState, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -15,7 +15,7 @@ import { goalSetupRoute } from '@/lib/goalSetupNav';
 import { getHomeViewState } from '@/lib/homeViewState';
 import { studyPlanItemTarget } from '@/lib/studyPlanNav';
 import { studyPlanFocusQueryKey, studyPlanQueryKey } from '@/lib/studyPlanQueryKeys';
-import { formatRelativeTime, recentActivityForHome } from '@/lib/recentActivity';
+import { formatRelativeTime, RECENT_ACTIVITY_WINDOW_HOURS, recentActivityForHome } from '@/lib/recentActivity';
 import { getDeviceTimeZone, getLocalDateString } from '@/lib/timezone';
 import type { CoachContext } from '@/services/ai';
 import {
@@ -25,6 +25,7 @@ import {
   getTestHistory,
   listMockTests,
 } from '@/services/repository';
+import { getSessionOpens, sessionOpensQueryKey } from '@/services/sessionOpens';
 import { useAppStore } from '@/store/useAppStore';
 
 // Regression fix: this used to be `new Date().toISOString().slice(0, 10)` —
@@ -67,6 +68,33 @@ export default function HomeScreen() {
     queryFn: () => getTestHistory(userId!),
     enabled: Boolean(userId),
   });
+
+  // Session starts/resumes for Recent activity (on-device only, never
+  // test_history — see lib/recentActivity.ts). useRecordSessionOpen writes
+  // straight into this query's cache, so Home is already current on return.
+  const sessionOpensQuery = useQuery({
+    queryKey: sessionOpensQueryKey(userId),
+    queryFn: () => getSessionOpens(userId!),
+    enabled: Boolean(userId),
+  });
+
+  // Recent activity's 6-hour window is relative to "now", so "now" is
+  // refreshed whenever Home comes back into view (returning from a session)
+  // or the app returns to the foreground — otherwise a Home left open in
+  // the background would keep showing entries that have since aged out.
+  const [now, setNow] = React.useState(() => new Date());
+  useFocusEffect(
+    React.useCallback(() => {
+      setNow(new Date());
+      if (userId) queryClient.invalidateQueries({ queryKey: sessionOpensQueryKey(userId) });
+    }, [userId, queryClient])
+  );
+  React.useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') setNow(new Date());
+    });
+    return () => sub.remove();
+  }, []);
 
   const focusQuery = useQuery({
     queryKey: studyPlanFocusQueryKey(userId, goal?.updatedAt, today()),
@@ -142,10 +170,13 @@ export default function HomeScreen() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const freeMock = listMockTests().find((m) => m.isFree);
-  // See lib/recentActivity.ts: filtered to the last 7 days, and grouped so
-  // a continued AI Chat conversation shows as one row (with its latest
-  // time), not one row per message.
-  const recentActivity = recentActivityForHome(historyQuery.data ?? []);
+  // See lib/recentActivity.ts: only the last 6 hours; a continued AI Chat
+  // conversation shows as one row (with its latest time), not one row per
+  // message; and a started/resumed session shows as one row per kind.
+  const recentActivity = recentActivityForHome(historyQuery.data ?? [], {
+    now,
+    opens: sessionOpensQuery.data ?? {},
+  });
 
   async function toggleItem(itemId: string, isCompleted: boolean) {
     if (!planQuery.data || isCompleted) return;
@@ -249,7 +280,7 @@ export default function HomeScreen() {
       </Text>
       <Card style={{ marginBottom: theme.spacing.lg }}>
         {recentActivity.length === 0 ? (
-          <Text color="secondary">No activity in the last 7 days.</Text>
+          <Text color="secondary">No activity in the last {RECENT_ACTIVITY_WINDOW_HOURS} hours.</Text>
         ) : (
           recentActivity.map((entry, i) => (
             <View
@@ -268,11 +299,11 @@ export default function HomeScreen() {
                   {entry.activityType.replace('_', ' ')}
                 </Text>
                 <Text variant="caption" color="tertiary">
-                  {formatRelativeTime(entry.createdAt)}
+                  {formatRelativeTime(entry.createdAt, now)}
                 </Text>
               </View>
               <Text variant="body" color="secondary">
-                {entry.band ? `Band ${entry.band.toFixed(1)}` : '—'}
+                {entry.kind === 'opened' ? 'Opened' : entry.band ? `Band ${entry.band.toFixed(1)}` : '—'}
               </Text>
             </View>
           ))

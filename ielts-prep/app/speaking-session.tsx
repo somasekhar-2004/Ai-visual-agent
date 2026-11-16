@@ -12,6 +12,7 @@ import { SpeakingFeedbackView } from '@/components/testing/SpeakingFeedbackView'
 import { Badge, Button, Card, CompactButton, DailyLimitCard, IconCircle, ProgressBar, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { useRecordSessionOpen } from '@/hooks/useRecordSessionOpen';
 import { confirmAsync } from '@/lib/confirm';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_SPEAKING_PRACTICE_EVALS } from '@/lib/entitlements';
 import { firstParam } from '@/lib/firstParam';
@@ -44,6 +45,8 @@ export default function SpeakingSessionScreen() {
   const groupId = firstParam(raw.groupId);
   const mockAttemptId = firstParam(raw.mockAttemptId);
   const mockTestId = firstParam(raw.mockTestId);
+  // Recent activity: starting/resuming this session (never an attempt).
+  useRecordSessionOpen(mockAttemptId ? 'mock_test' : 'speaking');
   const stepIndex = firstParam(raw.stepIndex);
   const nextHref =
     mockTestId && mockAttemptId && stepIndex != null

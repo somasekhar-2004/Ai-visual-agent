@@ -11,6 +11,7 @@ import { QuestionNavigator } from '@/components/testing/QuestionNavigator';
 import { Badge, Button, Card, CompactButton, IconCircle, Screen, Text, TextField } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
+import { useRecordSessionOpen } from '@/hooks/useRecordSessionOpen';
 import { isAnswerCorrect } from '@/lib/answerChecking';
 import { rawScoreToBand } from '@/lib/bandScore';
 import { confirmAsync } from '@/lib/confirm';
@@ -39,6 +40,8 @@ export default function ReadingTestScreen() {
   const passageId = firstParam(raw.passageId);
   const mockAttemptId = firstParam(raw.mockAttemptId);
   const mockTestId = firstParam(raw.mockTestId);
+  // Recent activity: starting/resuming this session (never an attempt).
+  useRecordSessionOpen(mockAttemptId ? 'mock_test' : 'reading');
   const stepIndex = firstParam(raw.stepIndex);
   const durationMinutes = firstParam(raw.durationMinutes);
   const nextHref =

@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native';
 
 import { Badge, Button, Card, CompactButton, IconCircle, ProgressBar, Screen, ScreenHeader, Text, TextField } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { useRecordSessionOpen } from '@/hooks/useRecordSessionOpen';
 import { listGrammarQuestions, recordDailyActivity, recordGrammarAttempt, weakGrammarTopics, getGrammarQuestionAttempts } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,6 +19,8 @@ export default function GrammarPracticeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { topic, mode } = useLocalSearchParams<{ topic?: string; mode?: string }>();
+  // Recent activity: starting/resuming this session (never an attempt).
+  useRecordSessionOpen('grammar');
   const userId = useAppStore((s) => s.userId);
   const refreshUserData = useAppStore((s) => s.refreshUserData);
 

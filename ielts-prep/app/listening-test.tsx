@@ -11,6 +11,7 @@ import { TranscriptAudioPlayer } from '@/components/testing/TranscriptAudioPlaye
 import { Badge, Button, Card, CompactButton, IconCircle, Screen, Text } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
+import { useRecordSessionOpen } from '@/hooks/useRecordSessionOpen';
 import { isAnswerCorrect } from '@/lib/answerChecking';
 import { rawScoreToBand } from '@/lib/bandScore';
 import { confirmAsync } from '@/lib/confirm';
@@ -30,6 +31,8 @@ export default function ListeningTestScreen() {
   const trackIds = firstParam(raw.trackIds);
   const mockAttemptId = firstParam(raw.mockAttemptId);
   const mockTestId = firstParam(raw.mockTestId);
+  // Recent activity: starting/resuming this session (never an attempt).
+  useRecordSessionOpen(mockAttemptId ? 'mock_test' : 'listening');
   const stepIndex = firstParam(raw.stepIndex);
   const durationMinutes = firstParam(raw.durationMinutes);
   const nextHref =

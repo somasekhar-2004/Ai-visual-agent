@@ -13,6 +13,7 @@ import { HighlightablePassage } from '@/components/testing/HighlightablePassage'
 import { TranscriptAudioPlayer } from '@/components/testing/TranscriptAudioPlayer';
 import { Button, Chip, CompactButton, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { useRecordSessionOpen } from '@/hooks/useRecordSessionOpen';
 import { confirmAsync } from '@/lib/confirm';
 import { content } from '@/lib/content';
 import { groupQuestions } from '@/lib/practiceGrouping';
@@ -61,6 +62,8 @@ export default function PracticeSessionScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { skill, mode, questionType } = useLocalSearchParams<Params>();
+  // Recent activity: starting/resuming this session (never an attempt).
+  useRecordSessionOpen(skill ?? 'practice');
   const { userId, refreshUserData } = useAppStore(useShallow((s) => ({
     userId: s.userId,
     refreshUserData: s.refreshUserData,

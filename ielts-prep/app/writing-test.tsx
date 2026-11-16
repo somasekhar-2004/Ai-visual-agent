@@ -12,6 +12,7 @@ import { WritingChart } from '@/components/writing/WritingChart';
 import { Badge, Button, Card, CompactButton, DailyLimitCard, IconCircle, Text } from '@/components/ui';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/hooks/useTheme';
+import { useRecordSessionOpen } from '@/hooks/useRecordSessionOpen';
 import { content } from '@/lib/content';
 import { confirmAsync } from '@/lib/confirm';
 import { activityUsedToday, checkDailyLimit, FREE_DAILY_WRITING_PRACTICE_EVALS } from '@/lib/entitlements';
@@ -42,6 +43,8 @@ export default function WritingTestScreen() {
   const promptId = firstParam(raw.promptId);
   const mockAttemptId = firstParam(raw.mockAttemptId);
   const mockTestId = firstParam(raw.mockTestId);
+  // Recent activity: starting/resuming this session (never an attempt).
+  useRecordSessionOpen(mockAttemptId ? 'mock_test' : 'writing');
   const stepIndex = firstParam(raw.stepIndex);
   const nextHref =
     mockTestId && mockAttemptId && stepIndex != null

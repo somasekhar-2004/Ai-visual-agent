@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { Flashcard } from '@/components/vocabulary/Flashcard';
 import { Button, Card, Chip, CompactButton, IconCircle, ProgressBar, Screen, ScreenHeader, Text } from '@/components/ui';
 import { useTheme } from '@/hooks/useTheme';
+import { useRecordSessionOpen } from '@/hooks/useRecordSessionOpen';
 import { content } from '@/lib/content';
 import { listVocabulary, reviewVocabWord } from '@/services/repository';
 import { useAppStore } from '@/store/useAppStore';
@@ -19,6 +20,8 @@ export default function VocabularyPracticeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { topic } = useLocalSearchParams<{ topic: string }>();
+  // Recent activity: starting/resuming this session (never an attempt).
+  useRecordSessionOpen('vocabulary');
   const userId = useAppStore((s) => s.userId);
 
   const [mode, setMode] = useState<'flashcards' | 'quiz'>('flashcards');
